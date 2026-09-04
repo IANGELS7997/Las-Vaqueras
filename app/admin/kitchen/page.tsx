@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import {
   ChefHat,
@@ -30,8 +30,8 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useOrders } from '@/lib/orders-context';
 import { MENU_ITEMS, CATEGORIES } from '@/lib/mock-data';
-import { calcCartItemPrice, formatMXN } from '@/lib/pricing';
-import { KitchenShift } from '@/components/kitchen-shift';
+import { formatMXN } from '@/lib/pricing';
+import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { ThermalTicket } from '@/components/thermal-ticket';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
@@ -40,40 +40,125 @@ const STATUS_CONFIG: Record<
   OrderStatus,
   { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }
 > = {
-  recibido: { label: 'Recibido', icon: Receipt, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
-  en_cocina: { label: 'En Cocina', icon: ChefHat, color: 'text-brand-400', bgColor: 'bg-brand-500/15' },
-  en_camino: { label: 'En Camino', icon: Bike, color: 'text-yellow-400', bgColor: 'bg-yellow-500/15' },
-  entregado: { label: 'Entregado', icon: CheckCircle2, color: 'text-green-400', bgColor: 'bg-green-500/15' },
-  cancelado: { label: 'Cancelado', icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/15' },
+  pending: { label: 'Recibido', icon: Receipt, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
+  preparing: { label: 'Preparando', icon: ChefHat, color: 'text-brand-400', bgColor: 'bg-brand-500/15' },
+  in_transit: { label: 'En camino', icon: Bike, color: 'text-yellow-400', bgColor: 'bg-yellow-500/15' },
+  delivered: { label: 'Entregado', icon: CheckCircle2, color: 'text-green-400', bgColor: 'bg-green-500/15' },
+  cancelled: { label: 'Cancelado', icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/15' },
 };
 
 const NEXT_STATUS: Record<string, OrderStatus> = {
-  recibido: 'en_cocina',
-  en_cocina: 'en_camino',
-  en_camino: 'entregado',
+  pending: 'preparing',
+  preparing: 'in_transit',
+  in_transit: 'delivered',
 };
 
 export default function KitchenDashboardPage() {
-  const { orders, updateOrderStatus, outOfStockIds, toggleOutOfStock } = useOrders();
+  const { outOfStockIds, toggleOutOfStock } = useOrders();
+  const [orders, setOrders] = useState<Order[]>([]);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+  const [shiftActive, setShiftActive] = useState(false);
+  const [autoPrint, setAutoPrint] = useState(true);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const printQueueRef = useRef<string[]>([]);
+  const shiftActiveRef = useRef(false);
+  const autoPrintRef = useRef(true);
 
-  const activeOrders = orders.filter((o) => o.status !== 'entregado' && o.status !== 'cancelado');
-  const completedOrders = orders.filter((o) => o.status === 'entregado' || o.status === 'cancelado');
+  shiftActiveRef.current = shiftActive;
+  autoPrintRef.current = autoPrint;
 
-  const handlePrint = () => {
-    window.print();
+  const enqueuePrint = (orderId: string) => {
+    if (printQueueRef.current.includes(orderId)) return;
+    printQueueRef.current.push(orderId);
+    setPrintingOrderId((current) => {
+      if (current) return current;
+      return printQueueRef.current.shift() ?? null;
+    });
   };
 
-  const handleAdvanceStatus = (order: Order) => {
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const response = await fetch('/api/kitchen/orders');
+      if (!response.ok) return;
+      const payload = await response.json();
+      const nextOrders = (payload.orders || []) as Order[];
+      if (cancelled) return;
+      const nextIds = new Set(nextOrders.map((order) => order.id));
+      const isFirstLoad = knownIdsRef.current.size === 0;
+      if (!isFirstLoad) {
+        nextOrders.forEach((order) => {
+          if (!knownIdsRef.current.has(order.id) && order.status === 'pending') {
+            notifyKitchenNewOrder();
+            if (shiftActiveRef.current && autoPrintRef.current) {
+              enqueuePrint(order.id);
+            }
+          }
+        });
+      }
+      knownIdsRef.current = nextIds;
+      setOrders(nextOrders);
+    };
+    void load();
+    const interval = setInterval(load, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!printingOrderId) return;
+    const onAfterPrint = () => {
+      setPrintingOrderId(printQueueRef.current.shift() ?? null);
+    };
+    window.addEventListener('afterprint', onAfterPrint);
+    const timer = window.setTimeout(() => window.print(), 80);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('afterprint', onAfterPrint);
+    };
+  }, [printingOrderId]);
+
+  const activeOrders = orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled');
+  const completedOrders = orders.filter((o) => o.status === 'delivered' || o.status === 'cancelled');
+
+  const handlePrint = (orderId: string) => {
+    setPrintingOrderId(orderId);
+  };
+
+  const handleAdvanceStatus = async (order: Order) => {
     const next = NEXT_STATUS[order.status];
-    if (next) updateOrderStatus(order.id, next);
+    if (!next) return;
+    await fetch(`/api/orders/${order.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    });
+    setOrders((prev) => prev.map((item) => (item.id === order.id ? { ...item, status: next } : item)));
   };
 
-  const handleCancelOrder = () => {
-    if (cancelOrderId) {
-      updateOrderStatus(cancelOrderId, 'cancelado');
-      setCancelOrderId(null);
+  const handleCancelOrder = async () => {
+    if (!cancelOrderId) return;
+    const order = orders.find((item) => item.id === cancelOrderId);
+    if (order?.stripePaymentIntentId) {
+      await fetch('/api/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId: order.stripePaymentIntentId }),
+      });
+    } else {
+      await fetch(`/api/orders/${cancelOrderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
     }
+    setOrders((prev) =>
+      prev.map((item) => (item.id === cancelOrderId ? { ...item, status: 'cancelled' } : item))
+    );
+    setCancelOrderId(null);
   };
 
   const getTimeAgo = (iso: string) => {
@@ -93,7 +178,13 @@ export default function KitchenDashboardPage() {
       </div>
 
       <div className="mb-6">
-        <KitchenShift />
+        <KitchenShift onShiftChange={setShiftActive} />
+        {shiftActive && (
+          <label className="mt-3 flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2 text-sm text-white">
+            <span>Imprimir comanda automáticamente al pagar</span>
+            <Switch checked={autoPrint} onCheckedChange={setAutoPrint} />
+          </label>
+        )}
       </div>
 
       {/* Active orders */}
@@ -125,7 +216,7 @@ export default function KitchenDashboardPage() {
                   key={order.id}
                   className={cn(
                     'rounded-2xl border border-border/60 bg-card p-4 transition-all',
-                    order.status === 'recibido' && 'border-blue-500/30'
+                    order.status === 'pending' && 'border-blue-500/30'
                   )}
                 >
                   <div className="mb-3 flex items-center justify-between">
@@ -200,7 +291,7 @@ export default function KitchenDashboardPage() {
                       </Button>
                     )}
                     <Button
-                      onClick={handlePrint}
+                      onClick={() => handlePrint(order.id)}
                       variant="outline"
                       size="sm"
                       className="border-border bg-card"
@@ -226,7 +317,7 @@ export default function KitchenDashboardPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle className="text-white">¿Cancelar pedido #{order.id}?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Se simulará un reembolso automático al cliente. Esta acción no se puede deshacer.
+                            Se hará un reembolso Stripe (reverse_transfer + application fee) y el pedido quedará cancelado.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -244,7 +335,7 @@ export default function KitchenDashboardPage() {
                     </AlertDialog>
                   </div>
 
-                  <ThermalTicket order={order} />
+                  <ThermalTicket order={order} active={printingOrderId === order.id} />
                 </div>
               );
             })}

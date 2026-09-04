@@ -55,7 +55,7 @@ export interface CartItem {
   specialInstructions?: string;
 }
 
-export type OrderStatus = 'recibido' | 'en_cocina' | 'en_camino' | 'entregado' | 'cancelado';
+export type OrderStatus = 'pending' | 'preparing' | 'in_transit' | 'delivered' | 'cancelled';
 
 export interface OrderCustomer {
   name: string;
@@ -68,6 +68,7 @@ export type PaymentMethod = 'apple_pay' | 'google_pay' | 'card';
 
 export interface Order {
   id: string;
+  stripePaymentIntentId?: string;
   items: CartItem[];
   customer: OrderCustomer;
   paymentMethod: PaymentMethod;
@@ -75,6 +76,8 @@ export interface Order {
   serviceFee: number;
   deliveryFee: number;
   total: number;
+  restaurantPayout?: number;
+  platformFee?: number;
   status: OrderStatus;
   createdAt: string;
   estimatedMinutes: number;

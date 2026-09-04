@@ -3,39 +3,43 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Trash2, ArrowLeft, CreditCard, Loader2, CheckCircle2, MapPin, User, Phone } from 'lucide-react';
+import { Trash2, ArrowLeft, CreditCard, Loader2, MapPin, User } from 'lucide-react';
+import { CheckoutPayment } from '@/components/checkout-payment';
 import { useCart } from '@/lib/cart-context';
-import { useOrders } from '@/lib/orders-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { calcCartItemPrice, calcOrderTotal, formatMXN, SERVICE_FEE_RATE, DELIVERY_FEE } from '@/lib/pricing';
-import type { Order, PaymentMethod, OrderStatus } from '@/types';
+import {
+  calcCartBaseTotal,
+  calcCartItemPrice,
+  DELIVERY_FEE,
+  formatMXN,
+  SERVICE_FEE_RATE,
+} from '@/lib/pricing';
+import { calcCheckoutSplit } from '@/lib/checkout-split';
+import type { Order } from '@/types';
 import { cn } from '@/lib/utils';
+
+const PENDING_KEY = 'lv_pending_checkout';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, removeItem, clearCart, setLastOrder } = useCart();
-  const { addOrder } = useOrders();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [references, setReferences] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [processing, setProcessing] = useState(false);
+  const [creatingIntent, setCreatingIntent] = useState(false);
+  const [payError, setPayError] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [paymentIntentId, setPaymentIntentId] = useState('');
 
-  const subtotal = items.reduce((sum, item) => {
-    return sum + calcCartItemPrice(item.price_base, item.comboUpgrade?.price_base) * item.quantity;
-  }, 0);
-  const { serviceFee, deliveryFee, total } = calcOrderTotal(subtotal);
+  const priceBaseTotal = calcCartBaseTotal(items);
+  const split = calcCheckoutSplit({ priceBaseTotal, deliveryFee: DELIVERY_FEE });
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -43,46 +47,53 @@ export default function CheckoutPage() {
     if (!phone.trim()) e.phone = 'El teléfono es obligatorio';
     else if (phone.replace(/\D/g, '').length < 10) e.phone = 'Teléfono inválido (mín. 10 dígitos)';
     if (!address.trim()) e.address = 'La dirección es obligatoria';
-    if (paymentMethod === 'card') {
-      if (cardNumber.replace(/\s/g, '').length < 15) e.cardNumber = 'Número de tarjeta inválido';
-      if (!cardExpiry.trim()) e.cardExpiry = 'Requerido';
-      if (cardCvc.length < 3) e.cardCvc = 'CVC inválido';
-    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleConfirm = () => {
+  const startPayment = async () => {
     if (items.length === 0) return;
     if (!validate()) return;
+    setCreatingIntent(true);
+    setPayError('');
 
-    setProcessing(true);
+    const customer = { name, phone, address, references };
+    const response = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        priceBaseTotal,
+        deliveryFee: DELIVERY_FEE,
+        stripeAccountId: process.env.NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID,
+        customer,
+      }),
+    });
+    const payload = await response.json();
+    setCreatingIntent(false);
 
-    setTimeout(() => {
-      const orderId = `LV-${Date.now().toString().slice(-6)}`;
-      const order: Order = {
-        id: orderId,
-        items: [...items],
-        customer: { name, phone, address, references },
-        paymentMethod,
-        subtotal,
-        serviceFee,
-        deliveryFee,
-        total,
-        status: 'recibido' as OrderStatus,
-        createdAt: new Date().toISOString(),
-        estimatedMinutes: 35,
-      };
+    if (!response.ok) {
+      setPayError(payload.error || 'No se pudo iniciar el pago');
+      return;
+    }
 
-      addOrder(order);
-      setLastOrder(order);
-      clearCart();
-      setProcessing(false);
-      router.push(`/orders/${orderId}`);
-    }, 1800);
+    const pending = {
+      customer,
+      items,
+      paymentIntentId: payload.id as string,
+    };
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+    setPaymentIntentId(payload.id);
+    setClientSecret(payload.clientSecret);
   };
 
-  if (items.length === 0) {
+  const handlePaid = (order: Order) => {
+    sessionStorage.removeItem(PENDING_KEY);
+    setLastOrder(order);
+    clearCart();
+    router.push(`/orders/${order.id}`);
+  };
+
+  if (items.length === 0 && !clientSecret) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <p className="text-lg font-semibold text-white">Tu carrito está vacío</p>
@@ -109,7 +120,6 @@ export default function CheckoutPage() {
 
       <div className="grid gap-6 md:grid-cols-5">
         <div className="space-y-6 md:col-span-3">
-          {/* Order items */}
           <div className="rounded-2xl border border-border/60 bg-card p-4">
             <h2 className="mb-3 text-sm font-bold text-white">Tu pedido ({items.length} items)</h2>
             <div className="space-y-3">
@@ -118,7 +128,7 @@ export default function CheckoutPage() {
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg">
                     <Image src={item.image} alt={item.name} fill className="object-cover" sizes="56px" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-white">{item.name}</p>
                     <p className="text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
                     {item.selections.map((sel) =>
@@ -131,27 +141,25 @@ export default function CheckoutPage() {
                     {item.comboUpgrade && (
                       <p className="text-xs text-brand-400">{item.comboUpgrade.name}</p>
                     )}
-                    {item.specialInstructions && (
-                      <p className="text-xs text-muted-foreground italic">"{item.specialInstructions}"</p>
-                    )}
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-sm font-semibold text-white">
                       {formatMXN(calcCartItemPrice(item.price_base, item.comboUpgrade?.price_base) * item.quantity)}
                     </span>
-                    <button
-                      onClick={() => removeItem(item.uid)}
-                      className="text-muted-foreground transition-colors hover:text-red-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {!clientSecret && (
+                      <button
+                        onClick={() => removeItem(item.uid)}
+                        className="text-muted-foreground transition-colors hover:text-red-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Customer info */}
           <div className="rounded-2xl border border-border/60 bg-card p-4">
             <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
               <User className="h-4 w-4 text-brand-500" />
@@ -164,6 +172,7 @@ export default function CheckoutPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Tu nombre"
+                  disabled={Boolean(clientSecret)}
                   className={cn(errors.name && 'border-red-500')}
                 />
                 {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
@@ -174,6 +183,7 @@ export default function CheckoutPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+52 614 ..."
+                  disabled={Boolean(clientSecret)}
                   className={cn(errors.phone && 'border-red-500')}
                 />
                 {errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}
@@ -184,6 +194,7 @@ export default function CheckoutPage() {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Calle, número, colonia"
+                  disabled={Boolean(clientSecret)}
                   className={cn(errors.address && 'border-red-500')}
                 />
                 {errors.address && <p className="mt-1 text-xs text-red-400">{errors.address}</p>}
@@ -196,136 +207,75 @@ export default function CheckoutPage() {
                   placeholder="Ej: casa azul, frente al parque..."
                   className="resize-none"
                   rows={2}
+                  disabled={Boolean(clientSecret)}
                 />
               </div>
             </div>
           </div>
 
-          {/* Payment */}
           <div className="rounded-2xl border border-border/60 bg-card p-4">
             <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
               <CreditCard className="h-4 w-4 text-brand-500" />
-              Método de pago
+              Pago
             </h2>
-            <RadioGroup
-              value={paymentMethod}
-              onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-              className="grid gap-2"
-            >
-              <label
-                className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition-colors',
-                  paymentMethod === 'apple_pay' ? 'border-brand-500 bg-brand-500/10' : 'border-border hover:border-brand-500/40'
-                )}
-              >
-                <RadioGroupItem value="apple_pay" />
-                <span className="flex-1 text-sm font-medium text-white">Apple Pay</span>
-                <span className="text-xs text-muted-foreground">Pago instantáneo</span>
-              </label>
-              <label
-                className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition-colors',
-                  paymentMethod === 'google_pay' ? 'border-brand-500 bg-brand-500/10' : 'border-border hover:border-brand-500/40'
-                )}
-              >
-                <RadioGroupItem value="google_pay" />
-                <span className="flex-1 text-sm font-medium text-white">Google Pay</span>
-                <span className="text-xs text-muted-foreground">Pago instantáneo</span>
-              </label>
-              <label
-                className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition-colors',
-                  paymentMethod === 'card' ? 'border-brand-500 bg-brand-500/10' : 'border-border hover:border-brand-500/40'
-                )}
-              >
-                <RadioGroupItem value="card" />
-                <span className="flex-1 text-sm font-medium text-white">Tarjeta de crédito/débito</span>
-              </label>
-            </RadioGroup>
-
-            {paymentMethod === 'card' && (
-              <div className="mt-4 grid gap-3">
-                <div>
-                  <Label className="mb-1.5">Número de tarjeta</Label>
-                  <Input
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    placeholder="4242 4242 4242 4242"
-                    className={cn(errors.cardNumber && 'border-red-500')}
-                  />
-                  {errors.cardNumber && <p className="mt-1 text-xs text-red-400">{errors.cardNumber}</p>}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="mb-1.5">Vencimiento</Label>
-                    <Input
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(e.target.value)}
-                      placeholder="MM/YY"
-                      className={cn(errors.cardExpiry && 'border-red-500')}
-                    />
-                    {errors.cardExpiry && <p className="mt-1 text-xs text-red-400">{errors.cardExpiry}</p>}
-                  </div>
-                  <div>
-                    <Label className="mb-1.5">CVC</Label>
-                    <Input
-                      value={cardCvc}
-                      onChange={(e) => setCardCvc(e.target.value)}
-                      placeholder="123"
-                      className={cn(errors.cardCvc && 'border-red-500')}
-                    />
-                    {errors.cardCvc && <p className="mt-1 text-xs text-red-400">{errors.cardCvc}</p>}
-                  </div>
-                </div>
+            {clientSecret ? (
+              <CheckoutPayment
+                clientSecret={clientSecret}
+                pending={{
+                  customer: { name, phone, address, references },
+                  items,
+                  paymentIntentId,
+                }}
+                onPaid={handlePaid}
+              />
+            ) : (
+              <div>
+                {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
+                <Button
+                  onClick={startPayment}
+                  disabled={creatingIntent}
+                  className="w-full bg-brand-500 text-white hover:bg-brand-600"
+                  size="lg"
+                >
+                  {creatingIntent ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Preparando pago...
+                    </>
+                  ) : (
+                    'Continuar al pago seguro'
+                  )}
+                </Button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Order summary */}
         <div className="md:col-span-2">
           <div className="sticky top-24 rounded-2xl border border-border/60 bg-card p-4">
             <h2 className="mb-3 text-sm font-bold text-white">Resumen del pedido</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
-                <span className="text-white">{formatMXN(subtotal)}</span>
+                <span>Subtotal (precio web)</span>
+                <span className="text-white">{formatMXN(split.subtotalWeb)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Cargo por servicio ({(SERVICE_FEE_RATE * 100).toFixed(0)}%)</span>
-                <span className="text-white">{formatMXN(serviceFee)}</span>
+                <span>Cargo al cliente ({(SERVICE_FEE_RATE * 100).toFixed(0)}%)</span>
+                <span className="text-white">{formatMXN(split.customerFee)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Envío</span>
-                <span className="text-white">{formatMXN(deliveryFee)}</span>
+                <span className="text-white">{formatMXN(split.deliveryFee)}</span>
               </div>
               <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-base font-bold">
                 <span className="text-white">Total</span>
-                <span className="text-brand-500">{formatMXN(total)}</span>
+                <span className="text-brand-500">{formatMXN(split.totalCharged)}</span>
               </div>
             </div>
-
-            <Button
-              onClick={handleConfirm}
-              disabled={processing}
-              className="mt-4 w-full bg-brand-500 text-white hover:bg-brand-600"
-              size="lg"
-            >
-              {processing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Procesando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Confirmar y Pagar
-                </>
-              )}
-            </Button>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Pago simulado · No se realizará ningún cargo real
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
+              El restaurante recibe {formatMXN(split.restaurantPayout)} (92% del menú físico).
             </p>
           </div>
         </div>

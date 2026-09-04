@@ -1,101 +1,73 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
-import { Volume2, VolumeX, Bell } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState } from 'react';
 
-export function KitchenShift() {
-  const [shiftActive, setShiftActive] = useState(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+const ALERT_EVENT = 'lv-kitchen-alert';
+const SOUND_SRC = '/sounds/new-order.wav';
 
-  const playAlert = useCallback(() => {
-    if (!audioCtxRef.current) return;
-    const ctx = audioCtxRef.current;
-    const now = ctx.currentTime;
+export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boolean) => void }) {
+  const [isShiftActive, setIsShiftActive] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    const playTone = (freq: number, start: number, duration: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = freq;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0, now + start);
-      gain.gain.linearRampToValueAtTime(0.3, now + start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
-      osc.start(now + start);
-      osc.stop(now + start + duration);
-    };
-
-    playTone(880, 0, 0.15);
-    playTone(1100, 0.18, 0.15);
-    playTone(880, 0.36, 0.15);
-  }, []);
-
-  const handleStartShift = () => {
-    try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContext();
-      }
-      if (audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume();
-      }
-      setShiftActive(true);
-      playAlert();
-    } catch {
-      setShiftActive(true);
-    }
+  const playFullAlert = () => {
+    const alertAudio = audioRef.current;
+    if (!alertAudio) return;
+    alertAudio.currentTime = 0;
+    void alertAudio.play().catch((err) => console.error('Error al reproducir alerta:', err));
   };
 
+  useEffect(() => {
+    if (!isShiftActive) return;
+    const onAlert = () => playFullAlert();
+    window.addEventListener(ALERT_EVENT, onAlert);
+    return () => window.removeEventListener(ALERT_EVENT, onAlert);
+  }, [isShiftActive]);
+
+  const handleStartShift = () => {
+    const alertAudio = new Audio(SOUND_SRC);
+    alertAudio
+      .play()
+      .then(() => {
+        alertAudio.pause();
+        alertAudio.currentTime = 0;
+        audioRef.current = alertAudio;
+        setIsShiftActive(true);
+        onShiftChange?.(true);
+      })
+      .catch((err) => console.error('Error al activar audio:', err));
+  };
+
+  if (!isShiftActive) {
+    return (
+      <div className="mb-6 rounded-lg border border-amber-800 bg-amber-950 p-4 text-center">
+        <button
+          onClick={handleStartShift}
+          className="w-full rounded-md bg-emerald-600 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-emerald-700"
+        >
+          🔊 INICIAR TURNO Y ACTIVAR ALERTAS SONORAS
+        </button>
+        <p className="mt-2 text-xs text-amber-300">
+          Requerido para autorizar sonido e impresión automática de comandas en Chrome/Safari.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        'rounded-2xl border-2 p-6 transition-all duration-500',
-        shiftActive
-          ? 'border-green-500/30 bg-green-500/5'
-          : 'border-green-500/40 bg-green-500/10'
-      )}
-    >
-      {!shiftActive ? (
-        <div className="text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/20">
-            <VolumeX className="h-7 w-7 text-green-400" />
-          </div>
-          <h2 className="text-lg font-bold text-white">Turno inactivo</h2>
-          <p className="mt-1 mb-4 text-sm text-muted-foreground">
-            Activa el turno para recibir alertas sonoras de nuevos pedidos.
-          </p>
-          <button
-            onClick={handleStartShift}
-            className="w-full rounded-xl bg-green-500 px-6 py-4 text-base font-bold text-white shadow-lg shadow-green-500/30 transition-all hover:bg-green-600 active:scale-[0.98] sm:w-auto"
-          >
-            <Volume2 className="mr-2 inline h-5 w-5" />
-            INICIAR TURNO Y ACTIVAR ALERTAS SONORAS
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
-              <Volume2 className="h-6 w-6 text-green-400" />
-              <span className="absolute inset-0 rounded-full border-2 border-green-500 animate-pulse-ring" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Turno activo</h2>
-              <p className="text-xs text-green-400">Alertas sonoras activadas</p>
-            </div>
-          </div>
-          <button
-            onClick={playAlert}
-            className="rounded-lg bg-green-500/20 px-4 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-500/30"
-          >
-            <Bell className="mr-1.5 inline h-4 w-4" />
-            Probar sonido
-          </button>
-        </div>
-      )}
+    <div className="mb-6 flex items-center justify-between rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-medium text-emerald-200">
+      <span>🟢 Turno Activo — Alertas e impresión de comandas al pagar</span>
+      <button
+        type="button"
+        onClick={playFullAlert}
+        className="rounded-md border border-emerald-700 px-3 py-1 text-xs text-emerald-100 transition-colors hover:bg-emerald-900"
+      >
+        Probar sonido
+      </button>
+      <span className="h-3 w-3 animate-pulse rounded-full bg-emerald-400" />
     </div>
   );
 }
 
-export { playAlert };
+export function notifyKitchenNewOrder() {
+  window.dispatchEvent(new CustomEvent(ALERT_EVENT));
+}

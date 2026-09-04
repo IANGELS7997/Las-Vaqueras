@@ -6,9 +6,10 @@ import type { Order } from '@/types';
 
 interface ThermalTicketProps {
   order: Order;
+  active?: boolean;
 }
 
-export function ThermalTicket({ order }: ThermalTicketProps) {
+export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
   const getTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -19,7 +20,14 @@ export function ThermalTicket({ order }: ThermalTicketProps) {
   };
 
   return (
-    <div className="print-ticket hidden font-mono text-[11px] leading-tight text-black">
+    <div
+      id={active ? 'ticket-comanda' : undefined}
+      className={
+        active
+          ? 'font-mono text-[12px] leading-tight text-black'
+          : 'hidden font-mono text-[12px] leading-tight text-black'
+      }
+    >
       <div className="text-center">
         <p className="font-bold">LAS VAQUERAS</p>
         <p>{RESTAURANT_INFO.address}</p>

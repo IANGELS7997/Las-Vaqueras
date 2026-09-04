@@ -1,0 +1,14 @@
+---
+description: Pending n8n post-payment workflow — do not forget to finish later
+alwaysApply: true
+---
+
+# n8n: pago exitoso (pendiente)
+
+El usuario pidió **dejar esto para después**. No publicar ni ejecutar el workflow hasta que lo pida.
+
+- Workflow: [Las Vaqueras: pago exitoso](https://n8n.pureiangel.com/workflow/SKVvYOhKSnPj1ggY) (`SKVvYOhKSnPj1ggY`)
+- Estado al pausar: inactivo; credenciales Stripe/Supabase/Uber/Facturapi/Resend enganchadas; cadena preparing → Uber → Facturapi → email reconectada
+- Al retomar: publicar solo con confirmación explícita; remitente Resend no puede ser Gmail; insertar pedido `pending` al crear el PaymentIntent (carrera webhook vs insert); `from` en Set Mail Defaults
+
+Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct, Facturapi o Resend, **recuérdale este pendiente** antes de otra tarea.

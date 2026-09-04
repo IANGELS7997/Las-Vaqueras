@@ -54,21 +54,29 @@
   }
 }
 
+#ticket-comanda {
+  display: none;
+}
+
 @media print {
   body * {
     visibility: hidden;
   }
-  .print-ticket,
-  .print-ticket * {
+  #ticket-comanda,
+  #ticket-comanda * {
     visibility: visible;
   }
-  .print-ticket {
+  #ticket-comanda {
+    display: block !important;
     position: absolute;
     left: 0;
     top: 0;
     width: 80mm;
-    background: white;
-    color: black;
+    font-size: 12px;
+    font-family: monospace;
+    color: #000;
+    background: #fff;
+    padding: 2mm;
   }
   @page {
     size: 80mm auto;
