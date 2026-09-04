@@ -1,9 +1,10 @@
-export const WEB_MARKUP = 1.05;
+/** 5% processing absorption + 8% platform fee over physical menu base */
+export const WEB_MARKUP = 1.13;
 export const SERVICE_FEE_RATE = 0.04;
 export const RESTAURANT_PAYOUT_RATE = 0.92;
 export const DELIVERY_FEE = 35;
 
-/** M_web = Math.round(M_base * 1.05) */
+/** price_web = Math.round(price_base * 1.13) */
 export function calcWebPrice(priceBase: number): number {
   return Math.round(priceBase * WEB_MARKUP);
 }

@@ -1,4 +1,11 @@
-export type CategoryId = 'papas' | 'boneless' | 'combos' | 'bebidas';
+export type CategoryId =
+  | 'papas'
+  | 'boneless'
+  | 'combos'
+  | 'tortas'
+  | 'peques'
+  | 'extras'
+  | 'bebidas';
 
 export interface Category {
   id: CategoryId;
