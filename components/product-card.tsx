@@ -1,9 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { Plus, Flame } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import type { MenuItem } from '@/types';
 import { calcWebPrice, formatMXN } from '@/lib/pricing';
+import { BrandLogo } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
 
 interface ProductCardProps {
@@ -16,6 +17,7 @@ const categoryLabels: Record<string, string> = {
   papas: 'Papas',
   boneless: 'Boneless',
   combos: 'Burger',
+  tortas: 'Torta',
   bebidas: 'Bebida',
 };
 
@@ -39,7 +41,7 @@ export function ProductCard({ item, onAdd, outOfStock }: ProductCardProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
         <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-brand-500/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
-          <Flame className="h-3 w-3" />
+          <BrandLogo alt="" className="h-4" width={32} height={16} />
           {categoryLabels[item.category]}
         </div>
         {item.serves && (

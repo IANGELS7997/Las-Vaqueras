@@ -1,6 +1,6 @@
 'use client';
 
-import { calcCartItemPrice, formatMXN } from '@/lib/pricing';
+import { formatMXN } from '@/lib/pricing';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import type { Order } from '@/types';
 
@@ -62,6 +62,14 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
               ) : null
             )}
             {item.comboUpgrade && <p className="pl-3">+ {item.comboUpgrade.name}</p>}
+            {item.extras?.map((extra) => (
+              <p key={extra.id} className="pl-3">
+                + Extra {extra.name}
+              </p>
+            ))}
+            {item.removals && item.removals.length > 0 && (
+              <p className="pl-3">Sin {item.removals.join(', ').toLowerCase()}</p>
+            )}
             {item.specialInstructions && <p className="pl-3 italic">Nota: {item.specialInstructions}</p>}
           </div>
         ))}

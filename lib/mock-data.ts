@@ -1,4 +1,4 @@
-import type { MenuItem, Category, ComboUpgrade, OptionChoice } from '@/types';
+import type { MenuItem, Category, ComboUpgrade, OptionChoice, ProductExtra } from '@/types';
 
 export const CATEGORIES: Category[] = [
   { id: 'combos', name: 'Hamburguesas', icon: 'Beef' },
@@ -6,7 +6,6 @@ export const CATEGORIES: Category[] = [
   { id: 'papas', name: 'Papas Vaqueras', icon: 'Flame' },
   { id: 'boneless', name: 'Boneless', icon: 'Drumstick' },
   { id: 'peques', name: 'Para los peques', icon: 'Drumstick' },
-  { id: 'extras', name: 'Extras', icon: 'Flame' },
   { id: 'bebidas', name: 'Bebidas', icon: 'CupSoda' },
 ];
 
@@ -42,6 +41,31 @@ const COMBO_UPGRADES: ComboUpgrade[] = [
   },
 ];
 
+const PRODUCT_EXTRAS: ProductExtra[] = [
+  { id: 'extra-pina', name: 'Piña', price_base: 14 },
+  { id: 'extra-carne-hamburguesa', name: 'Carne de hamburguesa', price_base: 29 },
+  { id: 'extra-fajitas', name: 'Fajitas de res', price_base: 29 },
+  { id: 'extra-tocino', name: 'Tocino', price_base: 29 },
+  { id: 'extra-salchicha', name: 'Salchicha para asar', price_base: 24 },
+];
+
+const PRODUCT_REMOVALS: OptionChoice[] = [
+  { id: 'sin-cebolla', name: 'Cebolla' },
+  { id: 'sin-jitomate', name: 'Jitomate' },
+  { id: 'sin-lechuga', name: 'Lechuga' },
+  { id: 'sin-mayonesa', name: 'Mayonesa' },
+  { id: 'sin-catsup', name: 'Catsup' },
+  { id: 'sin-mostaza', name: 'Mostaza' },
+  { id: 'sin-pepinillos', name: 'Pepinillos' },
+  { id: 'sin-queso', name: 'Queso' },
+];
+
+const BURGER_TORTA_OPTIONS = {
+  extras: PRODUCT_EXTRAS,
+  removals: PRODUCT_REMOVALS,
+  comboUpgrades: COMBO_UPGRADES,
+};
+
 export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-tradicional',
@@ -50,7 +74,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 99,
     image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-aguacatosa',
@@ -59,7 +83,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 114,
     image: 'https://images.pexels.com/photos/38895877/pexels-photo-38895877.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-tocino',
@@ -68,7 +92,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-campestre',
@@ -77,7 +101,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: 'https://images.pexels.com/photos/38895877/pexels-photo-38895877.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-hawaiana',
@@ -86,7 +110,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-pollo',
@@ -95,7 +119,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: 'https://images.pexels.com/photos/19247558/pexels-photo-19247558.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-fajita',
@@ -104,7 +128,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 139,
     image: 'https://images.pexels.com/photos/38895877/pexels-photo-38895877.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
 
   {
@@ -114,7 +138,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'tortas',
     price_base: 119,
     image: 'https://images.pexels.com/photos/5981144/pexels-photo-5981144.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'torta-vaquera',
@@ -123,7 +147,7 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'tortas',
     price_base: 139,
     image: 'https://images.pexels.com/photos/35020127/pexels-photo-35020127.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    comboUpgrades: COMBO_UPGRADES,
+    ...BURGER_TORTA_OPTIONS,
   },
 
   {
@@ -296,47 +320,6 @@ export const MENU_ITEMS: MenuItem[] = [
     price_base: 109,
     image: 'https://images.pexels.com/photos/19247558/pexels-photo-19247558.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
     serves: '1 niño',
-  },
-
-  {
-    id: 'extra-pina',
-    name: 'Piña',
-    description: 'Porción extra de piña.',
-    category: 'extras',
-    price_base: 14,
-    image: 'https://images.pexels.com/photos/947879/pexels-photo-947879.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-  },
-  {
-    id: 'extra-carne-hamburguesa',
-    name: 'Carne de Hamburguesa',
-    description: 'Carne extra para hamburguesa.',
-    category: 'extras',
-    price_base: 29,
-    image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-  },
-  {
-    id: 'extra-fajitas',
-    name: 'Fajitas de Res',
-    description: 'Porción extra de fajitas de res.',
-    category: 'extras',
-    price_base: 29,
-    image: 'https://images.pexels.com/photos/38895877/pexels-photo-38895877.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-  },
-  {
-    id: 'extra-tocino',
-    name: 'Tocino',
-    description: 'Porción extra de tocino.',
-    category: 'extras',
-    price_base: 29,
-    image: 'https://images.pexels.com/photos/20535803/pexels-photo-20535803.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-  },
-  {
-    id: 'extra-salchicha',
-    name: 'Salchicha para Asar',
-    description: 'Porción extra de salchicha para asar.',
-    category: 'extras',
-    price_base: 24,
-    image: 'https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
   },
 
   {

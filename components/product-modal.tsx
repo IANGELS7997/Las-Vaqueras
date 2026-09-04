@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
-import type { MenuItem, CartItem, CartItemSelection } from '@/types';
+import type { MenuItem, CartItem, CartItemSelection, ProductExtra } from '@/types';
 import { calcWebPrice, calcCartItemPrice, formatMXN } from '@/lib/pricing';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,8 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState<CartItemSelection[]>([]);
   const [comboUpgradeId, setComboUpgradeId] = useState<string | undefined>(undefined);
+  const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([]);
+  const [selectedRemovals, setSelectedRemovals] = useState<string[]>([]);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [error, setError] = useState('');
 
@@ -44,6 +46,8 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
         }))
       );
       setComboUpgradeId(undefined);
+      setSelectedExtras([]);
+      setSelectedRemovals([]);
       setSpecialInstructions('');
       setError('');
     }
@@ -51,10 +55,21 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
 
   if (!item) return null;
 
-  const webPrice = calcWebPrice(item.price_base);
   const selectedCombo = item.comboUpgrades?.find((c) => c.id === comboUpgradeId);
-  const unitPrice = calcCartItemPrice(item.price_base, selectedCombo?.price_base);
+  const unitPrice = calcCartItemPrice(item.price_base, selectedCombo?.price_base, selectedExtras);
   const totalPrice = unitPrice * quantity;
+
+  const toggleExtra = (extra: ProductExtra) => {
+    setSelectedExtras((prev) =>
+      prev.some((e) => e.id === extra.id) ? prev.filter((e) => e.id !== extra.id) : [...prev, extra]
+    );
+  };
+
+  const toggleRemoval = (name: string) => {
+    setSelectedRemovals((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
 
   const toggleChoice = (groupId: string, groupLabel: string, choiceId: string, max: number) => {
     setSelections((prev) =>
@@ -91,6 +106,8 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
       quantity,
       selections,
       comboUpgrade: selectedCombo,
+      extras: selectedExtras.length > 0 ? selectedExtras : undefined,
+      removals: selectedRemovals.length > 0 ? selectedRemovals : undefined,
       specialInstructions: specialInstructions.trim() || undefined,
     };
 
@@ -155,6 +172,66 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
               </div>
             );
           })}
+
+          {item.extras && item.extras.length > 0 && (
+            <div>
+              <Label className="mb-2 block text-sm font-semibold text-white">Extras</Label>
+              <div className="grid gap-2">
+                {item.extras.map((extra) => {
+                  const checked = selectedExtras.some((e) => e.id === extra.id);
+                  return (
+                    <label
+                      key={extra.id}
+                      className={cn(
+                        'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
+                        checked
+                          ? 'border-brand-500 bg-brand-500/10 text-white'
+                          : 'border-border text-muted-foreground hover:border-brand-500/40'
+                      )}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleExtra(extra)}
+                      />
+                      <span className="flex-1">{extra.name}</span>
+                      <span className="font-semibold text-brand-400">
+                        +{formatMXN(calcWebPrice(extra.price_base))}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {item.removals && item.removals.length > 0 && (
+            <div>
+              <Label className="mb-2 block text-sm font-semibold text-white">Quitar ingredientes</Label>
+              <p className="mb-2 text-xs text-muted-foreground">Marca lo que no quieres en tu orden.</p>
+              <div className="grid gap-2">
+                {item.removals.map((removal) => {
+                  const checked = selectedRemovals.includes(removal.name);
+                  return (
+                    <label
+                      key={removal.id}
+                      className={cn(
+                        'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
+                        checked
+                          ? 'border-brand-500 bg-brand-500/10 text-white'
+                          : 'border-border text-muted-foreground hover:border-brand-500/40'
+                      )}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleRemoval(removal.name)}
+                      />
+                      <span className="flex-1">Sin {removal.name.toLowerCase()}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {item.comboUpgrades && item.comboUpgrades.length > 0 && (
             <div>

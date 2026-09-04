@@ -3,16 +3,14 @@
 import Link from 'next/link';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { calcCartItemPrice, formatMXN } from '@/lib/pricing';
+import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
 
 export function FloatingCartBar() {
   const { items, itemCount } = useCart();
 
   if (itemCount === 0) return null;
 
-  const total = items.reduce((sum, item) => {
-    return sum + calcCartItemPrice(item.price_base, item.comboUpgrade?.price_base) * item.quantity;
-  }, 0);
+  const total = items.reduce((sum, item) => sum + calcCartLineWeb(item), 0);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-in-bottom px-4 pb-4">

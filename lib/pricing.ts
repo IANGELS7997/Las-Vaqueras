@@ -23,29 +23,53 @@ export function formatMXN(amount: number): string {
   return `$${amount.toFixed(2)} MXN`;
 }
 
+export function extrasBaseTotal(extras?: { price_base: number }[]): number {
+  return extras?.reduce((sum, extra) => sum + extra.price_base, 0) ?? 0;
+}
+
+export function extrasWebTotal(extras?: { price_base: number }[]): number {
+  return extras?.reduce((sum, extra) => sum + calcWebPrice(extra.price_base), 0) ?? 0;
+}
+
 export function calcCartItemPrice(
   priceBase: number,
-  comboUpgradePriceBase?: number
+  comboUpgradePriceBase?: number,
+  extras?: { price_base: number }[]
 ): number {
   const itemWeb = calcWebPrice(priceBase);
   const comboWeb = comboUpgradePriceBase ? calcWebPrice(comboUpgradePriceBase) : 0;
-  return itemWeb + comboWeb;
+  return itemWeb + comboWeb + extrasWebTotal(extras);
+}
+
+export function calcCartLineWeb(item: {
+  price_base: number;
+  quantity: number;
+  comboUpgrade?: { price_base: number };
+  extras?: { price_base: number }[];
+}): number {
+  return calcCartItemPrice(item.price_base, item.comboUpgrade?.price_base, item.extras) * item.quantity;
 }
 
 export function calcCartBaseTotal(
-  items: { price_base: number; quantity: number; comboUpgrade?: { price_base: number } }[]
+  items: {
+    price_base: number;
+    quantity: number;
+    comboUpgrade?: { price_base: number };
+    extras?: { price_base: number }[];
+  }[]
 ): number {
   return items.reduce((sum, item) => {
     const combo = item.comboUpgrade?.price_base ?? 0;
-    return sum + (item.price_base + combo) * item.quantity;
+    const extras = extrasBaseTotal(item.extras);
+    return sum + (item.price_base + combo + extras) * item.quantity;
   }, 0);
 }
 
 export function calcCartSubtotal(
-  items: { priceBase: number; quantity: number; comboUpgradePriceBase?: number }[]
+  items: { priceBase: number; quantity: number; comboUpgradePriceBase?: number; extras?: { price_base: number }[] }[]
 ): number {
   return items.reduce((sum, item) => {
-    return sum + calcCartItemPrice(item.priceBase, item.comboUpgradePriceBase) * item.quantity;
+    return sum + calcCartItemPrice(item.priceBase, item.comboUpgradePriceBase, item.extras) * item.quantity;
   }, 0);
 }
 

@@ -267,6 +267,16 @@ export default function KitchenDashboardPage() {
                         {item.comboUpgrade && (
                           <p className="pl-3 text-xs text-brand-400">+ {item.comboUpgrade.name}</p>
                         )}
+                        {item.extras?.map((extra) => (
+                          <p key={extra.id} className="pl-3 text-xs text-brand-400">
+                            + Extra {extra.name}
+                          </p>
+                        ))}
+                        {item.removals && item.removals.length > 0 && (
+                          <p className="pl-3 text-xs text-muted-foreground">
+                            Sin {item.removals.join(', ').toLowerCase()}
+                          </p>
+                        )}
                         {item.specialInstructions && (
                           <p className="pl-3 text-xs italic text-yellow-400/80">"{item.specialInstructions}"</p>
                         )}

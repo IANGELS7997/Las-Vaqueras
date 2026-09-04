@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Flame, MapPin, Clock, Phone } from 'lucide-react';
+import { MapPin, Clock, Phone, ChefHat } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { RESTAURANT_INFO, getOpenStatus, getTodayHours } from '@/lib/restaurant';
+import { BrandLogo } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
 
 export function SiteHeader() {
@@ -24,15 +25,22 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 shadow-lg shadow-brand-500/30">
-            <Flame className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold leading-none text-white">Las Vaqueras</h1>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Chihuahua, México</p>
-          </div>
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <a
+            href="/admin/kitchen"
+            className="flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-brand-500/50 hover:bg-brand-500 hover:text-white"
+          >
+            <ChefHat className="h-3.5 w-3.5" />
+            Cocina
+          </a>
+          <Link href="/" className="flex items-center gap-2.5">
+            <BrandLogo className="h-14" priority />
+            <div>
+              <h1 className="text-lg font-bold leading-none text-white">Las Vaqueras</h1>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Chihuahua, México</p>
+            </div>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-3">
           <div

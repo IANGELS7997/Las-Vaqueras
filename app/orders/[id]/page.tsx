@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { ArrowLeft, Clock, MapPin, Package, Phone } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
-import { calcCartItemPrice, formatMXN } from '@/lib/pricing';
+import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -191,9 +191,20 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{item.name}</p>
                 <p className="text-xs text-muted-foreground">Cantidad: {item.quantity}</p>
+                {item.extras?.map((extra) => (
+                  <p key={extra.id} className="text-xs text-muted-foreground">
+                    + {extra.name}
+                  </p>
+                ))}
+                {item.removals && item.removals.length > 0 && (
+                  <p className="text-xs text-muted-foreground">Sin {item.removals.join(', ').toLowerCase()}</p>
+                )}
+                {item.comboUpgrade && (
+                  <p className="text-xs text-muted-foreground">{item.comboUpgrade.name}</p>
+                )}
               </div>
               <span className="text-sm font-semibold">
-                {formatMXN(calcCartItemPrice(item.price_base, item.comboUpgrade?.price_base) * item.quantity)}
+                {formatMXN(calcCartLineWeb(item))}
               </span>
             </div>
           ))}

@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { Flame, MapPin, Phone, Clock, Shield, FileText } from 'lucide-react';
+import { MapPin, Phone, Clock, Shield, FileText } from 'lucide-react';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
+import { BrandLogo } from '@/components/brand-logo';
 
 export function SiteFooter() {
   return (
@@ -11,9 +12,7 @@ export function SiteFooter() {
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500">
-                <Flame className="h-5 w-5 text-white" />
-              </div>
+              <BrandLogo className="h-10" />
               <span className="font-bold text-white">Las Vaqueras</span>
             </div>
             <p className="text-sm text-muted-foreground">

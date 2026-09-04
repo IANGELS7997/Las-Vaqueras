@@ -7,12 +7,17 @@ import { useOrders } from '@/lib/orders-context';
 import { ProductCard } from '@/components/product-card';
 import { ProductModal } from '@/components/product-modal';
 import { FloatingCartBar } from '@/components/floating-cart-bar';
-import { Flame, Drumstick, Beef, CupSoda, UtensilsCrossed } from 'lucide-react';
+import { Drumstick, Beef, CupSoda, UtensilsCrossed } from 'lucide-react';
 import type { MenuItem, CartItem } from '@/types';
+import { BrandLogo } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
 
+function CategoryLogo({ className }: { className?: string }) {
+  return <BrandLogo alt="" className={className} width={32} height={16} />;
+}
+
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Flame,
+  Flame: CategoryLogo,
   Drumstick,
   Beef,
   CupSoda,
@@ -28,7 +33,13 @@ export default function Home() {
   const filteredItems = MENU_ITEMS.filter((item) => item.category === activeCategory);
 
   const handleCardClick = (item: MenuItem) => {
-    if (item.optionGroups && item.optionGroups.length > 0) {
+    const needsModal =
+      (item.optionGroups && item.optionGroups.length > 0) ||
+      (item.comboUpgrades && item.comboUpgrades.length > 0) ||
+      (item.extras && item.extras.length > 0) ||
+      (item.removals && item.removals.length > 0);
+
+    if (needsModal) {
       setModalItem(item);
       setModalOpen(true);
     } else {

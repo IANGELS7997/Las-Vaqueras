@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import {
   calcCartBaseTotal,
-  calcCartItemPrice,
+  calcCartLineWeb,
   DELIVERY_FEE,
   formatMXN,
   SERVICE_FEE_RATE,
@@ -138,13 +138,21 @@ export default function CheckoutPage() {
                         </p>
                       ) : null
                     )}
+                    {item.extras?.map((extra) => (
+                      <p key={extra.id} className="text-xs text-brand-400">
+                        + {extra.name}
+                      </p>
+                    ))}
+                    {item.removals && item.removals.length > 0 && (
+                      <p className="text-xs text-muted-foreground">Sin {item.removals.join(', ').toLowerCase()}</p>
+                    )}
                     {item.comboUpgrade && (
                       <p className="text-xs text-brand-400">{item.comboUpgrade.name}</p>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-sm font-semibold text-white">
-                      {formatMXN(calcCartItemPrice(item.price_base, item.comboUpgrade?.price_base) * item.quantity)}
+                        {formatMXN(calcCartLineWeb(item))}
                     </span>
                     {!clientSecret && (
                       <button

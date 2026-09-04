@@ -4,7 +4,6 @@ export type CategoryId =
   | 'combos'
   | 'tortas'
   | 'peques'
-  | 'extras'
   | 'bebidas';
 
 export interface Category {
@@ -32,6 +31,12 @@ export interface ComboUpgrade {
   price_base: number;
 }
 
+export interface ProductExtra {
+  id: string;
+  name: string;
+  price_base: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -41,6 +46,8 @@ export interface MenuItem {
   image: string;
   optionGroups?: OptionGroup[];
   comboUpgrades?: ComboUpgrade[];
+  extras?: ProductExtra[];
+  removals?: OptionChoice[];
   serves?: string;
 }
 
@@ -59,6 +66,8 @@ export interface CartItem {
   quantity: number;
   selections: CartItemSelection[];
   comboUpgrade?: ComboUpgrade;
+  extras?: ProductExtra[];
+  removals?: string[];
   specialInstructions?: string;
 }
 
