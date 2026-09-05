@@ -73,7 +73,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Clásica hamburguesa con queso derretido.',
     category: 'combos',
     price_base: 99,
-    image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/hamburguesa-tradicional.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
   {
@@ -82,7 +82,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Hamburguesa con aguacate fresco y toppings especiales.',
     category: 'combos',
     price_base: 114,
-    image: 'https://images.pexels.com/photos/38895877/pexels-photo-38895877.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/hamburguesa-aguacatosa.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
   {
@@ -91,7 +91,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Hamburguesa con tocino crujiente y queso.',
     category: 'combos',
     price_base: 129,
-    image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/hamburguesa-tocino.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
   {
@@ -100,7 +100,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Hamburguesa estilo campestre con ingredientes rústicos.',
     category: 'combos',
     price_base: 129,
-    image: 'https://images.pexels.com/photos/38895877/pexels-photo-38895877.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/hamburguesa-campestre.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
   {
@@ -109,35 +109,35 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Hamburguesa con piña y tocino al estilo hawaiano.',
     category: 'combos',
     price_base: 129,
-    image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/hamburguesa-hawaiana.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-pollo',
-    name: 'Hamburguesa de Pollo',
+    name: 'Hamburguesa de Pollo Especial',
     description: 'Filete de pollo a la plancha con toppings.',
     category: 'combos',
     price_base: 129,
-    image: 'https://images.pexels.com/photos/19247558/pexels-photo-19247558.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/hamburguesa-pollo.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
   {
     id: 'hamburguesa-fajita',
-    name: 'Fajita Burger',
+    name: 'Hamburguesa Fajita Especial',
     description: 'Hamburguesa con fajita de res y vegetales.',
     category: 'combos',
     price_base: 139,
-    image: 'https://images.pexels.com/photos/38895877/pexels-photo-38895877.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/hamburguesa-fajita.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
 
   {
     id: 'torta-lomo',
-    name: 'Torta Lomo Especial',
+    name: 'Torta de Lomo Especial',
     description: 'Torta de lomo especial con toppings de la casa.',
     category: 'tortas',
     price_base: 119,
-    image: 'https://images.pexels.com/photos/5981144/pexels-photo-5981144.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/torta-lomo.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
   {
@@ -146,7 +146,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Torta estilo vaquera con ingredientes especiales.',
     category: 'tortas',
     price_base: 139,
-    image: 'https://images.pexels.com/photos/35020127/pexels-photo-35020127.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/torta-vaquera.jpg',
     ...BURGER_TORTA_OPTIONS,
   },
 
@@ -156,7 +156,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Papas individuales. Elige 1 o 2 ingredientes.',
     category: 'papas',
     price_base: 129,
-    image: 'https://images.pexels.com/photos/20535803/pexels-photo-20535803.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/papas-medianas.jpg',
     serves: '1 persona',
     optionGroups: [
       {
@@ -181,7 +181,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Porción para 2 personas. Elige 1 a 3 ingredientes.',
     category: 'papas',
     price_base: 229,
-    image: 'https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/papas-grandes.jpg',
     serves: '2 personas',
     optionGroups: [
       {
@@ -206,7 +206,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Porción para 3 personas. Elige 1 a 4 ingredientes.',
     category: 'papas',
     price_base: 289,
-    image: 'https://images.pexels.com/photos/7961933/pexels-photo-7961933.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/papas-jumbo.jpg',
     serves: '3 personas',
     optionGroups: [
       {
@@ -232,7 +232,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Más de 250g de boneless crujientes. Elige tu salsa.',
     category: 'boneless',
     price_base: 119,
-    image: 'https://images.pexels.com/photos/11710530/pexels-photo-11710530.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/boneless-chicos.jpg',
     serves: '1 persona',
     optionGroups: [
       {
@@ -251,7 +251,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Más de 450g de boneless crujientes. Elige 1-2 salsas.',
     category: 'boneless',
     price_base: 143,
-    image: 'https://images.pexels.com/photos/31300944/pexels-photo-31300944.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/boneless-medianos.jpg',
     serves: '1-2 personas',
     optionGroups: [
       {
@@ -270,7 +270,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Más de 700g de boneless crujientes. Elige 1-3 salsas.',
     category: 'boneless',
     price_base: 229,
-    image: 'https://images.pexels.com/photos/8862763/pexels-photo-8862763.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/boneless-grandes.jpg',
     serves: '2-3 personas',
     optionGroups: [
       {
@@ -289,7 +289,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Más de 1kg de boneless crujientes. Elige 1-4 salsas.',
     category: 'boneless',
     price_base: 319,
-    image: 'https://images.pexels.com/photos/20535805/pexels-photo-20535805.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/boneless-jumbo.jpg',
     serves: '3-4 personas',
     optionGroups: [
       {
@@ -318,7 +318,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: '170g de pechuguitas empanizadas, papas francesas, juguito y galleta.',
     category: 'peques',
     price_base: 109,
-    image: 'https://images.pexels.com/photos/19247558/pexels-photo-19247558.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/combo-pechuguitas.jpg',
     serves: '1 niño',
   },
 
@@ -328,7 +328,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Refresco de 600ml. Selecciona tu sabor al confirmar.',
     category: 'bebidas',
     price_base: 39,
-    image: 'https://images.pexels.com/photos/8879622/pexels-photo-8879622.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/refrescos.jpg',
   },
   {
     id: 'agua-fresca-500',
@@ -344,7 +344,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Refresco de 400ml. Selecciona tu sabor al confirmar.',
     category: 'bebidas',
     price_base: 34,
-    image: 'https://images.pexels.com/photos/4113653/pexels-photo-4113653.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/refrescos.jpg',
   },
   {
     id: 'refresco-250',
@@ -352,7 +352,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Refresco de 250ml. Selecciona tu sabor al confirmar.',
     category: 'bebidas',
     price_base: 24,
-    image: 'https://images.pexels.com/photos/8879622/pexels-photo-8879622.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '/menu/refrescos.jpg',
   },
 ];
 
