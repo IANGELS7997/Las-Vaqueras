@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,15 +9,24 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { ProductOptionRow } from '@/components/product-option-row';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import type { MenuItem, CartItem, CartItemSelection, ProductExtra } from '@/types';
 import { calcWebPrice, calcCartItemPrice, formatMXN } from '@/lib/pricing';
+import { applyChoiceChecked } from '@/lib/product-selections';
 import { cn } from '@/lib/utils';
+
+function emptySelections(item: MenuItem): CartItemSelection[] {
+  return (item.optionGroups || []).map((group) => ({
+    optionGroupId: group.id,
+    optionGroupId_label: group.label,
+    choices: [],
+  }));
+}
 
 interface ProductModalProps {
   item: MenuItem | null;
@@ -35,23 +44,16 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [error, setError] = useState('');
 
-  useMemo(() => {
-    if (item) {
-      setQuantity(1);
-      setSelections(
-        (item.optionGroups || []).map((group) => ({
-          optionGroupId: group.id,
-          optionGroupId_label: group.label,
-          choices: [],
-        }))
-      );
-      setComboUpgradeId(undefined);
-      setSelectedExtras([]);
-      setSelectedRemovals([]);
-      setSpecialInstructions('');
-      setError('');
-    }
-  }, [item]);
+  useEffect(() => {
+    if (!item || !open) return;
+    setQuantity(1);
+    setSelections(emptySelections(item));
+    setComboUpgradeId(undefined);
+    setSelectedExtras([]);
+    setSelectedRemovals([]);
+    setSpecialInstructions('');
+    setError('');
+  }, [item, open, item?.id]);
 
   if (!item) return null;
 
@@ -71,19 +73,8 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
     );
   };
 
-  const toggleChoice = (groupId: string, groupLabel: string, choiceId: string, max: number) => {
-    setSelections((prev) =>
-      prev.map((sel) => {
-        if (sel.optionGroupId !== groupId) return sel;
-        if (sel.choices.includes(choiceId)) {
-          return { ...sel, choices: sel.choices.filter((c) => c !== choiceId) };
-        }
-        if (sel.choices.length >= max) {
-          return sel;
-        }
-        return { ...sel, choices: [...sel.choices, choiceId] };
-      })
-    );
+  const setChoiceChecked = (groupId: string, choiceId: string, max: number, checked: boolean) => {
+    setSelections((prev) => applyChoiceChecked(prev, groupId, choiceId, max, checked));
     setError('');
   };
 
@@ -117,8 +108,8 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto border-border/60 bg-card p-0 sm:max-w-md">
-        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-t-lg">
+      <DialogContent className="flex max-h-[92vh] flex-col overflow-y-auto border-border/60 bg-card p-0 sm:max-w-md">
+        <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-t-lg">
           <Image
             src={item.image}
             alt={item.name}
@@ -126,7 +117,7 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 400px"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
         </div>
 
         <DialogHeader className="px-5 pt-3">
@@ -153,19 +144,15 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
                   {group.choices.map((choice) => {
                     const checked = sel?.choices.includes(choice.id) || false;
                     return (
-                      <label
+                      <ProductOptionRow
                         key={choice.id}
-                        className={cn(
-                          'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
-                          checked
-                            ? 'border-brand-500 bg-brand-500/10 text-white'
-                            : 'border-border text-muted-foreground hover:border-brand-500/40'
-                        )}
-                        onClick={() => toggleChoice(group.id, group.label, choice.id, group.max)}
+                        checked={checked}
+                        onCheckedChange={(next) =>
+                          setChoiceChecked(group.id, choice.id, group.max, next)
+                        }
                       >
-                        <Checkbox checked={checked} readOnly className="pointer-events-none" />
                         <span className="flex-1">{choice.name}</span>
-                      </label>
+                      </ProductOptionRow>
                     );
                   })}
                 </div>
@@ -180,24 +167,16 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
                 {item.extras.map((extra) => {
                   const checked = selectedExtras.some((e) => e.id === extra.id);
                   return (
-                    <label
+                    <ProductOptionRow
                       key={extra.id}
-                      className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
-                        checked
-                          ? 'border-brand-500 bg-brand-500/10 text-white'
-                          : 'border-border text-muted-foreground hover:border-brand-500/40'
-                      )}
+                      checked={checked}
+                      onCheckedChange={() => toggleExtra(extra)}
                     >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => toggleExtra(extra)}
-                      />
                       <span className="flex-1">{extra.name}</span>
                       <span className="font-semibold text-brand-400">
                         +{formatMXN(calcWebPrice(extra.price_base))}
                       </span>
-                    </label>
+                    </ProductOptionRow>
                   );
                 })}
               </div>
@@ -212,21 +191,13 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
                 {item.removals.map((removal) => {
                   const checked = selectedRemovals.includes(removal.name);
                   return (
-                    <label
+                    <ProductOptionRow
                       key={removal.id}
-                      className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
-                        checked
-                          ? 'border-brand-500 bg-brand-500/10 text-white'
-                          : 'border-border text-muted-foreground hover:border-brand-500/40'
-                      )}
+                      checked={checked}
+                      onCheckedChange={() => toggleRemoval(removal.name)}
                     >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => toggleRemoval(removal.name)}
-                      />
                       <span className="flex-1">Sin {removal.name.toLowerCase()}</span>
-                    </label>
+                    </ProductOptionRow>
                   );
                 })}
               </div>
