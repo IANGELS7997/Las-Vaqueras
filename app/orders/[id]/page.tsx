@@ -45,13 +45,14 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
 
     void load();
 
-    if (!supabase) {
+    const realtime = supabase;
+    if (!realtime) {
       return () => {
         cancelled = true;
       };
     }
 
-    const channel = supabase
+    const channel = realtime
       .channel(`order-${params.id}`)
       .on(
         'postgres_changes',
@@ -73,7 +74,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
 
     return () => {
       cancelled = true;
-      void supabase.removeChannel(channel);
+      void realtime.removeChannel(channel);
     };
   }, [lastOrder, params.id]);
 
