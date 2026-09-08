@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import {
   ChefHat,
   Bike,
@@ -34,6 +33,7 @@ import { formatMXN } from '@/lib/pricing';
 import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { ThermalTicket } from '@/components/thermal-ticket';
+import { MenuProductImage } from '@/components/menu-product-image';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -434,7 +434,7 @@ export default function KitchenDashboardPage() {
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                      <Image src={item.image} alt={item.name} fill className="object-cover" sizes="32px" />
+                      <MenuProductImage src={item.image} alt={item.name} sizes="32px" />
                     </div>
                     <span className={cn('truncate text-sm', isOOS ? 'text-red-400 line-through' : 'text-white')}>
                       {item.name}

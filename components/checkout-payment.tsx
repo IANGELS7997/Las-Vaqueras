@@ -113,7 +113,7 @@ function PaymentForm({
         )}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        Pago seguro con Stripe · Test mode · Apple Pay y Google Pay si el dispositivo lo permite
+        Pago seguro con Stripe · Apple Pay y Google Pay si el dispositivo lo permite
       </p>
     </div>
   );

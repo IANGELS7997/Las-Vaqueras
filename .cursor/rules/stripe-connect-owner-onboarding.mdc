@@ -1,0 +1,14 @@
+---
+description: Reminder — restaurant owner must finish Stripe Connect Express onboarding
+alwaysApply: true
+---
+
+# Stripe Connect: dueño pendiente
+
+El dueño de Las Vaqueras **aún no puede** completar el onboarding Express. Recuérdalo al usuario **al inicio de cada sesión** y si habla de cobros live, payouts o merge de `feat/stripe-live-connect`.
+
+- Cuenta Connect live: `acct_1UDRDcLzV1Sjysxx` (restaurante). Matriz: Pureiangel `acct_1UBgeMPukuGTlRTl`.
+- CLABE y KYC son del **negocio / representante legal**, no del banco Treasury de la plataforma.
+- Link de onboarding: caduca en minutos. Generar uno fresco con `node scripts/create-onboarding-link.js` cuando el dueño esté listo.
+- `transfers` sigue inactivo hasta que terminen el formulario. No hacer cobros live reales ni merge a `main` de Connect hasta verificar transfers activo.
+- Rama: `feat/stripe-live-connect`. n8n de pago no publicar por esto.

@@ -41,12 +41,24 @@ const COMBO_UPGRADES: ComboUpgrade[] = [
   },
 ];
 
+/** Fajita y Torta Vaquera: combo grande $189 en carta. */
+const COMBO_UPGRADES_189: ComboUpgrade[] = [
+  { ...COMBO_UPGRADES[0] },
+  { ...COMBO_UPGRADES[1], price_base: 50 },
+];
+
+/** Boneless medianos: combo $184 / $199 en carta. */
+const COMBO_UPGRADES_BONELESS_MED: ComboUpgrade[] = [
+  { ...COMBO_UPGRADES[0], price_base: 41 },
+  { ...COMBO_UPGRADES[1], price_base: 56 },
+];
+
 const PRODUCT_EXTRAS: ProductExtra[] = [
-  { id: 'extra-pina', name: 'Piña', price_base: 14 },
+  { id: 'extra-pina', name: 'Piña', price_base: 19 },
   { id: 'extra-carne-hamburguesa', name: 'Carne de hamburguesa', price_base: 29 },
   { id: 'extra-fajitas', name: 'Fajitas de res', price_base: 29 },
   { id: 'extra-tocino', name: 'Tocino', price_base: 29 },
-  { id: 'extra-salchicha', name: 'Salchicha para asar', price_base: 24 },
+  { id: 'extra-salchicha', name: 'Salchicha para asar', price_base: 29 },
 ];
 
 const PRODUCT_REMOVALS: OptionChoice[] = [
@@ -128,7 +140,9 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 139,
     image: '/menu/hamburguesa-fajita.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    extras: PRODUCT_EXTRAS,
+    removals: PRODUCT_REMOVALS,
+    comboUpgrades: COMBO_UPGRADES_189,
   },
 
   {
@@ -147,7 +161,9 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'tortas',
     price_base: 139,
     image: '/menu/torta-vaquera.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    extras: PRODUCT_EXTRAS,
+    removals: PRODUCT_REMOVALS,
+    comboUpgrades: COMBO_UPGRADES_189,
   },
 
   {
@@ -229,7 +245,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'boneless-chicos',
     name: 'Boneless Chicos',
-    description: 'Más de 250g de boneless crujientes. Elige tu salsa.',
+    description: 'Más de 350g de boneless crujientes. Elige tu salsa.',
     category: 'boneless',
     price_base: 119,
     image: '/menu/boneless-chicos.jpg',
@@ -262,14 +278,14 @@ export const MENU_ITEMS: MenuItem[] = [
         choices: BONELESS_SAUCES,
       },
     ],
-    comboUpgrades: COMBO_UPGRADES,
+    comboUpgrades: COMBO_UPGRADES_BONELESS_MED,
   },
   {
     id: 'boneless-grandes',
     name: 'Boneless Grandes',
     description: 'Más de 700g de boneless crujientes. Elige 1-3 salsas.',
     category: 'boneless',
-    price_base: 229,
+    price_base: 239,
     image: '/menu/boneless-grandes.jpg',
     serves: '2-3 personas',
     optionGroups: [
@@ -281,7 +297,6 @@ export const MENU_ITEMS: MenuItem[] = [
         choices: BONELESS_SAUCES,
       },
     ],
-    comboUpgrades: COMBO_UPGRADES,
   },
   {
     id: 'boneless-jumbo',
@@ -300,7 +315,6 @@ export const MENU_ITEMS: MenuItem[] = [
         choices: BONELESS_SAUCES,
       },
     ],
-    comboUpgrades: COMBO_UPGRADES,
   },
 
   {
@@ -336,7 +350,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Agua fresca de 500ml. Selecciona el sabor al confirmar.',
     category: 'bebidas',
     price_base: 34,
-    image: 'https://images.pexels.com/photos/4113653/pexels-photo-4113653.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '',
   },
   {
     id: 'refresco-chico',
@@ -344,7 +358,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Refresco de 400ml. Selecciona tu sabor al confirmar.',
     category: 'bebidas',
     price_base: 34,
-    image: '/menu/refrescos.jpg',
+    image: '',
   },
   {
     id: 'refresco-250',
@@ -352,7 +366,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Refresco de 250ml. Selecciona tu sabor al confirmar.',
     category: 'bebidas',
     price_base: 24,
-    image: '/menu/refrescos.jpg',
+    image: '',
   },
 ];
 

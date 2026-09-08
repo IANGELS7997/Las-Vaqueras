@@ -6,6 +6,7 @@ export const RESTAURANT_INFO = {
   name: 'Las Vaqueras',
   address: 'Rio de Janeiro 903, Panamericana, 31210, Chihuahua, Chih. Mexico',
   phone: '+52 614 413 6539',
+  email: 'servicio@lasvaqueras.com.mx',
   pickupLat: 28.6918,
   pickupLng: -106.1306,
   city: 'Chihuahua',

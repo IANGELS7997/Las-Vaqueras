@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { ArrowLeft, Clock, MapPin, Package, Phone } from 'lucide-react';
+import { MenuProductImage } from '@/components/menu-product-image';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
@@ -207,7 +207,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           {order.items.map((item) => (
             <div key={item.uid} className="flex items-start gap-3">
               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-                <Image src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
+                <MenuProductImage src={item.image} alt={item.name} sizes="48px" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{item.name}</p>

@@ -33,6 +33,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
         <p className="font-bold">LAS VAQUERAS</p>
         <p>{RESTAURANT_INFO.address}</p>
         <p>Tel: {RESTAURANT_INFO.phone}</p>
+        <p>{RESTAURANT_INFO.email}</p>
       </div>
       <div className="my-1 border-t border-dashed border-black" />
       <div>

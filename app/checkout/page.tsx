@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Trash2, ArrowLeft, CreditCard, Loader2, User, Mail, Clock } from 'lucide-react';
 import { CheckoutPayment } from '@/components/checkout-payment';
 import { DeliveryMap } from '@/components/delivery-map';
+import { MenuProductImage } from '@/components/menu-product-image';
 import { useCart } from '@/lib/cart-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -261,7 +261,7 @@ export default function CheckoutPage() {
               {items.map((item) => (
                 <div key={item.uid} className="flex items-start gap-3">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg">
-                    <Image src={item.image} alt={item.name} fill className="object-cover" sizes="56px" />
+                    <MenuProductImage src={item.image} alt={item.name} sizes="56px" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-white">{item.name}</p>

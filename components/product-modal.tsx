@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import {
   Dialog,
@@ -13,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { MenuProductImage } from '@/components/menu-product-image';
 import { ProductOptionRow } from '@/components/product-option-row';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
 import type { MenuItem, CartItem, CartItemSelection, ProductExtra } from '@/types';
@@ -110,11 +110,9 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] flex-col overflow-y-auto border-border/60 bg-card p-0 sm:max-w-md">
         <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-t-lg">
-          <Image
+          <MenuProductImage
             src={item.image}
             alt={item.name}
-            fill
-            className="object-cover"
             sizes="(max-width: 768px) 100vw, 400px"
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
