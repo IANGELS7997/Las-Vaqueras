@@ -11,6 +11,13 @@ import { Drumstick, Beef, CupSoda, UtensilsCrossed } from 'lucide-react';
 import type { MenuItem, CartItem } from '@/types';
 import { BrandLogo } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
+
+const HERO_PROMOS = [
+  { src: '/hero/hero-1.jpg', alt: 'Qué tal una torta' },
+  { src: '/hero/hero-2.jpg', alt: 'Una burger' },
+  { src: '/hero/hero-3.jpg', alt: 'Y unas papas' },
+] as const;
 
 function CategoryLogo({ className }: { className?: string }) {
   return <BrandLogo alt="" className={className} width={32} height={16} />;
@@ -24,7 +31,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 export default function Home() {
-  const [activeCategory, setActiveCategory] = useState<string>('papas');
+  const [activeCategory, setActiveCategory] = useState<string>('combos');
   const [modalItem, setModalItem] = useState<MenuItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const { addItem } = useCart();
@@ -62,6 +69,24 @@ export default function Home() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-28 pt-6">
+      <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
+        {HERO_PROMOS.map((promo) => (
+          <div
+            key={promo.src}
+            className="relative aspect-[3/4] overflow-hidden rounded-xl border border-border/50"
+          >
+            <Image
+              src={promo.src}
+              alt={promo.alt}
+              fill
+              priority
+              className="object-cover"
+              sizes="(max-width: 640px) 33vw, 280px"
+            />
+          </div>
+        ))}
+      </div>
+
       <div className="mb-6 text-center animate-fade-in-up">
         <h2 className="text-2xl font-bold text-white sm:text-3xl">
           Las papas vaqueras mas famosas de <span className="text-brand-500">Chihuahua</span>
