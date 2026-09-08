@@ -36,6 +36,7 @@ export type DbOrderRow = {
   created_at: string;
   fulfillment_type?: string | null;
   pickup_at?: string | null;
+  customer_id?: string | null;
 };
 
 function toNumber(value: number | string): number {

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { RESTAURANT_INFO, getOpenStatus, getTodayHours } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
+import { CustomerAccountSheet } from '@/components/customer-account-sheet';
 import { useFulfillment } from '@/lib/fulfillment-context';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2.5">
+          <CustomerAccountSheet />
           <Link href="/" className="flex items-center gap-2.5">
             <BrandLogo className="h-14" priority />
             <div>

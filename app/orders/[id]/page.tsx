@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Clock, MapPin, Package, Phone } from 'lucide-react';
 import { MenuProductImage } from '@/components/menu-product-image';
+import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
@@ -124,6 +125,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         <h2 className="mb-2 text-2xl font-bold text-orange-500">Rastreo de Pedido</h2>
         <p className="text-sm text-muted-foreground">Orden #{order.id.slice(0, 8)}</p>
       </div>
+      {status !== 'awaiting_payment' ? <PwaInstallHint /> : null}
 
       {status === 'awaiting_payment' ? (
         <div className="mt-8 rounded-2xl border border-border/60 bg-card p-6 text-center">

@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
+import {
+  CUSTOMER_COOKIE,
+  customerCookieOptions,
+  customerSessionToken,
+} from '@/lib/customer-auth';
+import { namesFromCheckout } from '@/lib/customer-from-checkout';
+import { fullCustomerName } from '@/lib/customer-identity';
+import { upsertCustomer } from '@/lib/customers';
 import { fulfillmentDeliveryFee, isFulfillmentMode } from '@/lib/fulfillment';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
@@ -14,6 +22,34 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+async function orderResponseWithProfile(args: {
+  orderRow: DbOrderRow;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  supabase: ReturnType<typeof createAdminSupabase>;
+}) {
+  const profile = await upsertCustomer(args.supabase, {
+    firstName: args.firstName,
+    lastName: args.lastName,
+    phone: args.phone,
+    email: args.email,
+  });
+  if (!args.orderRow.customer_id || args.orderRow.customer_id !== profile.id) {
+    await args.supabase.from('orders').update({ customer_id: profile.id }).eq('id', args.orderRow.id);
+  }
+  const response = NextResponse.json({
+    order: mapDbOrder({ ...args.orderRow, customer_id: profile.id }),
+  });
+  response.cookies.set(
+    CUSTOMER_COOKIE,
+    await customerSessionToken(profile.id),
+    customerCookieOptions()
+  );
+  return response;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -21,7 +57,9 @@ export async function POST(req: Request) {
       paymentIntentId: string;
       restaurantId?: string;
       customer: {
-        name: string;
+        name?: string;
+        firstName?: string;
+        lastName?: string;
         phone: string;
         email: string;
         address: string;
@@ -33,7 +71,9 @@ export async function POST(req: Request) {
     if (typeof paymentIntentId !== 'string' || !paymentIntentId.startsWith('pi_')) {
       return NextResponse.json({ error: 'paymentIntentId inválido' }, { status: 400 });
     }
-    if (!customer?.name || !customer?.phone || !customer?.address || !customer?.email) {
+    const { firstName, lastName } = namesFromCheckout(customer);
+    const customerName = fullCustomerName(firstName, lastName) || customer.name?.trim() || '';
+    if (!customerName || !customer?.phone || !customer?.address || !customer?.email) {
       return NextResponse.json({ error: 'Faltan datos del cliente' }, { status: 400 });
     }
     if (!isValidEmail(customer.email)) {
@@ -72,13 +112,20 @@ export async function POST(req: Request) {
     if (existing.data) {
       const row = existing.data as DbOrderRow;
       if (row.status !== 'awaiting_payment') {
-        return NextResponse.json({ order: mapDbOrder(row) });
+        return orderResponseWithProfile({
+          orderRow: row,
+          firstName,
+          lastName,
+          phone: customer.phone,
+          email,
+          supabase,
+        });
       }
 
       const updated = await supabase
         .from('orders')
         .update({
-          customer_name: customer.name.trim(),
+          customer_name: customerName,
           customer_phone: customer.phone.trim(),
           customer_email: email,
           delivery_address: address,
@@ -96,7 +143,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: updated.error.message }, { status: 500 });
       }
 
-      return NextResponse.json({ order: mapDbOrder(updated.data as DbOrderRow) });
+      return orderResponseWithProfile({
+        orderRow: updated.data as DbOrderRow,
+        firstName,
+        lastName,
+        phone: customer.phone,
+        email,
+        supabase,
+      });
     }
 
     const insert = await supabase
@@ -104,7 +158,7 @@ export async function POST(req: Request) {
       .insert({
         stripe_payment_intent_id: paymentIntentId,
         restaurant_id: restaurantId || null,
-        customer_name: customer.name.trim(),
+        customer_name: customerName,
         customer_phone: customer.phone.trim(),
         customer_email: email,
         delivery_address: address,
@@ -126,7 +180,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: insert.error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ order: mapDbOrder(insert.data as DbOrderRow) });
+    return orderResponseWithProfile({
+      orderRow: insert.data as DbOrderRow,
+      firstName,
+      lastName,
+      phone: customer.phone,
+      email,
+      supabase,
+    });
   } catch (error) {
     const message =
       error instanceof Stripe.errors.StripeError
