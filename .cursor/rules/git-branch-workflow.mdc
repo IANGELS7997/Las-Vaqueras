@@ -1,0 +1,26 @@
+---
+description: Branch-first Git workflow for Las Vaqueras (GitHub + Vercel + Supabase)
+alwaysApply: true
+---
+
+# Git: rama primero, luego merge a main
+
+Fuente de verdad: repo [IANGELS7997/Las-Vaqueras](https://github.com/IANGELS7997/Las-Vaqueras). Vercel despliega `main` a producción. Supabase usa `supabase/migrations` de este repo (ya aplicadas en cloud: no re-ejecutar las existentes).
+
+## Cada cambio
+
+1. Partir de `main` actualizado (`git checkout main` + `git pull`).
+2. Crear una rama descriptiva: `fix/…`, `feat/…`, `chore/…`.
+3. Trabajar y verificar en esa rama. No editar `main` directo.
+4. Commit **solo si el usuario lo pide**. Push de la rama y merge a `main` (PR) **solo si el usuario lo pide**.
+5. Tras el merge, producción = Vercel sobre `main`.
+
+## Base de datos
+
+- Schema nuevo = archivo nuevo en `supabase/migrations` (`YYYYMMDDHHmmss_nombre.sql`).
+- No reescribir migraciones que ya están en producción.
+- No commitear `.env` ni `.vercel`.
+
+## Nombres
+
+- Un cambio, una rama. Ejemplo: `fix/menu-cerrado`, `feat/stripe-connect`.
