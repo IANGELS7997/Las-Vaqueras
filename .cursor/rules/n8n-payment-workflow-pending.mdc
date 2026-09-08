@@ -8,9 +8,9 @@ alwaysApply: true
 El usuario pidió **dejar esto para después**. No publicar ni ejecutar el workflow hasta que lo pida.
 
 - Workflow: [Las Vaqueras: pago exitoso](https://n8n.pureiangel.com/workflow/SKVvYOhKSnPj1ggY) (`SKVvYOhKSnPj1ggY`)
-- Estado al pausar: inactivo; credenciales Stripe/Supabase/Uber/Facturapi/Resend enganchadas; cadena preparing → Uber → Facturapi → email reconectada
+- Estado al pausar: inactivo; credenciales Stripe/Supabase/Uber/Resend enganchadas; cadena preparing → Uber → email. Facturapi/CFDI eliminado a petición del usuario.
 - Remitente temporal de prueba: `Las Vaqueras <noreply@pureiangel.com>` (dominio personal). Sustituir cuando el cliente entregue el dominio del negocio.
 - Dominio Resend `pureiangel.com` verificado (`24ad8887-b1db-48ef-ba05-1129b1022322`); DKIM/SPF en Cloudflare OK.
 - Al retomar: publicar solo con confirmación explícita; insertar pedido `pending` al crear el PaymentIntent (carrera webhook vs insert); `from` en Set Mail Defaults
 
-Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct, Facturapi o Resend, **recuérdale este pendiente** antes de otra tarea.
+Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct o Resend, **recuérdale este pendiente** antes de otra tarea. No reintroducir Facturapi salvo que lo pida.
