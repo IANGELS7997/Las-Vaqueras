@@ -12,7 +12,7 @@ function isPublicAsset(pathname: string) {
   return (
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico' ||
-    /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname)
+    /\.(?:svg|png|jpg|jpeg|gif|webp|ico|wav|mp3|ogg)$/i.test(pathname)
   );
 }
 
