@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Trash2, ArrowLeft, CreditCard, Loader2, MapPin, User } from 'lucide-react';
+import { Trash2, ArrowLeft, CreditCard, Loader2, MapPin, User, Mail } from 'lucide-react';
 import { CheckoutPayment } from '@/components/checkout-payment';
 import { useCart } from '@/lib/cart-context';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ export default function CheckoutPage() {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [references, setReferences] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,6 +47,8 @@ export default function CheckoutPage() {
     if (!name.trim()) e.name = 'El nombre es obligatorio';
     if (!phone.trim()) e.phone = 'El teléfono es obligatorio';
     else if (phone.replace(/\D/g, '').length < 10) e.phone = 'Teléfono inválido (mín. 10 dígitos)';
+    if (!email.trim()) e.email = 'El correo es obligatorio para tu ticket';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Correo inválido';
     if (!address.trim()) e.address = 'La dirección es obligatoria';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -57,7 +60,7 @@ export default function CheckoutPage() {
     setCreatingIntent(true);
     setPayError('');
 
-    const customer = { name, phone, address, references };
+    const customer = { name, phone, email, address, references };
     const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,6 +69,7 @@ export default function CheckoutPage() {
         deliveryFee: DELIVERY_FEE,
         stripeAccountId: process.env.NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID,
         customer,
+        items,
       }),
     });
     const payload = await response.json();
@@ -197,6 +201,26 @@ export default function CheckoutPage() {
                 {errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}
               </div>
               <div>
+                <Label className="mb-1.5 flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-brand-500" />
+                  Correo
+                </Label>
+                <Input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tucorreo@email.com"
+                  disabled={Boolean(clientSecret)}
+                  className={cn(errors.email && 'border-red-500')}
+                />
+                {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Regístrate con tu correo para recibir tu ticket digital y poder aplicar a una promoción
+                  más adelante. La promoción está por definirse.
+                </p>
+              </div>
+              <div>
                 <Label className="mb-1.5">Dirección de entrega</Label>
                 <Input
                   value={address}
@@ -230,7 +254,7 @@ export default function CheckoutPage() {
               <CheckoutPayment
                 clientSecret={clientSecret}
                 pending={{
-                  customer: { name, phone, address, references },
+                  customer: { name, phone, email, address, references },
                   items,
                   paymentIntentId,
                 }}

@@ -45,12 +45,14 @@ function PaymentForm({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/checkout/complete`,
-        payment_method_data: {
-          billing_details: {
-            name: pending.customer.name,
-            phone: pending.customer.phone,
-          },
-        },
+            receipt_email: pending.customer.email,
+            payment_method_data: {
+              billing_details: {
+                name: pending.customer.name,
+                phone: pending.customer.phone,
+                email: pending.customer.email,
+              },
+            },
       },
       redirect: 'if_required',
     });

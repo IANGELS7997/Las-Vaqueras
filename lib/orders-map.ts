@@ -1,6 +1,15 @@
 import type { CartItem, Order, OrderStatus } from '@/types';
 
 export const ORDER_STATUSES: OrderStatus[] = [
+  'awaiting_payment',
+  'pending',
+  'preparing',
+  'in_transit',
+  'delivered',
+  'cancelled',
+];
+
+export const KITCHEN_ORDER_STATUSES: OrderStatus[] = [
   'pending',
   'preparing',
   'in_transit',
@@ -14,6 +23,7 @@ export type DbOrderRow = {
   restaurant_id: string | null;
   customer_name: string;
   customer_phone: string;
+  customer_email: string | null;
   delivery_address: string;
   delivery_references: string | null;
   total_charged: number | string;
@@ -38,6 +48,7 @@ export function mapDbOrder(row: DbOrderRow): Order {
     customer: {
       name: row.customer_name,
       phone: row.customer_phone,
+      email: row.customer_email || '',
       address: row.delivery_address,
       references: row.delivery_references || '',
     },

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { isOrderStatus, mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { KITCHEN_ORDER_STATUSES, mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import type { OrderStatus } from '@/types';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
 
@@ -13,7 +14,7 @@ export async function PATCH(
   if (denied) return denied;
 
   const { status } = await req.json();
-  if (!isOrderStatus(status)) {
+  if (!KITCHEN_ORDER_STATUSES.includes(status as OrderStatus)) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
   }
 

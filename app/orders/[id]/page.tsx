@@ -14,7 +14,10 @@ const STEPS: OrderStatus[] = ['pending', 'preparing', 'in_transit', 'delivered']
 const STEP_LABELS = ['Recibido', 'En Cocina', 'En Camino', 'Entregado'];
 
 function isOrderStatus(value: unknown): value is OrderStatus {
-  return typeof value === 'string' && ['pending', 'preparing', 'in_transit', 'delivered', 'cancelled'].includes(value);
+  return (
+    typeof value === 'string' &&
+    ['awaiting_payment', 'pending', 'preparing', 'in_transit', 'delivered', 'cancelled'].includes(value)
+  );
 }
 
 export default function OrderTracking({ params }: { params: { id: string } }) {
@@ -122,7 +125,14 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         <p className="text-sm text-muted-foreground">Orden #{order.id.slice(0, 8)}</p>
       </div>
 
-      {isCancelled ? (
+      {status === 'awaiting_payment' ? (
+        <div className="mt-8 rounded-2xl border border-border/60 bg-card p-6 text-center">
+          <p className="text-lg font-bold text-white">Pago pendiente</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Cuando se confirme el pago, tu ticket llegará al correo y la cocina verá el pedido.
+          </p>
+        </div>
+      ) : isCancelled ? (
         <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center">
           <p className="text-lg font-bold text-red-400">Pedido cancelado</p>
           <p className="mt-1 text-sm text-muted-foreground">El reembolso ya fue procesado.</p>

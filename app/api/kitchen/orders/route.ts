@@ -13,6 +13,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('orders')
     .select('*')
+    .neq('status', 'awaiting_payment')
     .order('created_at', { ascending: false })
     .limit(50);
 

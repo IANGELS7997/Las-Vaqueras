@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
 import { DELIVERY_FEE } from '@/lib/pricing';
 import { getStripe } from '@/lib/stripe';
+import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
 
@@ -14,10 +16,26 @@ function isNonNegativeNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { priceBaseTotal, stripeAccountId, customer } = body;
+    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId } = body as {
+      priceBaseTotal: number;
+      stripeAccountId?: string;
+      restaurantId?: string;
+      customer?: {
+        name?: string;
+        phone?: string;
+        email?: string;
+        address?: string;
+        references?: string;
+      };
+      items?: CartItem[];
+    };
     const deliveryFee = isNonNegativeNumber(body.deliveryFee) ? body.deliveryFee : DELIVERY_FEE;
     const destination =
       (typeof stripeAccountId === 'string' && stripeAccountId.startsWith('acct_')
@@ -29,6 +47,22 @@ export async function POST(req: Request) {
         { error: 'priceBaseTotal debe ser un número mayor a 0' },
         { status: 400 }
       );
+    }
+
+    const name = customer?.name?.trim() || '';
+    const phone = customer?.phone?.trim() || '';
+    const email = customer?.email?.trim().toLowerCase() || '';
+    const address = customer?.address?.trim() || '';
+    const references = customer?.references?.trim() || '';
+
+    if (!name || !phone || !address || !email) {
+      return NextResponse.json(
+        { error: 'Faltan nombre, teléfono, correo o dirección' },
+        { status: 400 }
+      );
+    }
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: 'El correo no es válido' }, { status: 400 });
     }
 
     if (!destination.startsWith('acct_')) {
@@ -55,6 +89,7 @@ export async function POST(req: Request) {
       amount: split.totalChargedCentavos,
       currency: 'mxn',
       automatic_payment_methods: { enabled: true },
+      receipt_email: email,
       transfer_data: {
         destination,
       },
@@ -64,14 +99,42 @@ export async function POST(req: Request) {
         delivery_fee: String(deliveryFee),
         restaurant_payout: String(split.restaurantPayout),
         platform_fee: String(split.platformFee),
-        customer_name: customer?.name ? String(customer.name).slice(0, 200) : '',
-        customer_phone: customer?.phone ? String(customer.phone).slice(0, 40) : '',
+        customer_name: name.slice(0, 200),
+        customer_phone: phone.slice(0, 40),
+        customer_email: email.slice(0, 200),
       },
     });
+
+    const supabase = createAdminSupabase();
+    const insert = await supabase
+      .from('orders')
+      .insert({
+        stripe_payment_intent_id: paymentIntent.id,
+        restaurant_id: restaurantId || null,
+        customer_name: name,
+        customer_phone: phone,
+        customer_email: email,
+        delivery_address: address,
+        delivery_references: references || null,
+        total_charged: split.totalCharged,
+        restaurant_payout: split.restaurantPayout,
+        platform_fee: split.platformFee,
+        customer_fee: split.customerFee,
+        delivery_fee: split.deliveryFee,
+        status: 'awaiting_payment',
+        items: items || [],
+      })
+      .select('id')
+      .single();
+
+    if (insert.error) {
+      return NextResponse.json({ error: insert.error.message }, { status: 500 });
+    }
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       id: paymentIntent.id,
+      orderId: insert.data.id,
       split: {
         subtotalWeb: split.subtotalWeb,
         customerFee: split.customerFee,

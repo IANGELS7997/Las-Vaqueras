@@ -40,6 +40,12 @@ const STATUS_CONFIG: Record<
   OrderStatus,
   { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }
 > = {
+  awaiting_payment: {
+    label: 'Pago pendiente',
+    icon: Clock,
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted/40',
+  },
   pending: { label: 'Recibido', icon: Receipt, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
   preparing: { label: 'Preparando', icon: ChefHat, color: 'text-brand-400', bgColor: 'bg-brand-500/15' },
   in_transit: { label: 'En camino', icon: Bike, color: 'text-yellow-400', bgColor: 'bg-yellow-500/15' },

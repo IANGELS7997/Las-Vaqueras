@@ -5,12 +5,14 @@ alwaysApply: true
 
 # n8n: pago exitoso (pendiente)
 
-El usuario pidió **dejar esto para después**. No publicar ni ejecutar el workflow hasta que lo pida.
+Dejar el workflow **completo e inactivo**. No publicar ni ejecutar en producción hasta que el usuario lo pida.
 
 - Workflow: [Las Vaqueras: pago exitoso](https://n8n.pureiangel.com/workflow/SKVvYOhKSnPj1ggY) (`SKVvYOhKSnPj1ggY`)
-- Estado al pausar: inactivo; credenciales Stripe/Supabase/Uber/Resend enganchadas; cadena preparing → Uber → email. Facturapi/CFDI eliminado a petición del usuario.
-- Remitente temporal de prueba: `Las Vaqueras <noreply@pureiangel.com>` (dominio personal). Sustituir cuando el cliente entregue el dominio del negocio.
+- Inactivo a propósito: Stripe no registra webhook de producción. Publicar = el trigger corre solo en cada `payment_intent.succeeded`.
+- Credenciales Stripe/Supabase/Uber/Resend enganchadas. Nodo **Create Uber Direct Delivery desactivado** (no pedir courier en pruebas). Pickup: Rio de Janeiro 903, Panamericana, 31210 Chihuahua; tel `+52 614 413 6539`.
+- Remitente temporal: `Las Vaqueras <noreply@pureiangel.com>`. Sustituir cuando el cliente entregue el dominio del negocio.
 - Dominio Resend `pureiangel.com` verificado (`24ad8887-b1db-48ef-ba05-1129b1022322`); DKIM/SPF en Cloudflare OK.
-- Al retomar: publicar solo con confirmación explícita; insertar pedido `pending` al crear el PaymentIntent (carrera webhook vs insert); `from` en Set Mail Defaults
+- Pedido se inserta al crear el PaymentIntent (`awaiting_payment`); tras el pago pasa a `pending`. Facturapi/CFDI no reintroducir salvo que lo pidan.
+- **Promoción / cupón 2x1 PAUSADA** (`is_tenth = false`). El checkout pide correo para ticket + promo futura. **Recordar actualizar copy y lógica cuando definan la promoción.**
 
-Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct o Resend, **recuérdale este pendiente** antes de otra tarea. No reintroducir Facturapi salvo que lo pida.
+Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct, Resend o promociones, recuérdale este pendiente y la promo por definir **antes** de otra tarea.

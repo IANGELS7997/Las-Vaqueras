@@ -71,11 +71,18 @@ export interface CartItem {
   specialInstructions?: string;
 }
 
-export type OrderStatus = 'pending' | 'preparing' | 'in_transit' | 'delivered' | 'cancelled';
+export type OrderStatus =
+  | 'awaiting_payment'
+  | 'pending'
+  | 'preparing'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled';
 
 export interface OrderCustomer {
   name: string;
   phone: string;
+  email: string;
   address: string;
   references: string;
 }
