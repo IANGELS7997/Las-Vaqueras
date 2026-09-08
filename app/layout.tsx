@@ -13,7 +13,7 @@ const SITE_URL = 'https://pureiangel.com';
 const SITE_TITLE = 'Las Vaqueras | Papas, Boneless y Hamburguesas a Domicilio';
 const SITE_DESCRIPTION =
   'Pide tus Papas Vaqueras, Boneless, Hamburguesas y Tortas a domicilio en Chihuahua. Entrega rápida y pago en línea.';
-const SHARE_IMAGE = '/hero/hero-1.jpg';
+const SHARE_IMAGE = '/logo-vaqueras.png';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -30,9 +30,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: SHARE_IMAGE,
-        width: 717,
-        height: 1024,
-        alt: 'Las Vaqueras — papas, boneless y hamburguesas a domicilio en Chihuahua',
+        width: 1000,
+        height: 1000,
+        alt: 'Logotipo de Las Vaqueras',
       },
     ],
   },
