@@ -390,7 +390,7 @@ export default function CheckoutPage() {
                     <Input
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
-                      placeholder="Rio de Janeiro"
+                      placeholder="Calle"
                       disabled={Boolean(clientSecret)}
                       className={cn(errors.street && 'border-red-500')}
                     />
@@ -402,7 +402,7 @@ export default function CheckoutPage() {
                       <Input
                         value={extNumber}
                         onChange={(e) => setExtNumber(e.target.value)}
-                        placeholder="903"
+                        placeholder="Número"
                         disabled={Boolean(clientSecret)}
                         className={cn(errors.extNumber && 'border-red-500')}
                       />
@@ -423,7 +423,7 @@ export default function CheckoutPage() {
                     <Input
                       value={colonia}
                       onChange={(e) => setColonia(e.target.value)}
-                      placeholder="Panamericana"
+                      placeholder="Colonia"
                       disabled={Boolean(clientSecret)}
                       className={cn(errors.colonia && 'border-red-500')}
                     />
@@ -436,7 +436,7 @@ export default function CheckoutPage() {
                       maxLength={5}
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                      placeholder="31210"
+                      placeholder="C.P."
                       disabled={Boolean(clientSecret)}
                       className={cn(errors.postalCode && 'border-red-500')}
                     />
