@@ -41,7 +41,8 @@ export default function CheckoutPage() {
   const isPickup = mode === 'pickup';
   const deliveryFee = mode ? fulfillmentDeliveryFee(mode) : DELIVERY_FEE;
 
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [street, setStreet] = useState('');
@@ -148,7 +149,8 @@ export default function CheckoutPage() {
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!name.trim()) e.name = 'El nombre es obligatorio';
+    if (!firstName.trim()) e.firstName = 'El nombre es obligatorio';
+    if (!lastName.trim()) e.lastName = 'El apellido es obligatorio';
     if (!phone.trim()) e.phone = 'El teléfono es obligatorio';
     else if (phone.replace(/\D/g, '').length < 10) e.phone = 'Teléfono inválido (mín. 10 dígitos)';
     if (!email.trim()) e.email = 'El correo es obligatorio para tu ticket';
@@ -183,7 +185,9 @@ export default function CheckoutPage() {
       ? RESTAURANT_INFO.address
       : formatDeliveryAddress({ street, extNumber, intNumber, colonia, postalCode });
     const customer = {
-      name,
+      name: `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, ' '),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       phone,
       email,
       address,
@@ -309,16 +313,29 @@ export default function CheckoutPage() {
               {isPickup ? 'Información de recoger' : 'Información de entrega'}
             </h2>
             <div className="grid gap-3">
-              <div>
-                <Label className="mb-1.5">Nombre completo</Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Tu nombre"
-                  disabled={Boolean(clientSecret)}
-                  className={cn(errors.name && 'border-red-500')}
-                />
-                {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label className="mb-1.5">Nombre</Label>
+                  <Input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Nombre"
+                    disabled={Boolean(clientSecret)}
+                    className={cn(errors.firstName && 'border-red-500')}
+                  />
+                  {errors.firstName && <p className="mt-1 text-xs text-red-400">{errors.firstName}</p>}
+                </div>
+                <div>
+                  <Label className="mb-1.5">Apellido</Label>
+                  <Input
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Apellido"
+                    disabled={Boolean(clientSecret)}
+                    className={cn(errors.lastName && 'border-red-500')}
+                  />
+                  {errors.lastName && <p className="mt-1 text-xs text-red-400">{errors.lastName}</p>}
+                </div>
               </div>
               <div>
                 <Label className="mb-1.5">Teléfono</Label>
@@ -481,7 +498,9 @@ export default function CheckoutPage() {
                 clientSecret={clientSecret}
                 pending={{
                   customer: {
-                    name,
+                    name: `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, ' '),
+                    firstName: firstName.trim(),
+                    lastName: lastName.trim(),
                     phone,
                     email,
                     address: isPickup

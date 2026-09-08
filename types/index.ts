@@ -83,6 +83,8 @@ export type FulfillmentMode = 'delivery' | 'pickup';
 
 export interface OrderCustomer {
   name: string;
+  firstName?: string;
+  lastName?: string;
   phone: string;
   email: string;
   address: string;

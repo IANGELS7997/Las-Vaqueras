@@ -1,0 +1,45 @@
+import { NextResponse } from 'next/server';
+import { readCustomerIdFromRequest } from '@/lib/customer-auth';
+import { avatarPublicUrl } from '@/lib/customers';
+import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { createAdminSupabase } from '@/lib/supabase-admin';
+
+export const runtime = 'nodejs';
+
+export async function GET() {
+  const customerId = await readCustomerIdFromRequest();
+  if (!customerId) {
+    return NextResponse.json({ customer: null }, { status: 200 });
+  }
+
+  const supabase = createAdminSupabase();
+  const profile = await supabase.from('customers').select('*').eq('id', customerId).maybeSingle();
+  if (!profile.data) {
+    return NextResponse.json({ customer: null }, { status: 200 });
+  }
+
+  const orders = await supabase
+    .from('orders')
+    .select('*')
+    .eq('customer_id', customerId)
+    .neq('status', 'awaiting_payment')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (orders.error) {
+    return NextResponse.json({ error: orders.error.message }, { status: 500 });
+  }
+
+  const row = profile.data;
+  return NextResponse.json({
+    customer: {
+      id: row.id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      phone: row.phone,
+      email: row.email,
+      avatarUrl: avatarPublicUrl(row.avatar_path),
+    },
+    orders: (orders.data || []).map((item) => mapDbOrder(item as DbOrderRow)),
+  });
+}

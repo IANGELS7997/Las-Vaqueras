@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   title: 'Las Vaqueras | Papas, Boneless y Hamburguesas a Domicilio',
   description:
     'Pide tus Papas Vaqueras, Boneless, Hamburguesas y Tortas a domicilio en Chihuahua. Entrega rápida y pago en línea.',
+  manifest: '/manifest.webmanifest',
+  themeColor: '#f97316',
+  appleWebApp: {
+    capable: true,
+    title: 'Las Vaqueras',
+    statusBarStyle: 'black-translucent',
+  },
 };
 
 export default function RootLayout({
