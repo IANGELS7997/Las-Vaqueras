@@ -1,10 +1,9 @@
 'use client';
 
-import Image from 'next/image';
 import { Plus } from 'lucide-react';
 import type { MenuItem } from '@/types';
 import { calcWebPrice, formatMXN } from '@/lib/pricing';
-import { BrandLogo } from '@/components/brand-logo';
+import { MenuProductImage } from '@/components/menu-product-image';
 import { cn } from '@/lib/utils';
 
 interface ProductCardProps {
@@ -13,14 +12,6 @@ interface ProductCardProps {
   outOfStock?: boolean;
   closed?: boolean;
 }
-
-const categoryLabels: Record<string, string> = {
-  papas: 'Papas',
-  boneless: 'Boneless',
-  combos: 'Burger',
-  tortas: 'Torta',
-  bebidas: 'Bebida',
-};
 
 export function ProductCard({ item, onAdd, outOfStock, closed }: ProductCardProps) {
   const webPrice = calcWebPrice(item.price_base);
@@ -34,21 +25,16 @@ export function ProductCard({ item, onAdd, outOfStock, closed }: ProductCardProp
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden" onClick={() => !locked && onAdd(item)}>
-        <Image
+        <MenuProductImage
           src={item.image}
           alt={item.name}
-          fill
-          className={cn(
-            'object-cover transition-transform duration-500 group-hover:scale-105',
-            closed && 'grayscale'
-          )}
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+          className={cn(
+            'transition-transform duration-500 group-hover:scale-105',
+            closed && item.image && 'grayscale'
+          )}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-        <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-brand-500/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
-          <BrandLogo alt="" className="h-4" width={32} height={16} />
-          {categoryLabels[item.category]}
-        </div>
         {item.serves && (
           <div className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
             {item.serves}

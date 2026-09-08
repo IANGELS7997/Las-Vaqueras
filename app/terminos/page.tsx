@@ -37,6 +37,8 @@ export default function TermsPage() {
       title: '7. Contacto',
       content:
         'Para cualquier duda sobre estos términos, puede contactarnos en: ' +
+        RESTAURANT_INFO.email +
+        ', ' +
         RESTAURANT_INFO.phone +
         ' o en nuestro domicilio: ' +
         RESTAURANT_INFO.address +

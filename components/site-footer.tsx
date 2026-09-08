@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MapPin, Phone, Clock, Shield, FileText } from 'lucide-react';
+import { Mail, MapPin, Phone, Clock, Shield, FileText } from 'lucide-react';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
 
@@ -34,6 +34,15 @@ export function SiteFooter() {
                 <Phone className="h-4 w-4 shrink-0 text-brand-500" />
                 <a href={`tel:${RESTAURANT_INFO.phone}`} className="hover:text-brand-400">
                   {RESTAURANT_INFO.phone}
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Mail className="h-4 w-4 shrink-0 text-brand-500" />
+                <a
+                  href={`mailto:${RESTAURANT_INFO.email}`}
+                  className="hover:text-brand-400"
+                >
+                  {RESTAURANT_INFO.email}
                 </a>
               </li>
             </ul>

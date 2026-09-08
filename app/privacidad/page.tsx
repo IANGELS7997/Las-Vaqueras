@@ -27,6 +27,8 @@ export default function PrivacyPolicyPage() {
       content:
         'Usted tiene derecho a acceder, rectificar, cancelar u oponerse al tratamiento de sus datos personales (derechos ARCO). Para ejercer estos derechos, puede contactarnos a través de nuestro teléfono: ' +
         RESTAURANT_INFO.phone +
+        ' o al correo ' +
+        RESTAURANT_INFO.email +
         '.',
     },
     {
@@ -64,7 +66,8 @@ export default function PrivacyPolicyPage() {
         <div className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
           <p>Última actualización: {new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           <p className="mt-1">
-            Para dudas o sugerencias: {RESTAURANT_INFO.phone} · {RESTAURANT_INFO.address}
+            Para dudas o sugerencias: {RESTAURANT_INFO.phone} · {RESTAURANT_INFO.email} ·{' '}
+            {RESTAURANT_INFO.address}
           </p>
         </div>
       </div>

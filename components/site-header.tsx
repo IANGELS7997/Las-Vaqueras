@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Clock, Phone, Bike, Store } from 'lucide-react';
+import { MapPin, Clock, Phone, Mail, Bike, Store } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { RESTAURANT_INFO, getOpenStatus, getTodayHours } from '@/lib/restaurant';
@@ -102,6 +102,13 @@ export function SiteHeader() {
         >
           <Phone className="h-3.5 w-3.5 text-brand-500" />
           {RESTAURANT_INFO.phone}
+        </a>
+        <a
+          href={`mailto:${RESTAURANT_INFO.email}`}
+          className="flex items-center gap-1.5 transition-colors hover:text-brand-400"
+        >
+          <Mail className="h-3.5 w-3.5 text-brand-500" />
+          {RESTAURANT_INFO.email}
         </a>
       </div>
     </header>

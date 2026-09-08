@@ -350,7 +350,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Agua fresca de 500ml. Selecciona el sabor al confirmar.',
     category: 'bebidas',
     price_base: 34,
-    image: 'https://images.pexels.com/photos/4113653/pexels-photo-4113653.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    image: '',
   },
   {
     id: 'refresco-chico',
@@ -358,7 +358,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Refresco de 400ml. Selecciona tu sabor al confirmar.',
     category: 'bebidas',
     price_base: 34,
-    image: '/menu/refrescos.jpg',
+    image: '',
   },
   {
     id: 'refresco-250',
@@ -366,7 +366,7 @@ export const MENU_ITEMS: MenuItem[] = [
     description: 'Refresco de 250ml. Selecciona tu sabor al confirmar.',
     category: 'bebidas',
     price_base: 24,
-    image: '/menu/refrescos.jpg',
+    image: '',
   },
 ];
 
