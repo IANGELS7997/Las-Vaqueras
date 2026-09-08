@@ -125,7 +125,7 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
         ref={containerRef}
         className="h-56 w-full overflow-hidden rounded-xl border border-border/60 bg-secondary/40"
       />
-      <p className="text-xs text-muted-foreground">
+      <p className="rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-sm font-semibold leading-snug text-brand-400">
         Toca el mapa para marcar el punto exacto de entrega. El repartidor usa esa ubicación.
       </p>
     </div>
