@@ -5,12 +5,14 @@ export const RESTAURANT_UTC_OFFSET = '-06:00';
 export const RESTAURANT_INFO = {
   name: 'Las Vaqueras',
   address: 'Rio de Janeiro 903, Panamericana, 31210, Chihuahua, Chih. Mexico',
+  pickupStreet: 'Rio de Janeiro 903, Panamericana',
   phone: '+52 614 413 6539',
   email: 'servicio@lasvaqueras.com.mx',
-  pickupLat: 28.6918,
-  pickupLng: -106.1306,
+  // Google Maps place pin for Vaqueras (28.657575, -106.108617)
+  pickupLat: 28.657575,
+  pickupLng: -106.108617,
   city: 'Chihuahua',
-  state: 'CHH',
+  state: 'Chihuahua',
   zipCode: '31210',
   country: 'MX',
   hours: [

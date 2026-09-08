@@ -87,7 +87,7 @@ export async function createDeliveryQuote(input: {
   const pickupPhone = toE164Mx(RESTAURANT_INFO.phone);
   const body: Record<string, unknown> = {
     pickup_address: encodeAddress({
-      street: 'Rio de Janeiro 903',
+      street: RESTAURANT_INFO.pickupStreet,
       zipCode: RESTAURANT_INFO.zipCode,
     }),
     dropoff_address: encodeAddress({
