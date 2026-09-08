@@ -70,17 +70,17 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-5xl px-4 pb-28 pt-6">
       <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
-        {HERO_PROMOS.map((promo) => (
+        {HERO_PROMOS.map((promo, index) => (
           <div
             key={promo.src}
-            className="relative aspect-[3/4] overflow-hidden rounded-xl border border-border/50"
+            className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-border/50"
           >
             <Image
               src={promo.src}
               alt={promo.alt}
               fill
               priority
-              className="object-cover"
+              className={cn('hero-promo-shot object-cover', `hero-promo-shot--${index}`)}
               sizes="(max-width: 640px) 33vw, 280px"
             />
           </div>
