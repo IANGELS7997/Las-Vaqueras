@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bike, Store } from 'lucide-react';
@@ -29,11 +30,6 @@ export default function FulfillmentGatePage() {
   const choose = (mode: 'delivery' | 'pickup') => {
     if (!open.isOpen) return;
     setMode(mode);
-    router.push('/menu');
-  };
-
-  const viewMenu = () => {
-    enableBrowseMenu();
     router.push('/menu');
   };
 
@@ -99,11 +95,13 @@ export default function FulfillmentGatePage() {
             Estamos cerrados. Abrimos {nextHours}. Puedes ver el menú, pero no se puede pedir hasta que abramos.
           </p>
           <Button
-            onClick={viewMenu}
+            asChild
             variant="outline"
             className="mt-4 border-border/60 bg-card text-white hover:bg-secondary"
           >
-            Ver menú
+            <Link href="/menu" onClick={() => enableBrowseMenu()}>
+              Ver menú
+            </Link>
           </Button>
         </div>
       )}

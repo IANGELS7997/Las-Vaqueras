@@ -35,8 +35,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function MenuPage() {
   const router = useRouter();
-  const { ready, mode } = useFulfillment();
-  const [isOpen, setIsOpen] = useState(true);
+  const { ready, mode, browseOnly } = useFulfillment();
+  const [isOpen, setIsOpen] = useState<boolean | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('combos');
   const [modalItem, setModalItem] = useState<MenuItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -51,17 +51,18 @@ export default function MenuPage() {
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
-    if (isOpen && !mode) {
+    if (!ready || isOpen === null) return;
+    const mustChooseFulfillment = isOpen && !mode && !browseOnly;
+    if (mustChooseFulfillment) {
       router.replace('/');
     }
-  }, [ready, isOpen, mode, router]);
+  }, [ready, isOpen, mode, browseOnly, router]);
 
-  const browseOnly = !isOpen;
+  const viewOnly = browseOnly || isOpen === false;
   const filteredItems = MENU_ITEMS.filter((item) => item.category === activeCategory);
 
   const handleCardClick = (item: MenuItem) => {
-    if (browseOnly) return;
+    if (viewOnly) return;
     const needsModal =
       (item.optionGroups && item.optionGroups.length > 0) ||
       (item.comboUpgrades && item.comboUpgrades.length > 0) ||
@@ -85,7 +86,7 @@ export default function MenuPage() {
     }
   };
 
-  if (!ready || (isOpen && !mode)) {
+  if (!ready || isOpen === null || (isOpen && !mode && !browseOnly)) {
     return <div className="min-h-[40vh]" />;
   }
 
@@ -102,20 +103,9 @@ export default function MenuPage() {
               alt={promo.alt}
               fill
               priority
-              className={cn(
-                'hero-promo-shot object-cover',
-                `hero-promo-shot--${index}`,
-                browseOnly && 'grayscale'
-              )}
+              className={cn('hero-promo-shot object-cover', `hero-promo-shot--${index}`)}
               sizes="(max-width: 640px) 33vw, 280px"
             />
-            {browseOnly && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <span className="rounded-md bg-black/70 px-2 py-1 text-[10px] font-bold tracking-wide text-white sm:text-xs">
-                  CERRADO
-                </span>
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -125,7 +115,7 @@ export default function MenuPage() {
           Las papas vaqueras mas famosas de <span className="text-brand-500">Chihuahua</span>
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          {browseOnly
+          {viewOnly
             ? 'Estamos cerrados. Puedes ver el menú; el pedido se habilita al abrir.'
             : 'Papas Vaqueras, Boneless, Hamburguesas y más.'}
         </p>
@@ -159,7 +149,7 @@ export default function MenuPage() {
             item={item}
             onAdd={handleCardClick}
             outOfStock={outOfStockIds.includes(item.id)}
-            closed={browseOnly}
+            closed={viewOnly}
           />
         ))}
       </div>
@@ -171,7 +161,7 @@ export default function MenuPage() {
         onConfirm={addItem}
       />
 
-      {!browseOnly && <FloatingCartBar />}
+      {!viewOnly && <FloatingCartBar />}
     </div>
   );
 }
