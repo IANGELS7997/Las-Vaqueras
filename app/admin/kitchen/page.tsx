@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { useOrders } from '@/lib/orders-context';
 import { MENU_ITEMS, CATEGORIES } from '@/lib/mock-data';
 import { formatMXN } from '@/lib/pricing';
+import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { ThermalTicket } from '@/components/thermal-ticket';
 import type { Order, OrderStatus } from '@/types';
@@ -266,8 +267,17 @@ export default function KitchenDashboardPage() {
                   <div className="mb-3 flex items-start gap-2 text-xs text-muted-foreground">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
                     <div>
-                      <p>{order.customer.address}</p>
-                      {order.customer.references && <p className="text-xs">{order.customer.references}</p>}
+                      {order.fulfillment === 'pickup' ? (
+                        <>
+                          <p className="font-semibold text-white">Recoger en tienda</p>
+                          {order.pickupAt && <p>Hora: {formatPickupAt(order.pickupAt)}</p>}
+                        </>
+                      ) : (
+                        <>
+                          <p>{order.customer.address}</p>
+                          {order.customer.references && <p className="text-xs">{order.customer.references}</p>}
+                        </>
+                      )}
                     </div>
                   </div>
 

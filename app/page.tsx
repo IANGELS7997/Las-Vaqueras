@@ -1,141 +1,112 @@
 'use client';
 
-import { useState } from 'react';
-import { CATEGORIES, MENU_ITEMS } from '@/lib/mock-data';
-import { useCart } from '@/lib/cart-context';
-import { useOrders } from '@/lib/orders-context';
-import { ProductCard } from '@/components/product-card';
-import { ProductModal } from '@/components/product-modal';
-import { FloatingCartBar } from '@/components/floating-cart-bar';
-import { Drumstick, Beef, CupSoda, UtensilsCrossed } from 'lucide-react';
-import type { MenuItem, CartItem } from '@/types';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Bike, Store } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
+import { Button } from '@/components/ui/button';
+import { useFulfillment } from '@/lib/fulfillment-context';
+import { getNextOpenLabel, getOpenStatus } from '@/lib/restaurant';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 
-const HERO_PROMOS = [
-  { src: '/hero/hero-1.jpg', alt: 'Qué tal una torta' },
-  { src: '/hero/hero-2.jpg', alt: 'Una burger' },
-  { src: '/hero/hero-3.jpg', alt: 'Y unas papas' },
-] as const;
+export default function FulfillmentGatePage() {
+  const router = useRouter();
+  const { ready, setMode, enableBrowseMenu } = useFulfillment();
+  const [open, setOpen] = useState({ isOpen: false, label: 'Cerrado' });
+  const [nextHours, setNextHours] = useState('');
 
-function CategoryLogo({ className }: { className?: string }) {
-  return <BrandLogo alt="" className={className} width={32} height={16} />;
-}
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      setOpen(getOpenStatus(now));
+      setNextHours(getNextOpenLabel(now));
+    };
+    update();
+    const interval = setInterval(update, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Flame: CategoryLogo,
-  Drumstick,
-  Beef,
-  CupSoda,
-};
-
-export default function Home() {
-  const [activeCategory, setActiveCategory] = useState<string>('combos');
-  const [modalItem, setModalItem] = useState<MenuItem | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const { addItem } = useCart();
-  const { outOfStockIds } = useOrders();
-
-  const filteredItems = MENU_ITEMS.filter((item) => item.category === activeCategory);
-
-  const handleCardClick = (item: MenuItem) => {
-    const needsModal =
-      (item.optionGroups && item.optionGroups.length > 0) ||
-      (item.comboUpgrades && item.comboUpgrades.length > 0) ||
-      (item.extras && item.extras.length > 0) ||
-      (item.removals && item.removals.length > 0);
-
-    if (needsModal) {
-      setModalItem(item);
-      setModalOpen(true);
-    } else {
-      const cartItem: CartItem = {
-        uid: `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        menuItemId: item.id,
-        name: item.name,
-        image: item.image,
-        price_base: item.price_base,
-        quantity: 1,
-        selections: [],
-      };
-      addItem(cartItem);
-    }
+  const choose = (mode: 'delivery' | 'pickup') => {
+    if (!open.isOpen) return;
+    setMode(mode);
+    router.push('/menu');
   };
 
-  const handleModalConfirm = (cartItem: CartItem) => {
-    addItem(cartItem);
+  const viewMenu = () => {
+    enableBrowseMenu();
+    router.push('/menu');
   };
+
+  if (!ready) {
+    return <div className="min-h-[50vh]" />;
+  }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-28 pt-6">
-      <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
-        {HERO_PROMOS.map((promo, index) => (
-          <div
-            key={promo.src}
-            className="group relative aspect-[3/4] overflow-hidden rounded-xl border border-border/50"
+    <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-10">
+      <BrandLogo className="h-20 sm:h-24" priority />
+      <h1 className="mt-6 text-center text-2xl font-bold text-white sm:text-3xl">¿Cómo quieres tu pedido?</h1>
+      <p className="mt-2 text-center text-sm text-muted-foreground">Elige una opción para ver el menú.</p>
+
+      <div className="mt-8 grid w-full gap-4 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled={!open.isOpen}
+          onClick={() => choose('delivery')}
+          className={cn(
+            'relative min-h-[220px] overflow-hidden rounded-3xl border border-border/60 bg-card p-6 text-left transition-all',
+            open.isOpen
+              ? 'hover:border-brand-500/60 hover:shadow-lg hover:shadow-brand-500/15'
+              : 'cursor-not-allowed'
+          )}
+        >
+          {!open.isOpen && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-grayscale">
+              <span className="rounded-lg bg-black/70 px-4 py-2 text-sm font-bold tracking-wide text-white">
+                CERRADO
+              </span>
+            </div>
+          )}
+          <Bike className={cn('h-12 w-12 text-brand-500', !open.isOpen && 'grayscale')} />
+          <p className="mt-4 text-xl font-bold text-white">Entrega a domicilio</p>
+        </button>
+
+        <button
+          type="button"
+          disabled={!open.isOpen}
+          onClick={() => choose('pickup')}
+          className={cn(
+            'relative min-h-[220px] overflow-hidden rounded-3xl border border-border/60 bg-card p-6 text-left transition-all',
+            open.isOpen
+              ? 'hover:border-brand-500/60 hover:shadow-lg hover:shadow-brand-500/15'
+              : 'cursor-not-allowed'
+          )}
+        >
+          {!open.isOpen && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-grayscale">
+              <span className="rounded-lg bg-black/70 px-4 py-2 text-sm font-bold tracking-wide text-white">
+                CERRADO
+              </span>
+            </div>
+          )}
+          <Store className={cn('h-12 w-12 text-brand-500', !open.isOpen && 'grayscale')} />
+          <p className="mt-4 text-xl font-bold text-white">Recoger en tienda</p>
+        </button>
+      </div>
+
+      {!open.isOpen && (
+        <div className="mt-8 w-full max-w-md text-center">
+          <p className="text-sm text-muted-foreground">
+            Estamos cerrados. Abrimos {nextHours}. Puedes ver el menú, pero no se puede pedir hasta que abramos.
+          </p>
+          <Button
+            onClick={viewMenu}
+            variant="outline"
+            className="mt-4 border-border/60 bg-card text-white hover:bg-secondary"
           >
-            <Image
-              src={promo.src}
-              alt={promo.alt}
-              fill
-              priority
-              className={cn('hero-promo-shot object-cover', `hero-promo-shot--${index}`)}
-              sizes="(max-width: 640px) 33vw, 280px"
-            />
-          </div>
-        ))}
-      </div>
-
-      <div className="mb-6 text-center animate-fade-in-up">
-        <h2 className="text-2xl font-bold text-white sm:text-3xl">
-          Las papas vaqueras mas famosas de <span className="text-brand-500">Chihuahua</span>
-        </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Papas Vaqueras, Boneless, Hamburguesas y más. Entrega rápida a tu puerta.
-        </p>
-      </div>
-
-      <div className="mb-6 flex gap-2 overflow-x-auto scrollbar-hide">
-        {CATEGORIES.map((cat) => {
-          const Icon = iconMap[cat.icon] || UtensilsCrossed;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={cn(
-                'flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-all',
-                activeCategory === cat.id
-                  ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/30'
-                  : 'bg-card text-muted-foreground hover:bg-secondary'
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {cat.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 animate-fade-in">
-        {filteredItems.map((item) => (
-          <ProductCard
-            key={item.id}
-            item={item}
-            onAdd={handleCardClick}
-            outOfStock={outOfStockIds.includes(item.id)}
-          />
-        ))}
-      </div>
-
-      <ProductModal
-        item={modalItem}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onConfirm={handleModalConfirm}
-      />
-
-      <FloatingCartBar />
+            Ver menú
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

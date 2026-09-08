@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Trash2, ArrowLeft, CreditCard, Loader2, MapPin, User, Mail } from 'lucide-react';
+import { Trash2, ArrowLeft, CreditCard, Loader2, User, Mail, Clock } from 'lucide-react';
 import { CheckoutPayment } from '@/components/checkout-payment';
+import { DeliveryMap } from '@/components/delivery-map';
 import { useCart } from '@/lib/cart-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,9 +17,18 @@ import {
   calcCartLineWeb,
   DELIVERY_FEE,
   formatMXN,
-  SERVICE_FEE_RATE,
 } from '@/lib/pricing';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
+import {
+  formatDeliveryAddress,
+  formatDeliveryReferences,
+  isValidCoord,
+  isValidPostalCode,
+} from '@/lib/delivery-address';
+import { useFulfillment } from '@/lib/fulfillment-context';
+import { fulfillmentDeliveryFee } from '@/lib/fulfillment';
+import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
+import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import type { Order } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -27,20 +37,114 @@ const PENDING_KEY = 'lv_pending_checkout';
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, removeItem, clearCart, setLastOrder } = useCart();
+  const { ready, mode } = useFulfillment();
+  const isPickup = mode === 'pickup';
+  const deliveryFee = mode ? fulfillmentDeliveryFee(mode) : DELIVERY_FEE;
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
+  const [street, setStreet] = useState('');
+  const [extNumber, setExtNumber] = useState('');
+  const [intNumber, setIntNumber] = useState('');
+  const [colonia, setColonia] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [references, setReferences] = useState('');
+  const [dropoffLat, setDropoffLat] = useState<number | null>(null);
+  const [dropoffLng, setDropoffLng] = useState<number | null>(null);
+  const [pickupAt, setPickupAt] = useState('');
+  const [pickupSlots, setPickupSlots] = useState<{ iso: string; label: string }[]>([]);
+  const [isOpen, setIsOpen] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [creatingIntent, setCreatingIntent] = useState(false);
   const [payError, setPayError] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [paymentIntentId, setPaymentIntentId] = useState('');
+  const [quotedFee, setQuotedFee] = useState<number | null>(null);
+  const [quoteError, setQuoteError] = useState('');
+  const [quoting, setQuoting] = useState(false);
 
   const priceBaseTotal = calcCartBaseTotal(items);
-  const split = calcCheckoutSplit({ priceBaseTotal, deliveryFee: DELIVERY_FEE });
+  const chargedDeliveryFee = isPickup ? 0 : quotedFee ?? deliveryFee;
+  const split = calcCheckoutSplit({ priceBaseTotal, deliveryFee: chargedDeliveryFee });
+
+  useEffect(() => {
+    const update = () => {
+      setIsOpen(getOpenStatus().isOpen);
+      setPickupSlots(generatePickupSlots());
+    };
+    update();
+    const interval = setInterval(update, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!isOpen) {
+      router.replace('/menu');
+      return;
+    }
+    if (!mode) {
+      router.replace('/');
+    }
+  }, [ready, isOpen, mode, router]);
+
+  useEffect(() => {
+    setClientSecret('');
+    setPaymentIntentId('');
+    setPayError('');
+    sessionStorage.removeItem(PENDING_KEY);
+  }, [mode]);
+
+  useEffect(() => {
+    if (isPickup) {
+      setQuotedFee(0);
+      setQuoteError('');
+      setQuoting(false);
+      return;
+    }
+    if (
+      dropoffLat == null ||
+      dropoffLng == null ||
+      !isValidCoord(dropoffLat, dropoffLng) ||
+      !street.trim() ||
+      !extNumber.trim() ||
+      !isValidPostalCode(postalCode)
+    ) {
+      setQuotedFee(null);
+      setQuoteError('');
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setQuoting(true);
+      setQuoteError('');
+      fetch('/api/delivery-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: dropoffLat,
+          lng: dropoffLng,
+          street,
+          extNumber,
+          postalCode,
+          phone,
+        }),
+      })
+        .then(async (response) => {
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || 'No se pudo cotizar el envío');
+          setQuotedFee(payload.fee);
+        })
+        .catch((error: Error) => {
+          setQuotedFee(null);
+          setQuoteError(error.message);
+        })
+        .finally(() => setQuoting(false));
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [isPickup, dropoffLat, dropoffLng, street, extNumber, postalCode, phone]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -49,24 +153,51 @@ export default function CheckoutPage() {
     else if (phone.replace(/\D/g, '').length < 10) e.phone = 'Teléfono inválido (mín. 10 dígitos)';
     if (!email.trim()) e.email = 'El correo es obligatorio para tu ticket';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Correo inválido';
-    if (!address.trim()) e.address = 'La dirección es obligatoria';
+    if (isPickup) {
+      if (!pickupAt) e.pickupAt = `Elige una hora (mínimo ${PICKUP_LEAD_MINUTES} min)`;
+    } else {
+      if (!street.trim()) e.street = 'La calle es obligatoria';
+      if (!extNumber.trim()) e.extNumber = 'El número exterior es obligatorio';
+      if (!colonia.trim()) e.colonia = 'La colonia es obligatoria';
+      if (!isValidPostalCode(postalCode)) e.postalCode = 'Código postal de 5 dígitos';
+      if (
+        dropoffLat == null ||
+        dropoffLng == null ||
+        !isValidCoord(dropoffLat, dropoffLng)
+      ) {
+        e.map = 'Marca el punto exacto en el mapa';
+      }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const startPayment = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || !mode) return;
     if (!validate()) return;
+    if (!isPickup && (quotedFee == null || quoting)) return;
     setCreatingIntent(true);
     setPayError('');
 
-    const customer = { name, phone, email, address, references };
+    const address = isPickup
+      ? RESTAURANT_INFO.address
+      : formatDeliveryAddress({ street, extNumber, intNumber, colonia, postalCode });
+    const customer = {
+      name,
+      phone,
+      email,
+      address,
+      references: isPickup ? '' : references,
+      lat: isPickup ? undefined : dropoffLat,
+      lng: isPickup ? undefined : dropoffLng,
+    };
     const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         priceBaseTotal,
-        deliveryFee: DELIVERY_FEE,
+        fulfillment: mode,
+        pickupAt: isPickup ? pickupAt : null,
         stripeAccountId: process.env.NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID,
         customer,
         items,
@@ -102,7 +233,7 @@ export default function CheckoutPage() {
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <p className="text-lg font-semibold text-white">Tu carrito está vacío</p>
         <p className="mt-2 text-sm text-muted-foreground">Agrega productos para continuar.</p>
-        <Button onClick={() => router.push('/')} className="mt-6 bg-brand-500 text-white hover:bg-brand-600">
+        <Button onClick={() => router.push('/menu')} className="mt-6 bg-brand-500 text-white hover:bg-brand-600">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver al menú
         </Button>
@@ -113,7 +244,7 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pb-12 pt-6">
       <button
-        onClick={() => router.push('/')}
+        onClick={() => router.push('/menu')}
         className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-brand-400"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -175,7 +306,7 @@ export default function CheckoutPage() {
           <div className="rounded-2xl border border-border/60 bg-card p-4">
             <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
               <User className="h-4 w-4 text-brand-500" />
-              Información de entrega
+              {isPickup ? 'Información de recoger' : 'Información de entrega'}
             </h2>
             <div className="grid gap-3">
               <div>
@@ -220,28 +351,123 @@ export default function CheckoutPage() {
                   más adelante. La promoción está por definirse.
                 </p>
               </div>
-              <div>
-                <Label className="mb-1.5">Dirección de entrega</Label>
-                <Input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Calle, número, colonia"
-                  disabled={Boolean(clientSecret)}
-                  className={cn(errors.address && 'border-red-500')}
-                />
-                {errors.address && <p className="mt-1 text-xs text-red-400">{errors.address}</p>}
-              </div>
-              <div>
-                <Label className="mb-1.5">Referencias (opcional)</Label>
-                <Textarea
-                  value={references}
-                  onChange={(e) => setReferences(e.target.value)}
-                  placeholder="Ej: casa azul, frente al parque..."
-                  className="resize-none"
-                  rows={2}
-                  disabled={Boolean(clientSecret)}
-                />
-              </div>
+              {isPickup ? (
+                <div>
+                  <Label className="mb-1.5 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-brand-500" />
+                    Hora para recoger
+                  </Label>
+                  <select
+                    value={pickupAt}
+                    onChange={(e) => setPickupAt(e.target.value)}
+                    disabled={Boolean(clientSecret)}
+                    className={cn(
+                      'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
+                      errors.pickupAt && 'border-red-500'
+                    )}
+                  >
+                    <option value="">Elige hora (desde {PICKUP_LEAD_MINUTES} min)</option>
+                    {pickupSlots.map((slot) => (
+                      <option key={slot.iso} value={slot.iso}>
+                        {slot.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.pickupAt && <p className="mt-1 text-xs text-red-400">{errors.pickupAt}</p>}
+                  {pickupSlots.length === 0 && (
+                    <p className="mt-1.5 text-xs text-red-400">
+                      Ya no hay horarios de recoger en esta jornada.
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Recoges en {RESTAURANT_INFO.address}.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label className="mb-1.5">Calle</Label>
+                    <Input
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      placeholder="Rio de Janeiro"
+                      disabled={Boolean(clientSecret)}
+                      className={cn(errors.street && 'border-red-500')}
+                    />
+                    {errors.street && <p className="mt-1 text-xs text-red-400">{errors.street}</p>}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="mb-1.5">Número exterior</Label>
+                      <Input
+                        value={extNumber}
+                        onChange={(e) => setExtNumber(e.target.value)}
+                        placeholder="903"
+                        disabled={Boolean(clientSecret)}
+                        className={cn(errors.extNumber && 'border-red-500')}
+                      />
+                      {errors.extNumber && <p className="mt-1 text-xs text-red-400">{errors.extNumber}</p>}
+                    </div>
+                    <div>
+                      <Label className="mb-1.5">Número interior</Label>
+                      <Input
+                        value={intNumber}
+                        onChange={(e) => setIntNumber(e.target.value)}
+                        placeholder="Opcional"
+                        disabled={Boolean(clientSecret)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Colonia</Label>
+                    <Input
+                      value={colonia}
+                      onChange={(e) => setColonia(e.target.value)}
+                      placeholder="Panamericana"
+                      disabled={Boolean(clientSecret)}
+                      className={cn(errors.colonia && 'border-red-500')}
+                    />
+                    {errors.colonia && <p className="mt-1 text-xs text-red-400">{errors.colonia}</p>}
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Código postal</Label>
+                    <Input
+                      inputMode="numeric"
+                      maxLength={5}
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      placeholder="31210"
+                      disabled={Boolean(clientSecret)}
+                      className={cn(errors.postalCode && 'border-red-500')}
+                    />
+                    {errors.postalCode && <p className="mt-1 text-xs text-red-400">{errors.postalCode}</p>}
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Punto exacto de entrega</Label>
+                    <DeliveryMap
+                      lat={dropoffLat}
+                      lng={dropoffLng}
+                      disabled={Boolean(clientSecret)}
+                      onPick={(nextLat, nextLng) => {
+                        setDropoffLat(nextLat);
+                        setDropoffLng(nextLng);
+                      }}
+                    />
+                    {errors.map && <p className="mt-1 text-xs text-red-400">{errors.map}</p>}
+                  </div>
+                  <div>
+                    <Label className="mb-1.5">Referencias (opcional)</Label>
+                    <Textarea
+                      value={references}
+                      onChange={(e) => setReferences(e.target.value)}
+                      placeholder="Ej: casa azul, frente al parque..."
+                      className="resize-none"
+                      rows={2}
+                      disabled={Boolean(clientSecret)}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -254,7 +480,17 @@ export default function CheckoutPage() {
               <CheckoutPayment
                 clientSecret={clientSecret}
                 pending={{
-                  customer: { name, phone, email, address, references },
+                  customer: {
+                    name,
+                    phone,
+                    email,
+                    address: isPickup
+                      ? RESTAURANT_INFO.address
+                      : formatDeliveryAddress({ street, extNumber, intNumber, colonia, postalCode }),
+                    references: isPickup
+                      ? ''
+                      : formatDeliveryReferences(references, dropoffLat, dropoffLng),
+                  },
                   items,
                   paymentIntentId,
                 }}
@@ -265,7 +501,11 @@ export default function CheckoutPage() {
                 {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
                 <Button
                   onClick={startPayment}
-                  disabled={creatingIntent}
+                  disabled={
+                    creatingIntent ||
+                    (isPickup && pickupSlots.length === 0) ||
+                    (!isPickup && (quoting || quotedFee == null))
+                  }
                   className="w-full bg-brand-500 text-white hover:bg-brand-600"
                   size="lg"
                 >
@@ -275,7 +515,7 @@ export default function CheckoutPage() {
                       Preparando pago...
                     </>
                   ) : (
-                    'Continuar al pago seguro'
+                    'Pagar'
                   )}
                 </Button>
               </div>
@@ -288,27 +528,32 @@ export default function CheckoutPage() {
             <h2 className="mb-3 text-sm font-bold text-white">Resumen del pedido</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal (precio web)</span>
+                <span>Subtotal</span>
                 <span className="text-white">{formatMXN(split.subtotalWeb)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Cargo al cliente ({(SERVICE_FEE_RATE * 100).toFixed(0)}%)</span>
+                <span>Cuota de servicio</span>
                 <span className="text-white">{formatMXN(split.customerFee)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Envío</span>
-                <span className="text-white">{formatMXN(split.deliveryFee)}</span>
+                <span>{isPickup ? 'Envío (recoger)' : 'Envío (aprox. Uber)'}</span>
+                <span className="text-white">
+                  {isPickup
+                    ? formatMXN(0)
+                    : quoting
+                      ? 'Calculando...'
+                      : quotedFee != null
+                        ? formatMXN(quotedFee)
+                        : '—'}
+                </span>
               </div>
+              {quoteError && <p className="text-xs text-red-400">{quoteError}</p>}
               <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-base font-bold">
                 <span className="text-white">Total</span>
                 <span className="text-brand-500">{formatMXN(split.totalCharged)}</span>
               </div>
             </div>
-            <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
-              El restaurante recibe {formatMXN(split.restaurantPayout)} (92% del menú físico).
-            </p>
           </div>
         </div>
       </div>

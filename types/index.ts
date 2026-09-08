@@ -79,6 +79,8 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled';
 
+export type FulfillmentMode = 'delivery' | 'pickup';
+
 export interface OrderCustomer {
   name: string;
   phone: string;
@@ -104,4 +106,6 @@ export interface Order {
   status: OrderStatus;
   createdAt: string;
   estimatedMinutes: number;
+  fulfillment: FulfillmentMode;
+  pickupAt?: string | null;
 }

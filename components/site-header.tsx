@@ -1,15 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Clock, Phone } from 'lucide-react';
+import { MapPin, Clock, Phone, Bike, Store } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { RESTAURANT_INFO, getOpenStatus, getTodayHours } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
+import { useFulfillment } from '@/lib/fulfillment-context';
 import { cn } from '@/lib/utils';
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { mode, setMode, ready } = useFulfillment();
   const [status, setStatus] = useState({ isOpen: false, label: 'Cerrado' });
   const [todayHours, setTodayHours] = useState('');
 
@@ -40,6 +42,32 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-3">
+          {ready && mode && pathname !== '/' && status.isOpen && (
+            <div className="flex items-center rounded-full border border-border/60 bg-card p-0.5">
+              <button
+                type="button"
+                onClick={() => setMode('delivery')}
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                  mode === 'delivery' ? 'bg-brand-500 text-white' : 'text-muted-foreground'
+                )}
+              >
+                <Bike className="h-3 w-3" />
+                Domicilio
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('pickup')}
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                  mode === 'pickup' ? 'bg-brand-500 text-white' : 'text-muted-foreground'
+                )}
+              >
+                <Store className="h-3 w-3" />
+                Recoger
+              </button>
+            </div>
+          )}
           <div
             className={cn(
               'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',

@@ -100,7 +100,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         <Package className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
         <p className="text-lg font-semibold text-white">Pedido no encontrado</p>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/menu')}
           className="mx-auto mt-6 flex items-center gap-1.5 text-sm text-orange-400"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -113,7 +113,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-md px-6 pb-12 pt-6 text-white">
       <button
-        onClick={() => router.push('/')}
+        onClick={() => router.push('/menu')}
         className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-orange-400"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -179,11 +179,21 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
       <div className="mb-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
           <MapPin className="h-4 w-4 text-orange-500" />
-          Dirección de entrega
+          {order.fulfillment === 'pickup' ? 'Recoger en tienda' : 'Dirección de entrega'}
         </h3>
-        <p className="text-sm">{order.customer.address}</p>
-        {order.customer.references && (
-          <p className="mt-1 text-xs text-muted-foreground">{order.customer.references}</p>
+        {order.fulfillment === 'pickup' ? (
+          <p className="text-sm">
+            {order.pickupAt
+              ? `Hora de recoger: ${new Date(order.pickupAt).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })}`
+              : 'Recoges en sucursal'}
+          </p>
+        ) : (
+          <>
+            <p className="text-sm">{order.customer.address}</p>
+            {order.customer.references && (
+              <p className="mt-1 text-xs text-muted-foreground">{order.customer.references}</p>
+            )}
+          </>
         )}
         <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <Phone className="h-3.5 w-3.5 text-orange-500" />

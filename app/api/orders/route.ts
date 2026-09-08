@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
-import { DELIVERY_FEE } from '@/lib/pricing';
+import { fulfillmentDeliveryFee, isFulfillmentMode } from '@/lib/fulfillment';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -50,9 +51,16 @@ export async function POST(req: Request) {
     }
 
     const priceBaseTotal = Number(paymentIntent.metadata.price_base_total || 0);
-    const deliveryFee = Number(paymentIntent.metadata.delivery_fee || DELIVERY_FEE);
+    const fulfillment = isFulfillmentMode(paymentIntent.metadata.fulfillment)
+      ? paymentIntent.metadata.fulfillment
+      : 'delivery';
+    const deliveryFee = fulfillmentDeliveryFee(fulfillment);
+    const pickupAt = paymentIntent.metadata.pickup_at || null;
     const split = calcCheckoutSplit({ priceBaseTotal, deliveryFee });
     const email = customer.email.trim().toLowerCase();
+    const address =
+      fulfillment === 'pickup' ? RESTAURANT_INFO.address : customer.address.trim();
+    const references = fulfillment === 'pickup' ? null : customer.references?.trim() || null;
 
     const supabase = createAdminSupabase();
     const existing = await supabase
@@ -73,8 +81,10 @@ export async function POST(req: Request) {
           customer_name: customer.name.trim(),
           customer_phone: customer.phone.trim(),
           customer_email: email,
-          delivery_address: customer.address.trim(),
-          delivery_references: customer.references?.trim() || null,
+          delivery_address: address,
+          delivery_references: references,
+          fulfillment_type: fulfillment,
+          pickup_at: fulfillment === 'pickup' ? pickupAt : null,
           items: items || row.items || [],
           status: 'pending',
         })
@@ -97,13 +107,15 @@ export async function POST(req: Request) {
         customer_name: customer.name.trim(),
         customer_phone: customer.phone.trim(),
         customer_email: email,
-        delivery_address: customer.address.trim(),
-        delivery_references: customer.references?.trim() || null,
+        delivery_address: address,
+        delivery_references: references,
         total_charged: split.totalCharged,
         restaurant_payout: split.restaurantPayout,
         platform_fee: split.platformFee,
         customer_fee: split.customerFee,
         delivery_fee: split.deliveryFee,
+        fulfillment_type: fulfillment,
+        pickup_at: fulfillment === 'pickup' ? pickupAt : null,
         status: 'pending',
         items: items || [],
       })

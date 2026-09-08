@@ -34,6 +34,8 @@ export type DbOrderRow = {
   status: OrderStatus;
   items: CartItem[] | null;
   created_at: string;
+  fulfillment_type?: string | null;
+  pickup_at?: string | null;
 };
 
 function toNumber(value: number | string): number {
@@ -62,6 +64,8 @@ export function mapDbOrder(row: DbOrderRow): Order {
     status: row.status,
     createdAt: row.created_at,
     estimatedMinutes: 35,
+    fulfillment: row.fulfillment_type === 'pickup' ? 'pickup' : 'delivery',
+    pickupAt: row.pickup_at || null,
   };
 }
 
