@@ -119,7 +119,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'Falta stripeAccountId. Pon STRIPE_CONNECT_ACCOUNT_ID (acct_... de test) en .env',
+            'Falta stripeAccountId. Pon STRIPE_CONNECT_ACCOUNT_ID (acct_...) en .env',
         },
         { status: 400 }
       );

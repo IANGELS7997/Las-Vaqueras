@@ -1,0 +1,26 @@
+{
+  "contact_email": "iangels7997@gmail.com",
+  "display_name": "Las Vaqueras",
+  "defaults": {
+    "responsibilities": {
+      "fees_collector": "application",
+      "losses_collector": "application"
+    }
+  },
+  "dashboard": "express",
+  "identity": {
+    "country": "mx"
+  },
+  "configuration": {
+    "recipient": {
+      "capabilities": {
+        "stripe_balance": {
+          "stripe_transfers": {
+            "requested": true
+          }
+        }
+      }
+    }
+  },
+  "include": ["configuration.recipient", "identity", "requirements"]
+}
