@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { MapPin, Phone, Clock, Shield, FileText } from 'lucide-react';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
 
 export function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname.startsWith('/admin')) return null;
   return (
     <footer className="border-t border-border/60 bg-card mt-12">
       <div className="mx-auto max-w-5xl px-4 py-8">

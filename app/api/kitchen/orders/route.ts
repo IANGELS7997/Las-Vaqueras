@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
+import { requireKitchenSession } from '@/lib/kitchen-guard';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
+  const denied = await requireKitchenSession();
+  if (denied) return denied;
+
   const supabase = createAdminSupabase();
   const { data, error } = await supabase
     .from('orders')

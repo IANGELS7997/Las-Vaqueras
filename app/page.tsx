@@ -64,7 +64,7 @@ export default function Home() {
     <div className="mx-auto max-w-5xl px-4 pb-28 pt-6">
       <div className="mb-6 text-center animate-fade-in-up">
         <h2 className="text-2xl font-bold text-white sm:text-3xl">
-          Pide a domicilio en <span className="text-brand-500">Chihuahua</span>
+          Las papas vaqueras mas famosas de <span className="text-brand-500">Chihuahua</span>
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Papas Vaqueras, Boneless, Hamburguesas y más. Entrega rápida a tu puerta.

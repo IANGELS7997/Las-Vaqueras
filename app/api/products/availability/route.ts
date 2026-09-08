@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase-admin';
+import { requireKitchenSession } from '@/lib/kitchen-guard';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  const denied = await requireKitchenSession();
+  if (denied) return denied;
+
   const { productId, isAvailable } = await req.json();
   if (typeof productId !== 'string' || typeof isAvailable !== 'boolean') {
     return NextResponse.json({ error: 'productId e isAvailable son requeridos' }, { status: 400 });

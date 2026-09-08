@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isOrderStatus, mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
+import { requireKitchenSession } from '@/lib/kitchen-guard';
 
 export const runtime = 'nodejs';
 
@@ -8,6 +9,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  const denied = await requireKitchenSession();
+  if (denied) return denied;
+
   const { status } = await req.json();
   if (!isOrderStatus(status)) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });

@@ -173,8 +173,22 @@ export default function KitchenDashboardPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 pb-12 pt-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Cocina / POS</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Gestión de pedidos y control de inventario</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Cocina / POS</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Gestión de pedidos y control de inventario</p>
+          </div>
+          <button
+            type="button"
+            className="text-xs font-semibold text-muted-foreground hover:text-white"
+            onClick={async () => {
+              await fetch('/api/kitchen/logout', { method: 'POST' });
+              window.location.href = '/admin/login';
+            }}
+          >
+            Salir
+          </button>
+        </div>
       </div>
 
       <div className="mb-6">

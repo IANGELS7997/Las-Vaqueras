@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Clock, Phone, ChefHat } from 'lucide-react';
+import { MapPin, Clock, Phone } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { RESTAURANT_INFO, getOpenStatus, getTodayHours } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
 
 export function SiteHeader() {
+  const pathname = usePathname();
   const [status, setStatus] = useState({ isOpen: false, label: 'Cerrado' });
   const [todayHours, setTodayHours] = useState('');
 
@@ -22,17 +24,12 @@ export function SiteHeader() {
     return () => clearInterval(interval);
   }, []);
 
+  if (pathname.startsWith('/admin')) return null;
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <a
-            href="/admin/kitchen"
-            className="flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-brand-500/50 hover:bg-brand-500 hover:text-white"
-          >
-            <ChefHat className="h-3.5 w-3.5" />
-            Cocina
-          </a>
           <Link href="/" className="flex items-center gap-2.5">
             <BrandLogo className="h-14" priority />
             <div>

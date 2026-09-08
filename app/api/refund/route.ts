@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
+import { requireKitchenSession } from '@/lib/kitchen-guard';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,9 @@ async function markOrderCancelled(paymentIntentId: string) {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireKitchenSession();
+  if (denied) return denied;
+
   let paymentIntentId: string | undefined;
 
   try {
