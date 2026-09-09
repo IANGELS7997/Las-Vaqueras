@@ -99,7 +99,7 @@ export default function FulfillmentGatePage() {
             variant="outline"
             className="mt-4 border-border/60 bg-card text-white hover:bg-secondary"
           >
-            <Link href="/menu" onClick={() => enableBrowseMenu()}>
+            <Link href="/menu" scroll onClick={() => enableBrowseMenu()}>
               Ver menú
             </Link>
           </Button>

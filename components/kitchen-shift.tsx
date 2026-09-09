@@ -4,18 +4,36 @@ import { useEffect, useRef, useState } from 'react';
 
 const ALERT_EVENT = 'lv-kitchen-alert';
 const SOUND_SRC = '/sounds/new-order.wav';
+const CHIME_NOTES = [
+  { freq: 523.25, at: 0, dur: 0.85 },
+  { freq: 659.25, at: 0.38, dur: 0.9 },
+  { freq: 783.99, at: 0.76, dur: 1.05 },
+  { freq: 1046.5, at: 1.2, dur: 1.35 },
+] as const;
+const CHIME_GAP_MS = 2750;
 
 function playBeep(ctx: AudioContext) {
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = 'square';
-  osc.frequency.value = 880;
-  gain.gain.setValueAtTime(0.12, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + 0.35);
+  const now = ctx.currentTime;
+  for (const note of CHIME_NOTES) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = note.freq;
+    const start = now + note.at;
+    const end = start + note.dur;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.09, start + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, end);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(end + 0.02);
+  }
+}
+
+function playBeepTwice(ctx: AudioContext) {
+  playBeep(ctx);
+  window.setTimeout(() => playBeep(ctx), CHIME_GAP_MS);
 }
 
 export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boolean) => void }) {
@@ -24,15 +42,28 @@ export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boole
   const ctxRef = useRef<AudioContext | null>(null);
 
   const playFullAlert = () => {
+    const fallback = () => {
+      if (ctxRef.current) playBeepTwice(ctxRef.current);
+    };
+
     const alertAudio = audioRef.current;
-    if (alertAudio) {
-      alertAudio.currentTime = 0;
-      void alertAudio.play().catch(() => {
-        if (ctxRef.current) playBeep(ctxRef.current);
-      });
+    if (!alertAudio) {
+      fallback();
       return;
     }
-    if (ctxRef.current) playBeep(ctxRef.current);
+
+    let repeatsLeft = 1;
+    alertAudio.onended = () => {
+      if (repeatsLeft <= 0) {
+        alertAudio.onended = null;
+        return;
+      }
+      repeatsLeft -= 1;
+      alertAudio.currentTime = 0;
+      void alertAudio.play().catch(fallback);
+    };
+    alertAudio.currentTime = 0;
+    void alertAudio.play().catch(fallback);
   };
 
   useEffect(() => {
@@ -54,22 +85,15 @@ export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boole
         const ctx = ctxRef.current ?? new Ctx();
         ctxRef.current = ctx;
         if (ctx.state === 'suspended') await ctx.resume();
-        playBeep(ctx);
       } catch {
         /* El turno ya arrancó aunque el navegador bloquee audio. */
       }
 
       const alertAudio = new Audio(SOUND_SRC);
       audioRef.current = alertAudio;
-      void alertAudio
-        .play()
-        .then(() => {
-          alertAudio.pause();
-          alertAudio.currentTime = 0;
-        })
-        .catch(() => {
-          /* Sin archivo o autoplay: usamos el beep de AudioContext. */
-        });
+      void alertAudio.play().catch(() => {
+        /* Sin archivo o autoplay: usamos el timbre de AudioContext. */
+      });
     })();
   };
 
