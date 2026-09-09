@@ -4,6 +4,8 @@ export const DOMICILE_TARIFA_PER_PLATILLO = 9;
 export const DOMICILE_TARIFA_CAP = 36;
 export const DELIVERY_FEE_FLOOR = 45;
 export const SUBSIDY_MIN_WEB = 180;
+export const SUBSIDY_MID_UBER = 25;
+export const SUBSIDY_HIGH_UBER = 30;
 
 function money(value: number): number {
   return Math.round(value * 100) / 100;
@@ -35,8 +37,8 @@ export function calcDomicileTarifa(platilloCount: number): number {
 export function calcPlatformDeliverySubsidy(uberFee: number, subtotalWeb: number): number {
   if (subtotalWeb < SUBSIDY_MIN_WEB) return 0;
   if (uberFee < 50) return 0;
-  if (uberFee <= 80) return 15;
-  return 20;
+  if (uberFee <= 80) return SUBSIDY_MID_UBER;
+  return SUBSIDY_HIGH_UBER;
 }
 
 export function calcCustomerDeliveryFee(input: {
