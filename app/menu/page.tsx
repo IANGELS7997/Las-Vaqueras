@@ -63,7 +63,7 @@ export default function MenuPage() {
   const didResetScroll = useRef(false);
 
   useLayoutEffect(() => {
-    if (!showingMenu || !viewOnly || didResetScroll.current) return;
+    if (!showingMenu || didResetScroll.current) return;
     didResetScroll.current = true;
     const previous = history.scrollRestoration;
     history.scrollRestoration = 'manual';
@@ -79,7 +79,7 @@ export default function MenuPage() {
       timers.forEach((id) => window.clearTimeout(id));
       history.scrollRestoration = previous;
     };
-  }, [showingMenu, viewOnly]);
+  }, [showingMenu]);
 
   const filteredItems = MENU_ITEMS.filter((item) => item.category === activeCategory);
 
