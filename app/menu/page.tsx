@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CATEGORIES, MENU_ITEMS } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
@@ -58,7 +58,29 @@ export default function MenuPage() {
     }
   }, [ready, isOpen, mode, browseOnly, router]);
 
+  const showingMenu = ready && isOpen !== null && !(isOpen && !mode && !browseOnly);
   const viewOnly = browseOnly || isOpen === false;
+  const didResetScroll = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!showingMenu || !viewOnly || didResetScroll.current) return;
+    didResetScroll.current = true;
+    const previous = history.scrollRestoration;
+    history.scrollRestoration = 'manual';
+    const scrollTop = () => window.scrollTo(0, 0);
+    scrollTop();
+    const frame = requestAnimationFrame(() => {
+      scrollTop();
+      requestAnimationFrame(scrollTop);
+    });
+    const timers = [50, 150, 350].map((ms) => window.setTimeout(scrollTop, ms));
+    return () => {
+      cancelAnimationFrame(frame);
+      timers.forEach((id) => window.clearTimeout(id));
+      history.scrollRestoration = previous;
+    };
+  }, [showingMenu, viewOnly]);
+
   const filteredItems = MENU_ITEMS.filter((item) => item.category === activeCategory);
 
   const handleCardClick = (item: MenuItem) => {
