@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
-import { fulfillmentDeliveryFee, isFulfillmentMode } from '@/lib/fulfillment';
+import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
+import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidPickupAt } from '@/lib/pickup-slots';
 import { formatDeliveryReferences, isValidCoord } from '@/lib/delivery-address';
+import { calcCartBaseTotal } from '@/lib/pricing';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
 import { createDeliveryQuote, isUberQuoteConfigured } from '@/lib/uber-direct';
@@ -49,7 +51,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Elige domicilio o recoger en tienda' }, { status: 400 });
     }
 
-    let deliveryFee = fulfillmentDeliveryFee(fulfillment);
+    const cartItems = Array.isArray(items) ? items : [];
+    const isPickup = fulfillment === 'pickup';
+    let uberFee = 0;
     const destination =
       (typeof stripeAccountId === 'string' && stripeAccountId.startsWith('acct_')
         ? stripeAccountId
@@ -65,7 +69,6 @@ export async function POST(req: Request) {
     const name = customer?.name?.trim() || '';
     const phone = customer?.phone?.trim() || '';
     const email = customer?.email?.trim().toLowerCase() || '';
-    const isPickup = fulfillment === 'pickup';
     const address = isPickup ? RESTAURANT_INFO.address : customer?.address?.trim() || '';
     const lat = typeof customer?.lat === 'number' ? customer.lat : Number.NaN;
     const lng = typeof customer?.lng === 'number' ? customer.lng : Number.NaN;
@@ -109,7 +112,7 @@ export async function POST(req: Request) {
         dropoffLng: lng,
         dropoffPhone: phone,
       });
-      deliveryFee = quote.fee;
+      uberFee = quote.fee;
     }
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: 'El correo no es válido' }, { status: 400 });
@@ -125,7 +128,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const split = calcCheckoutSplit({ priceBaseTotal, deliveryFee });
+    const serverBase = cartItems.length > 0 ? calcCartBaseTotal(cartItems) : priceBaseTotal;
+    if (!isPositiveNumber(serverBase)) {
+      return NextResponse.json(
+        { error: 'El carrito no tiene un subtotal válido' },
+        { status: 400 }
+      );
+    }
+    const platilloCount = countDeliveryPlatillos(cartItems);
+    const split = calcCheckoutSplit({
+      priceBaseTotal: serverBase,
+      fulfillment,
+      platilloCount,
+      uberFee,
+    });
 
     if (split.applicationFeeCentavos <= 0 || split.applicationFeeCentavos >= split.totalChargedCentavos) {
       return NextResponse.json(
@@ -145,8 +161,12 @@ export async function POST(req: Request) {
       },
       application_fee_amount: split.applicationFeeCentavos,
       metadata: {
-        price_base_total: String(priceBaseTotal),
-        delivery_fee: String(deliveryFee),
+        price_base_total: String(serverBase),
+        uber_fee: String(split.uberFee),
+        domicile_tarifa: String(split.domicileTarifa),
+        delivery_subsidy: String(split.deliverySubsidy),
+        platillo_count: String(platilloCount),
+        delivery_fee: String(split.deliveryFee),
         restaurant_payout: String(split.restaurantPayout),
         platform_fee: String(split.platformFee),
         customer_name: name.slice(0, 200),
@@ -191,7 +211,10 @@ export async function POST(req: Request) {
       orderId: insert.data.id,
       split: {
         subtotalWeb: split.subtotalWeb,
+        domicileTarifa: split.domicileTarifa,
         customerFee: split.customerFee,
+        uberFee: split.uberFee,
+        deliveryDiscount: split.deliveryDiscount,
         deliveryFee: split.deliveryFee,
         totalCharged: split.totalCharged,
         restaurantPayout: split.restaurantPayout,
