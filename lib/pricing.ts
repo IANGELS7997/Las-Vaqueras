@@ -1,7 +1,7 @@
-/** 5% processing absorption + 8% platform fee over physical menu base */
+/** 5% processing absorption + 8% already in the web price. Restaurant commission is 12%. */
 export const WEB_MARKUP = 1.13;
 export const SERVICE_FEE_RATE = 0.04;
-export const RESTAURANT_PAYOUT_RATE = 0.92;
+export const RESTAURANT_PAYOUT_RATE = 0.88;
 export const DELIVERY_FEE = 35;
 
 /** price_web = Math.round(price_base * 1.13) */
@@ -14,7 +14,7 @@ export function calcCustomerFee(mWeb: number): number {
   return Math.round(mWeb * SERVICE_FEE_RATE * 100) / 100;
 }
 
-/** D_restaurante = Math.round(M_base * 0.92 * 100) / 100 */
+/** D_restaurante = Math.round(M_base * 0.88 * 100) / 100 */
 export function calcRestaurantPayout(mBase: number): number {
   return Math.round(mBase * RESTAURANT_PAYOUT_RATE * 100) / 100;
 }
