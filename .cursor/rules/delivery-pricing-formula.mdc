@@ -1,0 +1,24 @@
+---
+description: Fórmula de envío web (dueño igual) — tarifa de domicilio
+alwaysApply: true
+---
+
+# Envío web
+
+Dueño = `0.92 × carta` siempre. No subir `price_base`. Recoger: carta × 1.13 + 4%, envío $0.
+
+Etiqueta checkout: **Tarifa de domicilio**. Combo = 1 platillo. Bebidas/extras no cuentan.
+
+## Solo domicilio
+
+1. Comida web = `round(carta × 1.13)`
+2. Tarifa = **$9 × platillos** (no bebidas/extras). Tope **$36**.
+3. 4% **solo** sobre (carta × 1.13), no sobre la tarifa.
+4. Subsidio plataforma según **Uber crudo** (antes de restar tarifa), y solo si comida web ≥ **$180**:
+   - Uber < $50 → $0
+   - $50–$80 inclusive → **$15** (cubre $50–$65 y $65–$80)
+   - $80.01–$100 → **$20**
+   - > $100 → **$20**
+5. `envío_cliente = min(uber, max(45, uber − tarifa − subsidio))`
+
+La tarifa es traslado de renglón (dueño y margen base iguales). El $15/$20 sí sale de la plataforma.

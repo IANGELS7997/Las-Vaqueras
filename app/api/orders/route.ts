@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
+import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import {
   CUSTOMER_COOKIE,
   customerCookieOptions,
@@ -10,7 +11,7 @@ import {
 import { namesFromCheckout } from '@/lib/customer-from-checkout';
 import { fullCustomerName } from '@/lib/customer-identity';
 import { upsertCustomer } from '@/lib/customers';
-import { fulfillmentDeliveryFee, isFulfillmentMode } from '@/lib/fulfillment';
+import { isFulfillmentMode } from '@/lib/fulfillment';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
@@ -94,9 +95,21 @@ export async function POST(req: Request) {
     const fulfillment = isFulfillmentMode(paymentIntent.metadata.fulfillment)
       ? paymentIntent.metadata.fulfillment
       : 'delivery';
-    const deliveryFee = fulfillmentDeliveryFee(fulfillment);
+    const platilloCount = Number.isFinite(Number(paymentIntent.metadata.platillo_count))
+      ? Number(paymentIntent.metadata.platillo_count)
+      : countDeliveryPlatillos(items || []);
+    const uberFee = Number(
+      paymentIntent.metadata.uber_fee ||
+        (fulfillment === 'pickup' ? 0 : paymentIntent.metadata.delivery_fee) ||
+        0
+    );
     const pickupAt = paymentIntent.metadata.pickup_at || null;
-    const split = calcCheckoutSplit({ priceBaseTotal, deliveryFee });
+    const split = calcCheckoutSplit({
+      priceBaseTotal,
+      fulfillment,
+      platilloCount,
+      uberFee,
+    });
     const email = customer.email.trim().toLowerCase();
     const address =
       fulfillment === 'pickup' ? RESTAURANT_INFO.address : customer.address.trim();

@@ -12,10 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import {
   calcCartBaseTotal,
   calcCartLineWeb,
-  DELIVERY_FEE,
   formatMXN,
 } from '@/lib/pricing';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
@@ -26,7 +26,6 @@ import {
   isValidPostalCode,
 } from '@/lib/delivery-address';
 import { useFulfillment } from '@/lib/fulfillment-context';
-import { fulfillmentDeliveryFee } from '@/lib/fulfillment';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import type { Order } from '@/types';
@@ -39,7 +38,6 @@ export default function CheckoutPage() {
   const { items, removeItem, clearCart, setLastOrder } = useCart();
   const { ready, mode } = useFulfillment();
   const isPickup = mode === 'pickup';
-  const deliveryFee = mode ? fulfillmentDeliveryFee(mode) : DELIVERY_FEE;
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -66,8 +64,13 @@ export default function CheckoutPage() {
   const [quoting, setQuoting] = useState(false);
 
   const priceBaseTotal = calcCartBaseTotal(items);
-  const chargedDeliveryFee = isPickup ? 0 : quotedFee ?? deliveryFee;
-  const split = calcCheckoutSplit({ priceBaseTotal, deliveryFee: chargedDeliveryFee });
+  const platilloCount = countDeliveryPlatillos(items);
+  const split = calcCheckoutSplit({
+    priceBaseTotal,
+    fulfillment: mode ?? 'delivery',
+    platilloCount,
+    uberFee: isPickup ? 0 : quotedFee ?? 0,
+  });
 
   useEffect(() => {
     const update = () => {
@@ -550,22 +553,49 @@ export default function CheckoutPage() {
                 <span>Subtotal</span>
                 <span className="text-white">{formatMXN(split.subtotalWeb)}</span>
               </div>
+              {!isPickup && split.domicileTarifa > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Tarifa de domicilio</span>
+                  <span className="text-white">{formatMXN(split.domicileTarifa)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-muted-foreground">
                 <span>Cuota de servicio</span>
                 <span className="text-white">{formatMXN(split.customerFee)}</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>{isPickup ? 'Envío (recoger)' : 'Envío (aprox. Uber)'}</span>
-                <span className="text-white">
-                  {isPickup
-                    ? formatMXN(0)
-                    : quoting
-                      ? 'Calculando...'
-                      : quotedFee != null
-                        ? formatMXN(quotedFee)
-                        : '—'}
-                </span>
-              </div>
+              {isPickup ? (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Envío (recoger)</span>
+                  <span className="text-white">{formatMXN(0)}</span>
+                </div>
+              ) : quoting ? (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Envío Uber</span>
+                  <span className="text-white">Calculando...</span>
+                </div>
+              ) : quotedFee != null ? (
+                <>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Envío Uber</span>
+                    <span className="text-white">{formatMXN(split.uberFee)}</span>
+                  </div>
+                  {split.deliveryDiscount > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Descuento envío</span>
+                      <span className="text-emerald-400">−{formatMXN(split.deliveryDiscount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Envío</span>
+                    <span className="text-white">{formatMXN(split.deliveryFee)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Envío Uber</span>
+                  <span className="text-white">—</span>
+                </div>
+              )}
               {quoteError && <p className="text-xs text-red-400">{quoteError}</p>}
               <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-base font-bold">
