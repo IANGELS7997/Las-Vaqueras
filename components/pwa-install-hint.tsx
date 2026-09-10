@@ -26,7 +26,7 @@ export function PwaInstallHint() {
   return (
     <div className="mt-6 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-4 text-center">
       <p className="text-sm font-semibold text-white">
-        Agrega la app a tu pantalla de inicio para ver tus promociones
+        Agrega la app a tu pantalla de inicio para seguir tus pedidos y promociones
       </p>
       {installEvent ? (
         <Button

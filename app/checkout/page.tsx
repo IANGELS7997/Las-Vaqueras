@@ -26,6 +26,11 @@ import {
   isValidPostalCode,
 } from '@/lib/delivery-address';
 import { useFulfillment } from '@/lib/fulfillment-context';
+import {
+  clearCheckoutDraft,
+  readCheckoutDraft,
+  writeCheckoutDraft,
+} from '@/lib/checkout-draft';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
 import { FINAL_SALE_CONSENT } from '@/lib/final-sale';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
@@ -65,6 +70,13 @@ export default function CheckoutPage() {
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
   const [acceptFinalSale, setAcceptFinalSale] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [loyaltyNote, setLoyaltyNote] = useState('');
+  const [paySplit, setPaySplit] = useState<{
+    subtotalWeb: number;
+    deliveryFee: number;
+    totalCharged: number;
+  } | null>(null);
 
   const priceBaseTotal = calcCartBaseTotal(items);
   const platilloCount = countDeliveryPlatillos(items);
@@ -74,6 +86,7 @@ export default function CheckoutPage() {
     platilloCount,
     uberFee: isPickup ? 0 : quotedFee ?? 0,
   });
+  const displaySplit = paySplit ?? split;
 
   useEffect(() => {
     const update = () => {
@@ -84,6 +97,86 @@ export default function CheckoutPage() {
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const draft = readCheckoutDraft();
+    if (draft) {
+      setFirstName(draft.firstName);
+      setLastName(draft.lastName);
+      setPhone(draft.phone);
+      setEmail(draft.email);
+      setStreet(draft.street);
+      setExtNumber(draft.extNumber);
+      setIntNumber(draft.intNumber);
+      setColonia(draft.colonia);
+      setPostalCode(draft.postalCode);
+      setReferences(draft.references);
+      setDropoffLat(draft.lat);
+      setDropoffLng(draft.lng);
+      setPickupAt(draft.pickupAt);
+    }
+    setDraftReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const timer = window.setTimeout(() => {
+      writeCheckoutDraft({
+        firstName,
+        lastName,
+        phone,
+        email,
+        street,
+        extNumber,
+        intNumber,
+        colonia,
+        postalCode,
+        references,
+        lat: dropoffLat,
+        lng: dropoffLng,
+        pickupAt,
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [
+    draftReady,
+    firstName,
+    lastName,
+    phone,
+    email,
+    street,
+    extNumber,
+    intNumber,
+    colonia,
+    postalCode,
+    references,
+    dropoffLat,
+    dropoffLng,
+    pickupAt,
+  ]);
+
+  useEffect(() => {
+    if (!phone.trim() || !email.trim()) {
+      setLoyaltyNote('');
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void fetch('/api/loyalty/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          email,
+          fulfillment: mode,
+          address: street,
+        }),
+      })
+        .then((response) => response.json())
+        .then((payload) => setLoyaltyNote(payload.label || ''))
+        .catch(() => setLoyaltyNote(''));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [phone, email, mode, street]);
 
   useEffect(() => {
     if (!ready) return;
@@ -237,10 +330,19 @@ export default function CheckoutPage() {
     sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
     setPaymentIntentId(payload.id);
     setClientSecret(payload.clientSecret);
+    if (payload.split) {
+      setPaySplit({
+        subtotalWeb: Number(payload.split.subtotalWeb),
+        deliveryFee: Number(payload.split.deliveryFee),
+        totalCharged: Number(payload.split.totalCharged),
+      });
+    }
+    if (payload.loyalty?.label) setLoyaltyNote(payload.loyalty.label);
   };
 
   const handlePaid = (order: Order) => {
     sessionStorage.removeItem(PENDING_KEY);
+    clearCheckoutDraft();
     setLastOrder(order);
     clearCart();
     router.push(`/orders/${order.id}`);
@@ -378,8 +480,7 @@ export default function CheckoutPage() {
                 />
                 {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  Regístrate con tu correo para recibir tu ticket digital y poder aplicar a una promoción
-                  más adelante. La promoción está por definirse.
+                  Usamos tu correo para enviarte el ticket digital de este pedido.
                 </p>
               </div>
               {isPickup ? (
@@ -588,8 +689,9 @@ export default function CheckoutPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Comida</span>
-                <span className="text-white">{formatMXN(split.subtotalWeb)}</span>
+                <span className="text-white">{formatMXN(displaySplit.subtotalWeb)}</span>
               </div>
+              {loyaltyNote ? <p className="text-xs text-brand-400">{loyaltyNote}</p> : null}
               {isPickup ? (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Envío</span>
@@ -603,7 +705,7 @@ export default function CheckoutPage() {
               ) : quotedFee != null ? (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Envío</span>
-                  <span className="text-white">{formatMXN(split.deliveryFee)}</span>
+                  <span className="text-white">{formatMXN(displaySplit.deliveryFee)}</span>
                 </div>
               ) : (
                 <div className="flex justify-between text-muted-foreground">
@@ -615,7 +717,7 @@ export default function CheckoutPage() {
               <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-base font-bold">
                 <span className="text-white">Total</span>
-                <span className="text-brand-500">{formatMXN(split.totalCharged)}</span>
+                <span className="text-brand-500">{formatMXN(displaySplit.totalCharged)}</span>
               </div>
             </div>
           </div>

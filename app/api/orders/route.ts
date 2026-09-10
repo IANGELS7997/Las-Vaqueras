@@ -14,7 +14,8 @@ import { upsertCustomer } from '@/lib/customers';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
-import { cardFundingFromPaymentIntent } from '@/lib/card-funding';
+import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
+import { addressKey, clientIp, normalizeEmail, normalizePhone, type LoyaltyKind } from '@/lib/loyalty';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -31,6 +32,9 @@ async function orderResponseWithProfile(args: {
   phone: string;
   email: string;
   supabase: ReturnType<typeof createAdminSupabase>;
+  cardFingerprint?: string | null;
+  ip?: string;
+  loyaltyKind?: LoyaltyKind | null;
 }) {
   const profile = await upsertCustomer(args.supabase, {
     firstName: args.firstName,
@@ -40,6 +44,27 @@ async function orderResponseWithProfile(args: {
   });
   if (!args.orderRow.customer_id || args.orderRow.customer_id !== profile.id) {
     await args.supabase.from('orders').update({ customer_id: profile.id }).eq('id', args.orderRow.id);
+  }
+  const kind = args.loyaltyKind;
+  const alreadyClaimed = await args.supabase
+    .from('loyalty_claims')
+    .select('id')
+    .eq('order_id', args.orderRow.id)
+    .maybeSingle();
+  if (
+    !alreadyClaimed.data &&
+    (kind === 'first_30' || kind === 'fifth_20' || kind === 'tenth_jumbo')
+  ) {
+    await args.supabase.from('loyalty_claims').insert({
+      kind,
+      customer_id: profile.id,
+      phone: normalizePhone(args.phone),
+      email: normalizeEmail(args.email),
+      card_fingerprint: args.cardFingerprint || null,
+      ip: args.ip || null,
+      address_key: addressKey({ address: args.orderRow.delivery_address }),
+      order_id: args.orderRow.id,
+    });
   }
   const response = NextResponse.json({
     order: mapDbOrder({ ...args.orderRow, customer_id: profile.id }),
@@ -87,6 +112,7 @@ export async function POST(req: Request) {
       expand: ['latest_charge'],
     });
     const cardFunding = cardFundingFromPaymentIntent(paymentIntent);
+    const cardFingerprint = cardFingerprintFromPaymentIntent(paymentIntent);
 
     if (paymentIntent.status !== 'succeeded') {
       return NextResponse.json(
@@ -152,6 +178,7 @@ export async function POST(req: Request) {
           items: items || row.items || [],
           status: 'pending',
           card_funding: cardFunding,
+          card_fingerprint: cardFingerprint,
         })
         .eq('id', row.id)
         .select('*')
@@ -168,6 +195,9 @@ export async function POST(req: Request) {
         phone: customer.phone,
         email,
         supabase,
+        cardFingerprint,
+        ip: clientIp(req.headers),
+        loyaltyKind: (paymentIntent.metadata.loyalty_kind || null) as LoyaltyKind | null,
       });
     }
 
@@ -191,6 +221,7 @@ export async function POST(req: Request) {
         status: 'pending',
         items: items || [],
         card_funding: cardFunding,
+        card_fingerprint: cardFingerprint,
       })
       .select('*')
       .single();
@@ -206,6 +237,9 @@ export async function POST(req: Request) {
       phone: customer.phone,
       email,
       supabase,
+      cardFingerprint,
+      ip: clientIp(req.headers),
+      loyaltyKind: (paymentIntent.metadata.loyalty_kind || null) as LoyaltyKind | null,
     });
   } catch (error) {
     const message =

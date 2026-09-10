@@ -6,6 +6,13 @@ export function isCardFunding(value: unknown): value is CardFunding {
   return value === 'debit' || value === 'credit' || value === 'prepaid' || value === 'unknown';
 }
 
+export function cardFingerprintFromPaymentIntent(paymentIntent: Stripe.PaymentIntent): string | null {
+  const charge = paymentIntent.latest_charge;
+  if (!charge || typeof charge === 'string') return null;
+  const fingerprint = charge.payment_method_details?.card?.fingerprint;
+  return typeof fingerprint === 'string' && fingerprint.length > 0 ? fingerprint : null;
+}
+
 export function cardFundingFromPaymentIntent(paymentIntent: Stripe.PaymentIntent): CardFunding | null {
   const charge = paymentIntent.latest_charge;
   if (!charge || typeof charge === 'string') return null;

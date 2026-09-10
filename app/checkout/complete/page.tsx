@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
+import { clearCheckoutDraft } from '@/lib/checkout-draft';
 import type { CartItem, Order, OrderCustomer } from '@/types';
 import { Suspense } from 'react';
 
@@ -43,6 +44,7 @@ function CompleteCheckout() {
         if (!response.ok) throw new Error(payload.error || 'No se pudo guardar el pedido');
         const order = payload.order as Order;
         sessionStorage.removeItem(PENDING_KEY);
+        clearCheckoutDraft();
         setLastOrder(order);
         clearCart();
         router.replace(`/orders/${order.id}`);
