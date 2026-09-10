@@ -550,49 +550,27 @@ export default function CheckoutPage() {
             <h2 className="mb-3 text-sm font-bold text-white">Resumen del pedido</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
+                <span>Comida</span>
                 <span className="text-white">{formatMXN(split.subtotalWeb)}</span>
-              </div>
-              {!isPickup && split.domicileTarifa > 0 && (
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Tarifa de domicilio</span>
-                  <span className="text-white">{formatMXN(split.domicileTarifa)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-muted-foreground">
-                <span>Cuota de servicio</span>
-                <span className="text-white">{formatMXN(split.customerFee)}</span>
               </div>
               {isPickup ? (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Envío (recoger)</span>
+                  <span>Envío</span>
                   <span className="text-white">{formatMXN(0)}</span>
                 </div>
               ) : quoting ? (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Envío Uber</span>
+                  <span>Envío</span>
                   <span className="text-white">Calculando...</span>
                 </div>
               ) : quotedFee != null ? (
-                <>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Envío Uber</span>
-                    <span className="text-white">{formatMXN(split.uberFee)}</span>
-                  </div>
-                  {split.deliveryDiscount > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Descuento envío</span>
-                      <span className="text-emerald-400">−{formatMXN(split.deliveryDiscount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Envío</span>
-                    <span className="text-white">{formatMXN(split.deliveryFee)}</span>
-                  </div>
-                </>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Envío</span>
+                  <span className="text-white">{formatMXN(split.deliveryFee)}</span>
+                </div>
               ) : (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Envío Uber</span>
+                  <span>Envío</span>
                   <span className="text-white">—</span>
                 </div>
               )}

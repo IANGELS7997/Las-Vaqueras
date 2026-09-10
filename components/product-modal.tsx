@@ -15,10 +15,14 @@ import { Label } from '@/components/ui/label';
 import { MenuProductImage } from '@/components/menu-product-image';
 import { ProductOptionRow } from '@/components/product-option-row';
 import { Minus, Plus, ShoppingBag } from 'lucide-react';
-import type { MenuItem, CartItem, CartItemSelection, ProductExtra } from '@/types';
+import type { MenuItem, CartItem, CartItemSelection, ComboUpgrade, ProductExtra } from '@/types';
 import { calcWebPrice, calcCartItemPrice, formatMXN } from '@/lib/pricing';
 import { applyChoiceChecked } from '@/lib/product-selections';
 import { cn } from '@/lib/utils';
+
+function sortCombosChicoFirst(combos: ComboUpgrade[]): ComboUpgrade[] {
+  return [...combos].sort((a, b) => a.price_base - b.price_base);
+}
 
 function emptySelections(item: MenuItem): CartItemSelection[] {
   return (item.optionGroups || []).map((group) => ({
@@ -126,6 +130,45 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
         </DialogHeader>
 
         <div className="space-y-5 px-5 pb-5">
+          {item.comboUpgrades && item.comboUpgrades.length > 0 && (
+            <div>
+              <Label className="mb-2 block text-sm font-semibold text-white">Añadir combo</Label>
+              <RadioGroup
+                value={comboUpgradeId || 'none'}
+                onValueChange={(v) => setComboUpgradeId(v === 'none' ? undefined : v)}
+              >
+                {sortCombosChicoFirst(item.comboUpgrades).map((combo) => (
+                  <label
+                    key={combo.id}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
+                      comboUpgradeId === combo.id
+                        ? 'border-brand-500 bg-brand-500/10 text-white'
+                        : 'border-border text-muted-foreground hover:border-brand-500/40'
+                    )}
+                  >
+                    <RadioGroupItem value={combo.id} />
+                    <span className="flex-1">{combo.name}</span>
+                    <span className="font-semibold text-brand-400">
+                      +{formatMXN(calcWebPrice(combo.price_base))}
+                    </span>
+                  </label>
+                ))}
+                <label
+                  className={cn(
+                    'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
+                    !comboUpgradeId
+                      ? 'border-brand-500 bg-brand-500/10 text-white'
+                      : 'border-border text-muted-foreground hover:border-brand-500/40'
+                  )}
+                >
+                  <RadioGroupItem value="none" />
+                  <span className="flex-1">Sin combo</span>
+                </label>
+              </RadioGroup>
+            </div>
+          )}
+
           {item.optionGroups?.map((group) => {
             const sel = selections.find((s) => s.optionGroupId === group.id);
             const selectedCount = sel?.choices.length || 0;
@@ -199,45 +242,6 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {item.comboUpgrades && item.comboUpgrades.length > 0 && (
-            <div>
-              <Label className="mb-2 block text-sm font-semibold text-white">Añadir combo</Label>
-              <RadioGroup
-                value={comboUpgradeId || 'none'}
-                onValueChange={(v) => setComboUpgradeId(v === 'none' ? undefined : v)}
-              >
-                <label
-                  className={cn(
-                    'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
-                    !comboUpgradeId
-                      ? 'border-brand-500 bg-brand-500/10 text-white'
-                      : 'border-border text-muted-foreground hover:border-brand-500/40'
-                  )}
-                >
-                  <RadioGroupItem value="none" />
-                  <span className="flex-1">Sin combo</span>
-                </label>
-                {item.comboUpgrades.map((combo) => (
-                  <label
-                    key={combo.id}
-                    className={cn(
-                      'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors',
-                      comboUpgradeId === combo.id
-                        ? 'border-brand-500 bg-brand-500/10 text-white'
-                        : 'border-border text-muted-foreground hover:border-brand-500/40'
-                    )}
-                  >
-                    <RadioGroupItem value={combo.id} />
-                    <span className="flex-1">{combo.name}</span>
-                    <span className="font-semibold text-brand-400">
-                      +{formatMXN(calcWebPrice(combo.price_base))}
-                    </span>
-                  </label>
-                ))}
-              </RadioGroup>
             </div>
           )}
 

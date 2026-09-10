@@ -1,22 +1,27 @@
-/** 5% processing absorption + 8% already in the web price. Restaurant commission is 12%. */
-export const WEB_MARKUP = 1.13;
-export const SERVICE_FEE_RATE = 0.04;
-export const RESTAURANT_PAYOUT_RATE = 0.88;
+/** Display and charge carta (`price_base`). No web markup. */
+export const WEB_MARKUP = 1;
+export const SERVICE_FEE_RATE = 0;
+export const RESTAURANT_PAYOUT_RATE = 0.85;
+/** 3% of carta taken from the platform 15% and applied to delivery. */
+export const DELIVERY_DISCOUNT_RATE = 0.03;
 export const DELIVERY_FEE = 35;
 
-/** price_web = Math.round(price_base * 1.13) */
+/** Menu / line price = carta. */
 export function calcWebPrice(priceBase: number): number {
   return Math.round(priceBase * WEB_MARKUP);
 }
 
-/** C_cliente = Math.round(M_web * 0.04 * 100) / 100 */
 export function calcCustomerFee(mWeb: number): number {
   return Math.round(mWeb * SERVICE_FEE_RATE * 100) / 100;
 }
 
-/** D_restaurante = Math.round(M_base * 0.88 * 100) / 100 */
+/** Dueño = 85% of carta, rounded to cents. */
 export function calcRestaurantPayout(mBase: number): number {
   return Math.round(mBase * RESTAURANT_PAYOUT_RATE * 100) / 100;
+}
+
+export function calcDeliveryDiscountFromCarta(priceBaseTotal: number): number {
+  return Math.round(Math.max(0, priceBaseTotal) * DELIVERY_DISCOUNT_RATE * 100) / 100;
 }
 
 export function formatMXN(amount: number): string {

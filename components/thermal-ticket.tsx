@@ -94,13 +94,15 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       <div className="my-1 border-t border-dashed border-black" />
       <div>
         <div className="flex justify-between">
-          <span>Subtotal:</span>
+          <span>Comida:</span>
           <span>{formatMXN(order.subtotal)}</span>
         </div>
-        <div className="flex justify-between">
-          <span>Servicio:</span>
-          <span>{formatMXN(order.serviceFee)}</span>
-        </div>
+        {order.serviceFee > 0 && (
+          <div className="flex justify-between">
+            <span>Servicio:</span>
+            <span>{formatMXN(order.serviceFee)}</span>
+          </div>
+        )}
         {order.fulfillment !== 'pickup' && (
           <div className="flex justify-between">
             <span>Envio:</span>

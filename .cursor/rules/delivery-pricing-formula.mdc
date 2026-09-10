@@ -1,24 +1,15 @@
 ---
-description: Fórmula de envío web (dueño 88%) — tarifa de domicilio
+description: Fórmula justa web — carta, 85/12/3, envío Uber menos 3%
 alwaysApply: true
 ---
 
-# Envío web
+# Envío y precios web (fórmula justa)
 
-Dueño = `0.88 × carta` siempre (comisión del negocio **12%**). No subir `price_base`. Recoger: carta × 1.13 + 4%, envío $0.
-
-Etiqueta checkout: **Tarifa de domicilio**. Combo = 1 platillo. Bebidas/extras no cuentan.
-
-## Solo domicilio
-
-1. Comida web = `round(carta × 1.13)`
-2. Tarifa = **$9 × platillos** (no bebidas/extras). Tope **$36**.
-3. 4% **solo** sobre (carta × 1.13), no sobre la tarifa.
-4. Subsidio plataforma según **Uber crudo** (antes de restar tarifa), y solo si comida web ≥ **$180**:
-   - Uber < $50 → $0
-   - $50–$80 inclusive → **$25** (cubre $50–$65 y $65–$80)
-   - $80.01–$100 → **$30**
-   - > $100 → **$30**
-5. `envío_cliente = min(uber, max(45, uber − tarifa − subsidio))`
-
-La tarifa es traslado de renglón (dueño y margen base iguales). El $25/$30 sí sale de la plataforma.
+- Comida = carta (`price_base`). No subir `price_base`. Sin markup 1.13 ni 4%.
+- Dueño = `0.85 × carta` **limpio**. Stripe lo paga la plataforma desde su 12%.
+- Del 15% del proyecto: **12%** plataforma, **3% de carta** descuenta el envío.
+- Recoger: comida = carta, envío $0.
+- Domicilio: `envío = max(0, Uber Direct quote − 0.03 × carta)`. Quote tal cual (no volver a sumar IVA). Cliente paga ese envío. Sin tarifa $9, sin subsidio $25/$30, sin piso $45.
+- Ticket: **Comida + Envío**. Sin mínimo de carrito ni combo obligatorio.
+- Combos en el modal: chico luego grande, arriba; ninguno preseleccionado; “Sin combo” al final.
+---
