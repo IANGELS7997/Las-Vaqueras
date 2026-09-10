@@ -25,13 +25,14 @@ function isValidEmail(value: string): boolean {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt } =
+    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale } =
       body as {
         priceBaseTotal: number;
         stripeAccountId?: string;
         restaurantId?: string;
         fulfillment?: string;
         pickupAt?: string | null;
+        acceptFinalSale?: boolean;
         customer?: {
           name?: string;
           phone?: string;
@@ -49,6 +50,12 @@ export async function POST(req: Request) {
     }
     if (!isFulfillmentMode(fulfillment)) {
       return NextResponse.json({ error: 'Elige domicilio o recoger en tienda' }, { status: 400 });
+    }
+    if (acceptFinalSale !== true) {
+      return NextResponse.json(
+        { error: 'Confirma que el pedido es venta final para continuar' },
+        { status: 400 }
+      );
     }
 
     const cartItems = Array.isArray(items) ? items : [];

@@ -251,6 +251,9 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
             <span>Total pagado</span>
             <span className="text-orange-500">{formatMXN(order.total)}</span>
           </div>
+          <p className="pt-2 text-xs text-muted-foreground">
+            Pedido confirmado. Venta final: no admite cancelación ni devolución.
+          </p>
         </div>
       </div>
     </div>

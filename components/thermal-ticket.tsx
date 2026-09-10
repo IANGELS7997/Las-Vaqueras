@@ -1,5 +1,6 @@
 'use client';
 
+import { paymentCardLabel } from '@/lib/card-funding';
 import { formatMXN } from '@/lib/pricing';
 import { formatPickupAt } from '@/lib/pickup-slots';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
@@ -116,7 +117,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       </div>
       <div className="my-1 border-t border-dashed border-black" />
       <div className="text-center">
-        <p>Pago: {order.paymentMethod.replace('_', ' ').toUpperCase()}</p>
+        <p>{paymentCardLabel(order.cardFunding)}</p>
         <p className="mt-2">Gracias por tu compra!</p>
       </div>
     </div>

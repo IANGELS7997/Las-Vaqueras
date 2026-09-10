@@ -16,12 +16,16 @@ export default function TermsPage() {
     {
       title: '3. Precios y pagos',
       content:
-        'Los precios mostrados en la plataforma incluyen un recargo por servicio en línea. Los cargos adicionales incluyen una comisión por servicio y pago (4%) y una tarifa de entrega fija. Todos los precios están expresados en pesos mexicanos (MXN).',
+        'Los precios de comida corresponden a la carta. En recoger, el envío es $0. En domicilio, el envío se calcula con la cotización de Uber Direct menos el 3% de la carta. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista.',
     },
     {
-      title: '4. Cancelaciones y reembolsos',
+      title: '4. Pedidos confirmados',
       content:
-        'Los pedidos pueden cancelarse antes de que su estado cambie a "En Cocina". Una vez que el pedido entra en preparación, no es posible cancelarlo. Los reembolsos, cuando apliquen, se procesarán al método de pago original dentro de 3-5 días hábiles.',
+        'Al confirmar el pago, el pedido se envía de inmediato a preparación y se considera venta final: no admite cancelación ni devolución. El ticket se imprime en caja y la orden pasa a cocina. El uso de la plataforma implica la aceptación de esta condición. Si el restaurante no puede cumplir el pedido (por ejemplo, cierre o producto no disponible), el contacto es ' +
+        RESTAURANT_INFO.email +
+        ' o ' +
+        RESTAURANT_INFO.phone +
+        '.',
     },
     {
       title: '5. Disponibilidad de productos',

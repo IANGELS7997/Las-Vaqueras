@@ -110,4 +110,5 @@ export interface Order {
   estimatedMinutes: number;
   fulfillment: FulfillmentMode;
   pickupAt?: string | null;
+  cardFunding?: string | null;
 }
