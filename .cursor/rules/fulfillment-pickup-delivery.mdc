@@ -7,7 +7,7 @@ alwaysApply: true
 
 - `/` = solo las dos cajas (logo + mismo look). `/menu` = menú. Cocina, login, términos, privacidad y rastreo no pasan por las cajas.
 - Elección en `sessionStorage` (`lv_fulfillment`): dura mientras no cierre la pestaña.
-- **4% siempre.** Solo el envío cambia: domicilio = `DELIVERY_FEE`; recoger = `$0`. El carrito se queda al cambiar de modo.
+- El carrito se queda al cambiar de modo. Recoger: envío `$0`. Domicilio: envío = quote Uber Direct menos 3% de carta (ver fórmula de precios).
 - Recoger: sin dirección, hora con margen de 30 min (intervalos 15 min), ticket **RECOGER EN TIENDA · hora**.
 - Pago en línea primero. Sin pago no hay orden.
 - Cerrado: en `/` las cajas no inician pedido (A). **Ver menú** abre `/menu` en gris, sin agregar ni pagar (B).

@@ -234,13 +234,15 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         </div>
         <div className="mt-4 space-y-1.5 border-t border-neutral-800 pt-3 text-sm">
           <div className="flex justify-between text-muted-foreground">
-            <span>Subtotal</span>
+            <span>Comida</span>
             <span className="text-white">{formatMXN(order.subtotal)}</span>
           </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>Cargo al cliente (4%)</span>
-            <span className="text-white">{formatMXN(order.serviceFee)}</span>
-          </div>
+          {order.serviceFee > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>Cuota de servicio</span>
+              <span className="text-white">{formatMXN(order.serviceFee)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-muted-foreground">
             <span>Envío</span>
             <span className="text-white">{formatMXN(order.deliveryFee)}</span>

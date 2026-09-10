@@ -1,8 +1,4 @@
-import {
-  calcDomicileTarifa,
-  calcCustomerDeliveryFee,
-  calcPlatformDeliverySubsidy,
-} from '@/lib/delivery-tarifa';
+import { calcCustomerDeliveryFee } from '@/lib/delivery-tarifa';
 import {
   calcCustomerFee,
   calcRestaurantPayout,
@@ -39,7 +35,6 @@ export type CheckoutSplit = {
 export function calcCheckoutSplit({
   priceBaseTotal,
   fulfillment = 'delivery',
-  platilloCount = 0,
   uberFee,
   deliveryFee: legacyDeliveryFee,
 }: CheckoutSplitInput): CheckoutSplit {
@@ -70,16 +65,11 @@ export function calcCheckoutSplit({
     };
   }
 
-  const domicileTarifa = calcDomicileTarifa(platilloCount);
-  const deliverySubsidy = calcPlatformDeliverySubsidy(rawUber, subtotalWeb);
   const { deliveryFee, deliveryDiscount } = calcCustomerDeliveryFee({
     uberFee: rawUber,
-    domicileTarifa,
-    subsidy: deliverySubsidy,
+    priceBaseTotal,
   });
-  const totalCharged = Number(
-    (subtotalWeb + domicileTarifa + customerFee + deliveryFee).toFixed(2)
-  );
+  const totalCharged = Number((subtotalWeb + customerFee + deliveryFee).toFixed(2));
   const platformFee = Number((totalCharged - restaurantPayout).toFixed(2));
   const totalChargedCentavos = Math.round(totalCharged * 100);
   const restaurantPayoutCentavos = Math.round(restaurantPayout * 100);
@@ -87,9 +77,9 @@ export function calcCheckoutSplit({
   return {
     subtotalWeb,
     customerFee,
-    domicileTarifa,
+    domicileTarifa: 0,
     uberFee: rawUber,
-    deliverySubsidy,
+    deliverySubsidy: 0,
     deliveryDiscount,
     totalCharged,
     restaurantPayout,
