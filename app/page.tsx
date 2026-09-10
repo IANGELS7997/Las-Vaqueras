@@ -43,13 +43,13 @@ export default function FulfillmentGatePage() {
       <h1 className="mt-6 text-center text-2xl font-bold text-white sm:text-3xl">¿Cómo quieres tu pedido?</h1>
       <p className="mt-2 text-center text-sm text-muted-foreground">Elige una opción para ver el menú.</p>
 
-      <div className="mt-8 grid w-full gap-4 sm:grid-cols-2">
+      <div className="mt-8 grid w-full grid-cols-2 gap-3 sm:gap-4">
         <button
           type="button"
           disabled={!open.isOpen}
           onClick={() => choose('delivery')}
           className={cn(
-            'relative min-h-[220px] overflow-hidden rounded-3xl border border-border/60 bg-card p-6 text-left transition-all',
+            'relative min-h-[140px] overflow-hidden rounded-3xl border border-border/60 bg-card p-4 text-left transition-all sm:min-h-[220px] sm:p-6',
             open.isOpen
               ? 'hover:border-brand-500/60 hover:shadow-lg hover:shadow-brand-500/15'
               : 'cursor-not-allowed'
@@ -57,13 +57,15 @@ export default function FulfillmentGatePage() {
         >
           {!open.isOpen && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-grayscale">
-              <span className="rounded-lg bg-black/70 px-4 py-2 text-sm font-bold tracking-wide text-white">
+              <span className="rounded-lg bg-black/70 px-2 py-1 text-[10px] font-bold tracking-wide text-white sm:px-4 sm:py-2 sm:text-sm">
                 CERRADO
               </span>
             </div>
           )}
-          <Bike className={cn('h-12 w-12 text-brand-500', !open.isOpen && 'grayscale')} />
-          <p className="mt-4 text-xl font-bold text-white">Entrega a domicilio</p>
+          <Bike className={cn('h-8 w-8 text-brand-500 sm:h-12 sm:w-12', !open.isOpen && 'grayscale')} />
+          <p className="mt-3 text-sm font-bold leading-snug text-white sm:mt-4 sm:text-xl">
+            Entrega a domicilio
+          </p>
         </button>
 
         <button
@@ -71,7 +73,7 @@ export default function FulfillmentGatePage() {
           disabled={!open.isOpen}
           onClick={() => choose('pickup')}
           className={cn(
-            'relative min-h-[220px] overflow-hidden rounded-3xl border border-border/60 bg-card p-6 text-left transition-all',
+            'relative min-h-[140px] overflow-hidden rounded-3xl border border-border/60 bg-card p-4 text-left transition-all sm:min-h-[220px] sm:p-6',
             open.isOpen
               ? 'hover:border-brand-500/60 hover:shadow-lg hover:shadow-brand-500/15'
               : 'cursor-not-allowed'
@@ -79,13 +81,15 @@ export default function FulfillmentGatePage() {
         >
           {!open.isOpen && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-grayscale">
-              <span className="rounded-lg bg-black/70 px-4 py-2 text-sm font-bold tracking-wide text-white">
+              <span className="rounded-lg bg-black/70 px-2 py-1 text-[10px] font-bold tracking-wide text-white sm:px-4 sm:py-2 sm:text-sm">
                 CERRADO
               </span>
             </div>
           )}
-          <Store className={cn('h-12 w-12 text-brand-500', !open.isOpen && 'grayscale')} />
-          <p className="mt-4 text-xl font-bold text-white">Recoger en tienda</p>
+          <Store className={cn('h-8 w-8 text-brand-500 sm:h-12 sm:w-12', !open.isOpen && 'grayscale')} />
+          <p className="mt-3 text-sm font-bold leading-snug text-white sm:mt-4 sm:text-xl">
+            Recoger en tienda
+          </p>
         </button>
       </div>
 
