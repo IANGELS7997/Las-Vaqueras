@@ -24,6 +24,20 @@ export function calcDeliveryDiscountFromCarta(priceBaseTotal: number): number {
   return Math.round(Math.max(0, priceBaseTotal) * DELIVERY_DISCOUNT_RATE * 100) / 100;
 }
 
+/** Mexico cards: 3.6% + $3 MXN, plus 16% IVA. */
+export const STRIPE_PERCENT = 0.036;
+export const STRIPE_FIXED_MXN = 3;
+export const STRIPE_IVA = 1.16;
+
+export function calcStripeFee(totalCharged: number): number {
+  const net = STRIPE_PERCENT * Math.max(0, totalCharged) + STRIPE_FIXED_MXN;
+  return Math.round(net * STRIPE_IVA * 100) / 100;
+}
+
+export function calcStripeShare(totalCharged: number): number {
+  return Math.round((calcStripeFee(totalCharged) / 2) * 100) / 100;
+}
+
 export function formatMXN(amount: number): string {
   return `$${amount.toFixed(2)} MXN`;
 }

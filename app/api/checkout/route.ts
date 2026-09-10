@@ -169,6 +169,8 @@ export async function POST(req: Request) {
         delivery_fee: String(split.deliveryFee),
         restaurant_payout: String(split.restaurantPayout),
         platform_fee: String(split.platformFee),
+        stripe_fee: String(split.stripeFee),
+        stripe_share: String(split.stripeShare),
         customer_name: name.slice(0, 200),
         customer_phone: phone.slice(0, 40),
         customer_email: email.slice(0, 200),
