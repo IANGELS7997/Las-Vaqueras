@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Domicilio / recoger
 
-- `/` = solo las dos cajas (logo + mismo look). `/menu` = menú. Cocina, login, términos, privacidad y rastreo no pasan por las cajas.
+- `/` = solo las dos cajas (logo + mismo look). `/menu` = menú. Cocina (`cocina.lasvaqueras.com.mx`), login, términos, privacidad y rastreo no pasan por las cajas.
 - Elección en `sessionStorage` (`lv_fulfillment`): dura mientras no cierre la pestaña.
 - El carrito se queda al cambiar de modo. Recoger: envío `$0`. Domicilio: envío = quote Uber Direct menos 3% de carta (ver fórmula de precios).
 - Recoger: sin dirección, hora con margen de 30 min (intervalos 15 min), ticket **RECOGER EN TIENDA · hora**.

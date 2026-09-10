@@ -10,8 +10,8 @@ Dejar el workflow **completo e inactivo**. No publicar ni ejecutar en producció
 - Workflow: [Las Vaqueras: pago exitoso](https://n8n.pureiangel.com/workflow/SKVvYOhKSnPj1ggY) (`SKVvYOhKSnPj1ggY`)
 - Inactivo a propósito: Stripe no registra webhook de producción. Publicar = el trigger corre solo en cada `payment_intent.succeeded`.
 - Credenciales Stripe/Supabase/Uber/Resend enganchadas. Nodo **Create Uber Direct Delivery desactivado** (no pedir courier en pruebas). Pickup: Rio de Janeiro 903, Panamericana, 31210 Chihuahua; tel `+52 614 413 6539`.
-- Remitente transaccional (n8n/Resend): sigue `Las Vaqueras <noreply@pureiangel.com>` hasta verificar el dominio `lasvaqueras.com.mx` en Resend. Contacto del negocio en la web: `servicio@lasvaqueras.com.mx`.
-- Dominio Resend `pureiangel.com` verificado (`24ad8887-b1db-48ef-ba05-1129b1022322`); DKIM/SPF en Cloudflare OK.
+- Remitente transaccional (n8n/Resend): `Las Vaqueras <noreply@lasvaqueras.com.mx>`. Contacto del negocio en la web: `servicio@lasvaqueras.com.mx`.
+- Dominio Resend `lasvaqueras.com.mx` verificado (`c6d3c473-7f71-42af-80ec-82bbe7d63d17`). El panel n8n sigue en n8n.pureiangel.com (infra de la plataforma, no el sitio del restaurante).
 - Pedido se inserta al crear el PaymentIntent (`awaiting_payment`); tras el pago pasa a `pending`. Facturapi/CFDI no reintroducir salvo que lo pidan.
 - **Promoción / cupón 2x1 PAUSADA** (`is_tenth = false`). El checkout pide correo para ticket + promo futura. **Recordar actualizar copy y lógica cuando definan la promoción.**
 

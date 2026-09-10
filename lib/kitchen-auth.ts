@@ -2,7 +2,7 @@ export const KITCHEN_COOKIE = 'lv_kitchen';
 const TOKEN_PAYLOAD = 'las-vaqueras-kitchen';
 
 export function getKitchenHost() {
-  return (process.env.NEXT_PUBLIC_KITCHEN_HOST || 'cocina.pureiangel.com').toLowerCase();
+  return (process.env.NEXT_PUBLIC_KITCHEN_HOST || 'cocina.lasvaqueras.com.mx').toLowerCase();
 }
 
 export function hostnameOf(hostHeader: string | null | undefined) {
