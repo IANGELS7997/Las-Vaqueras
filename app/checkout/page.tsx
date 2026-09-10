@@ -26,6 +26,11 @@ import {
   isValidPostalCode,
 } from '@/lib/delivery-address';
 import { useFulfillment } from '@/lib/fulfillment-context';
+import {
+  clearCheckoutDraft,
+  readCheckoutDraft,
+  writeCheckoutDraft,
+} from '@/lib/checkout-draft';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import type { Order } from '@/types';
@@ -62,6 +67,7 @@ export default function CheckoutPage() {
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
 
   const priceBaseTotal = calcCartBaseTotal(items);
   const platilloCount = countDeliveryPlatillos(items);
@@ -81,6 +87,63 @@ export default function CheckoutPage() {
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const draft = readCheckoutDraft();
+    if (draft) {
+      setFirstName(draft.firstName);
+      setLastName(draft.lastName);
+      setPhone(draft.phone);
+      setEmail(draft.email);
+      setStreet(draft.street);
+      setExtNumber(draft.extNumber);
+      setIntNumber(draft.intNumber);
+      setColonia(draft.colonia);
+      setPostalCode(draft.postalCode);
+      setReferences(draft.references);
+      setDropoffLat(draft.lat);
+      setDropoffLng(draft.lng);
+      setPickupAt(draft.pickupAt);
+    }
+    setDraftReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const timer = window.setTimeout(() => {
+      writeCheckoutDraft({
+        firstName,
+        lastName,
+        phone,
+        email,
+        street,
+        extNumber,
+        intNumber,
+        colonia,
+        postalCode,
+        references,
+        lat: dropoffLat,
+        lng: dropoffLng,
+        pickupAt,
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [
+    draftReady,
+    firstName,
+    lastName,
+    phone,
+    email,
+    street,
+    extNumber,
+    intNumber,
+    colonia,
+    postalCode,
+    references,
+    dropoffLat,
+    dropoffLng,
+    pickupAt,
+  ]);
 
   useEffect(() => {
     if (!ready) return;
@@ -230,6 +293,7 @@ export default function CheckoutPage() {
 
   const handlePaid = (order: Order) => {
     sessionStorage.removeItem(PENDING_KEY);
+    clearCheckoutDraft();
     setLastOrder(order);
     clearCart();
     router.push(`/orders/${order.id}`);
