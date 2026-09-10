@@ -2,6 +2,8 @@ import { calcCustomerDeliveryFee } from '@/lib/delivery-tarifa';
 import {
   calcCustomerFee,
   calcRestaurantPayout,
+  calcStripeFee,
+  calcStripeShare,
   calcWebPrice,
   DELIVERY_FEE,
 } from '@/lib/pricing';
@@ -25,6 +27,8 @@ export type CheckoutSplit = {
   deliveryDiscount: number;
   totalCharged: number;
   restaurantPayout: number;
+  stripeFee: number;
+  stripeShare: number;
   platformFee: number;
   totalChargedCentavos: number;
   restaurantPayoutCentavos: number;
@@ -40,36 +44,24 @@ export function calcCheckoutSplit({
 }: CheckoutSplitInput): CheckoutSplit {
   const subtotalWeb = calcWebPrice(priceBaseTotal);
   const customerFee = calcCustomerFee(subtotalWeb);
-  const restaurantPayout = calcRestaurantPayout(priceBaseTotal);
+  const restaurantGross = calcRestaurantPayout(priceBaseTotal);
   const rawUber = uberFee ?? legacyDeliveryFee ?? DELIVERY_FEE;
 
-  if (fulfillment === 'pickup') {
-    const totalCharged = Number((subtotalWeb + customerFee).toFixed(2));
-    const platformFee = Number((totalCharged - restaurantPayout).toFixed(2));
-    const totalChargedCentavos = Math.round(totalCharged * 100);
-    const restaurantPayoutCentavos = Math.round(restaurantPayout * 100);
-    return {
-      subtotalWeb,
-      customerFee,
-      domicileTarifa: 0,
-      uberFee: 0,
-      deliverySubsidy: 0,
-      deliveryDiscount: 0,
-      totalCharged,
-      restaurantPayout,
-      platformFee,
-      totalChargedCentavos,
-      restaurantPayoutCentavos,
-      applicationFeeCentavos: totalChargedCentavos - restaurantPayoutCentavos,
-      deliveryFee: 0,
-    };
-  }
+  const delivery =
+    fulfillment === 'pickup'
+      ? { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 }
+      : {
+          ...calcCustomerDeliveryFee({
+            uberFee: rawUber,
+            priceBaseTotal,
+          }),
+          uberFee: rawUber,
+        };
 
-  const { deliveryFee, deliveryDiscount } = calcCustomerDeliveryFee({
-    uberFee: rawUber,
-    priceBaseTotal,
-  });
-  const totalCharged = Number((subtotalWeb + customerFee + deliveryFee).toFixed(2));
+  const totalCharged = Number((subtotalWeb + customerFee + delivery.deliveryFee).toFixed(2));
+  const stripeFee = calcStripeFee(totalCharged);
+  const stripeShare = calcStripeShare(totalCharged);
+  const restaurantPayout = Number(Math.max(0, restaurantGross - stripeShare).toFixed(2));
   const platformFee = Number((totalCharged - restaurantPayout).toFixed(2));
   const totalChargedCentavos = Math.round(totalCharged * 100);
   const restaurantPayoutCentavos = Math.round(restaurantPayout * 100);
@@ -78,15 +70,17 @@ export function calcCheckoutSplit({
     subtotalWeb,
     customerFee,
     domicileTarifa: 0,
-    uberFee: rawUber,
+    uberFee: delivery.uberFee,
     deliverySubsidy: 0,
-    deliveryDiscount,
+    deliveryDiscount: delivery.deliveryDiscount,
     totalCharged,
     restaurantPayout,
+    stripeFee,
+    stripeShare,
     platformFee,
     totalChargedCentavos,
     restaurantPayoutCentavos,
     applicationFeeCentavos: totalChargedCentavos - restaurantPayoutCentavos,
-    deliveryFee,
+    deliveryFee: delivery.deliveryFee,
   };
 }

@@ -6,7 +6,7 @@ alwaysApply: true
 # Envío y precios web (fórmula justa)
 
 - Comida = carta (`price_base`). No subir `price_base`. Sin markup 1.13 ni 4%.
-- Dueño = `0.85 × carta` **limpio**. Stripe lo paga la plataforma desde su 12%.
+- Dueño = `0.85 × carta − Stripe/2`. Stripe MX ≈ `1.16 × (0.036 × total + 3)`; mitad dueño, mitad plataforma.
 - Del 15% del proyecto: **12%** plataforma, **3% de carta** descuenta el envío.
 - Recoger: comida = carta, envío $0.
 - Domicilio: `envío = max(0, Uber Direct quote − 0.03 × carta)`. Quote tal cual (no volver a sumar IVA). Cliente paga ese envío. Sin tarifa $9, sin subsidio $25/$30, sin piso $45.
