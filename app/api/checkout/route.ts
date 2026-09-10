@@ -6,6 +6,9 @@ import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidPickupAt } from '@/lib/pickup-slots';
 import { formatDeliveryReferences, isValidCoord } from '@/lib/delivery-address';
+import { readCustomerIdFromRequest } from '@/lib/customer-auth';
+import { clientIp, discountedFoodBase, JUMBO_PRODUCT_ID, loyaltyLabel } from '@/lib/loyalty';
+import { findCustomerIdByPhone, resolveLoyaltyKind } from '@/lib/loyalty-guard';
 import { calcCartBaseTotal } from '@/lib/pricing';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
@@ -142,9 +145,34 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const supabase = createAdminSupabase();
+    const cookieCustomerId = await readCustomerIdFromRequest();
+    const existingCustomerId = (await findCustomerIdByPhone(supabase, phone)) || cookieCustomerId;
+    const loyaltyKind = await resolveLoyaltyKind({
+      supabase,
+      customerId: existingCustomerId,
+      phone,
+      email,
+      ip: clientIp(req.headers),
+      street: customer?.address,
+      address: address,
+      isPickup,
+      cookieCustomerId,
+    });
+    let foodBase = discountedFoodBase(serverBase, loyaltyKind);
+    if (loyaltyKind === 'tenth_jumbo') {
+      const jumboBase = cartItems
+        .filter((item) => item.menuItemId === JUMBO_PRODUCT_ID)
+        .reduce((sum, item) => sum + item.price_base * item.quantity, 0);
+      foodBase = Math.round(Math.max(0, foodBase - jumboBase) * 100) / 100;
+    }
+    if (!isPositiveNumber(foodBase) && loyaltyKind !== 'tenth_jumbo') {
+      return NextResponse.json({ error: 'El carrito no tiene un subtotal válido' }, { status: 400 });
+    }
+    const chargeBase = foodBase > 0 ? foodBase : 0.01;
     const platilloCount = countDeliveryPlatillos(cartItems);
     const split = calcCheckoutSplit({
-      priceBaseTotal: serverBase,
+      priceBaseTotal: chargeBase,
       fulfillment,
       platilloCount,
       uberFee,
@@ -183,10 +211,13 @@ export async function POST(req: Request) {
         customer_email: email.slice(0, 200),
         fulfillment,
         pickup_at: isPickup ? pickupAtIso : '',
+        loyalty_kind: loyaltyKind || '',
+        food_base_original: String(serverBase),
+        food_base_charged: String(chargeBase),
       },
     });
 
-    const supabase = createAdminSupabase();
+    const profileLoginToken = crypto.randomUUID().replace(/-/g, '');
     const insert = await supabase
       .from('orders')
       .insert({
@@ -206,6 +237,8 @@ export async function POST(req: Request) {
         pickup_at: isPickup ? pickupAtIso : null,
         status: 'awaiting_payment',
         items: items || [],
+        profile_login_token: profileLoginToken,
+        loyalty_kind: loyaltyKind,
       })
       .select('id')
       .single();
@@ -229,6 +262,9 @@ export async function POST(req: Request) {
         restaurantPayout: split.restaurantPayout,
         platformFee: split.platformFee,
       },
+      loyalty: loyaltyKind
+        ? { kind: loyaltyKind, label: loyaltyLabel(loyaltyKind), foodOriginal: serverBase, foodCharged: chargeBase }
+        : null,
     });
   } catch (error) {
     const message =

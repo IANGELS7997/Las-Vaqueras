@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
 import { avatarPublicUrl } from '@/lib/customers';
+import { loyaltyKindForOrdinal, loyaltyLabel, paidOrderOrdinal } from '@/lib/loyalty';
+import { countPaidOrders } from '@/lib/loyalty-guard';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -31,6 +33,9 @@ export async function GET() {
   }
 
   const row = profile.data;
+  const paid = await countPaidOrders(supabase, row.id);
+  const nextOrdinal = paidOrderOrdinal(paid);
+  const nextKind = loyaltyKindForOrdinal(nextOrdinal);
   return NextResponse.json({
     customer: {
       id: row.id,
@@ -41,5 +46,11 @@ export async function GET() {
       avatarUrl: avatarPublicUrl(row.avatar_path),
     },
     orders: (orders.data || []).map((item) => mapDbOrder(item as DbOrderRow)),
+    loyalty: {
+      paidOrders: paid,
+      nextOrdinal,
+      nextLabel: loyaltyLabel(nextKind),
+      cycleLabel: `Pedido ${nextOrdinal} de 10`,
+    },
   });
 }

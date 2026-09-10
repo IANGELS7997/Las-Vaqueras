@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { formatMXN } from '@/lib/pricing';
 import type { Order } from '@/types';
 
@@ -36,6 +37,13 @@ export function CustomerAccountSheet() {
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showOrders, setShowOrders] = useState(false);
+  const [showPromos, setShowPromos] = useState(false);
+  const [loyalty, setLoyalty] = useState<{
+    paidOrders: number;
+    nextOrdinal: number;
+    nextLabel: string;
+    cycleLabel: string;
+  } | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -47,6 +55,7 @@ export function CustomerAccountSheet() {
     const payload = await response.json();
     setCustomer(payload.customer || null);
     setOrders(payload.orders || []);
+    setLoyalty(payload.loyalty || null);
   };
 
   useEffect(() => {
@@ -75,6 +84,8 @@ export function CustomerAccountSheet() {
     setCustomer(null);
     setOrders([]);
     setShowOrders(false);
+    setShowPromos(false);
+    setLoyalty(null);
   };
 
   const handlePhoto = async (file: File | undefined) => {
@@ -150,6 +161,21 @@ export function CustomerAccountSheet() {
               {loading ? 'Buscando…' : 'Ver mi perfil'}
             </Button>
           </form>
+        ) : showPromos ? (
+          <div className="mt-6 space-y-4">
+            <button type="button" className="text-sm text-orange-400" onClick={() => setShowPromos(false)}>
+              Volver al perfil
+            </button>
+            <h3 className="text-sm font-bold text-white">Mis promociones</h3>
+            <p className="text-sm text-muted-foreground">{loyalty?.cycleLabel || 'Pedido 1 de 10'}</p>
+            <p className="text-sm text-brand-400">{loyalty?.nextLabel || 'Sigue pidiendo para desbloquear beneficios'}</p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>1.er pedido: 30% en comida</li>
+              <li>5.º pedido: 20% en comida</li>
+              <li>10.º pedido: Papas Jumbo de regalo</li>
+            </ul>
+            <PwaInstallHint />
+          </div>
         ) : showOrders ? (
           <div className="mt-6 space-y-5">
             <button type="button" className="text-sm text-orange-400" onClick={() => setShowOrders(false)}>
@@ -210,6 +236,12 @@ export function CustomerAccountSheet() {
             {error ? <p className="text-sm text-red-400">{error}</p> : null}
             <Button
               className="w-full bg-brand-500 text-white hover:bg-brand-600"
+              onClick={() => setShowPromos(true)}
+            >
+              Mis promociones
+            </Button>
+            <Button
+              className="w-full bg-brand-500 text-white hover:bg-brand-600"
               onClick={() => setShowOrders(true)}
             >
               Ver mis pedidos
@@ -217,6 +249,7 @@ export function CustomerAccountSheet() {
             <Button variant="outline" className="w-full border-border" onClick={() => void handleLogout()}>
               Salir
             </Button>
+            <PwaInstallHint />
           </div>
         )}
       </SheetContent>

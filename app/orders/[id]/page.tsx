@@ -49,6 +49,15 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
 
     void load();
 
+    const token = new URLSearchParams(window.location.search).get('s');
+    if (token) {
+      void fetch('/api/customer/from-ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: params.id, token }),
+      });
+    }
+
     const realtime = supabase;
     if (!realtime) {
       return () => {
@@ -124,6 +133,13 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
       <div className="text-center">
         <h2 className="mb-2 text-2xl font-bold text-orange-500">Rastreo de Pedido</h2>
         <p className="text-sm text-muted-foreground">Orden #{order.id.slice(0, 8)}</p>
+        <button
+          type="button"
+          onClick={() => router.push('/')}
+          className="mt-3 text-sm font-semibold text-orange-400"
+        >
+          Ir al inicio
+        </button>
       </div>
       {status !== 'awaiting_payment' ? <PwaInstallHint /> : null}
 
