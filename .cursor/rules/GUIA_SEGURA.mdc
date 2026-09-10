@@ -1,0 +1,30 @@
+---
+description: Checklist de cada cambio — arrastra la fila GUIA_SEGURA al chat o pide usarla
+alwaysApply: true
+---
+
+# GUIA_SEGURA
+
+Úsala en cada cambio o actualización. El usuario puede arrastrar la fila **GUIA_SEGURA** al chat o decir que se use esta guía.
+
+## Antes de tocar código
+
+1. Partir de `main` actualizado. Crear una rama `fix/…`, `feat/…` o `chore/…`. No editar `main` directo.
+2. Un cambio, una rama.
+
+## Qué no hacer
+
+- Commit, push, merge o PR **solo si el usuario lo pide**.
+- No commitear `.env`, `.vercel`, ni claves Stripe / Supabase / Twilio / Resend.
+- No publicar el workflow n8n de pago.
+- No cobros live de Stripe Connect ni merge de Connect hasta que `transfers` esté activo.
+- No poner la contraseña de cocina en archivos, commits ni mensajes.
+
+## Superficies
+
+- Menú y pedidos: `https://lasvaqueras.com.mx/`
+- Cocina: solo `https://cocina.lasvaqueras.com.mx/` (login en `/admin/login`). En el dominio público, `/admin` no debe quedar expuesto.
+
+## Después de un cambio de UI
+
+Verificar el flujo (no solo una captura). Si el cambio toca pedidos o estados, revisar también cocina.
