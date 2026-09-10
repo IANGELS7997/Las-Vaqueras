@@ -27,9 +27,11 @@ import {
 } from '@/lib/delivery-address';
 import { useFulfillment } from '@/lib/fulfillment-context';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
+import { FINAL_SALE_CONSENT } from '@/lib/final-sale';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import type { Order } from '@/types';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const PENDING_KEY = 'lv_pending_checkout';
 
@@ -62,6 +64,7 @@ export default function CheckoutPage() {
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
+  const [acceptFinalSale, setAcceptFinalSale] = useState(false);
 
   const priceBaseTotal = calcCartBaseTotal(items);
   const platilloCount = countDeliveryPlatillos(items);
@@ -180,6 +183,13 @@ export default function CheckoutPage() {
   const startPayment = async () => {
     if (items.length === 0 || !mode) return;
     if (!validate()) return;
+    if (!acceptFinalSale) {
+      setErrors((prev) => ({
+        ...prev,
+        acceptFinalSale: 'Confirma que el pedido es venta final para continuar',
+      }));
+      return;
+    }
     if (!isPickup && (quotedFee == null || quoting)) return;
     setCreatingIntent(true);
     setPayError('');
@@ -208,6 +218,7 @@ export default function CheckoutPage() {
         stripeAccountId: process.env.NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID,
         customer,
         items,
+        acceptFinalSale: true,
       }),
     });
     const payload = await response.json();
@@ -521,10 +532,36 @@ export default function CheckoutPage() {
             ) : (
               <div>
                 {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
+                <label className="mb-4 flex items-start gap-3 text-sm text-muted-foreground">
+                  <Checkbox
+                    checked={acceptFinalSale}
+                    onCheckedChange={(value) => {
+                      setAcceptFinalSale(value === true);
+                      setErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.acceptFinalSale;
+                        return next;
+                      });
+                    }}
+                    className="mt-0.5 border-border"
+                    disabled={Boolean(clientSecret)}
+                  />
+                  <span>
+                    {FINAL_SALE_CONSENT}{' '}
+                    <a href="/terminos" className="text-brand-400 underline-offset-2 hover:underline">
+                      Términos
+                    </a>
+                    .
+                  </span>
+                </label>
+                {errors.acceptFinalSale && (
+                  <p className="mb-3 text-xs text-red-400">{errors.acceptFinalSale}</p>
+                )}
                 <Button
                   onClick={startPayment}
                   disabled={
                     creatingIntent ||
+                    !acceptFinalSale ||
                     (isPickup && pickupSlots.length === 0) ||
                     (!isPickup && (quoting || quotedFee == null))
                   }

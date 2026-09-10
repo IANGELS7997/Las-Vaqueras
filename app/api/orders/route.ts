@@ -14,6 +14,7 @@ import { upsertCustomer } from '@/lib/customers';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
+import { cardFundingFromPaymentIntent } from '@/lib/card-funding';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -82,7 +83,10 @@ export async function POST(req: Request) {
     }
 
     const stripe = getStripe();
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['latest_charge'],
+    });
+    const cardFunding = cardFundingFromPaymentIntent(paymentIntent);
 
     if (paymentIntent.status !== 'succeeded') {
       return NextResponse.json(
@@ -147,6 +151,7 @@ export async function POST(req: Request) {
           pickup_at: fulfillment === 'pickup' ? pickupAt : null,
           items: items || row.items || [],
           status: 'pending',
+          card_funding: cardFunding,
         })
         .eq('id', row.id)
         .select('*')
@@ -185,6 +190,7 @@ export async function POST(req: Request) {
         pickup_at: fulfillment === 'pickup' ? pickupAt : null,
         status: 'pending',
         items: items || [],
+        card_funding: cardFunding,
       })
       .select('*')
       .single();

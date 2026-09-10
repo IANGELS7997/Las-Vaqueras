@@ -37,6 +37,7 @@ export type DbOrderRow = {
   fulfillment_type?: string | null;
   pickup_at?: string | null;
   customer_id?: string | null;
+  card_funding?: string | null;
 };
 
 function toNumber(value: number | string): number {
@@ -67,6 +68,7 @@ export function mapDbOrder(row: DbOrderRow): Order {
     estimatedMinutes: 35,
     fulfillment: row.fulfillment_type === 'pickup' ? 'pickup' : 'delivery',
     pickupAt: row.pickup_at || null,
+    cardFunding: row.card_funding || null,
   };
 }
 
