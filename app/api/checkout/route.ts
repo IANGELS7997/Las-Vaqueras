@@ -7,8 +7,17 @@ import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidPickupAt } from '@/lib/pickup-slots';
 import { formatDeliveryReferences, isValidCoord } from '@/lib/delivery-address';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
-import { clientIp, discountedFoodBase, JUMBO_PRODUCT_ID, loyaltyLabel } from '@/lib/loyalty';
+import { cookies } from 'next/headers';
+import { clientIp, discountedFoodBase, loyaltyLabel, normalizePhone } from '@/lib/loyalty';
 import { findCustomerIdByPhone, resolveLoyaltyKind } from '@/lib/loyalty-guard';
+import {
+  getAvailableJumboReward,
+  jumboGiftBase,
+  JUMBO_REDEEM_COOKIE,
+  readRedeemCookie,
+  reserveJumboReward,
+} from '@/lib/loyalty-reward';
+import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
@@ -160,25 +169,56 @@ export async function POST(req: Request) {
       cookieCustomerId,
     });
     let foodBase = discountedFoodBase(serverBase, loyaltyKind);
-    if (loyaltyKind === 'tenth_jumbo') {
-      const jumboBase = cartItems
-        .filter((item) => item.menuItemId === JUMBO_PRODUCT_ID)
-        .reduce((sum, item) => sum + item.price_base * item.quantity, 0);
-      foodBase = Math.round(Math.max(0, foodBase - jumboBase) * 100) / 100;
+    const jumboReward = existingCustomerId
+      ? await getAvailableJumboReward(supabase, existingCustomerId)
+      : null;
+    const owner = existingCustomerId
+      ? await supabase.from('customers').select('id, phone').eq('id', existingCustomerId).maybeSingle()
+      : { data: null };
+    const phoneMatchesOwner =
+      Boolean(owner.data?.phone) && normalizePhone(String(owner.data?.phone)) === normalizePhone(phone);
+    const redeemCookieId = existingCustomerId
+      ? await readRedeemCookie(cookies().get(JUMBO_REDEEM_COOKIE)?.value, existingCustomerId)
+      : null;
+    const giftBase = jumboGiftBase(cartItems);
+    const canGiftJumbo = Boolean(
+      jumboReward && phoneMatchesOwner && giftBase > 0 && (!redeemCookieId || redeemCookieId === jumboReward.id)
+    );
+    if (canGiftJumbo) {
+      foodBase = Math.round(Math.max(0, serverBase - giftBase) * 100) / 100;
     }
-    if (!isPositiveNumber(foodBase) && loyaltyKind !== 'tenth_jumbo') {
+    if (!isPositiveNumber(foodBase) && !(canGiftJumbo && giftBase > 0)) {
       return NextResponse.json({ error: 'El carrito no tiene un subtotal válido' }, { status: 400 });
     }
-    const chargeBase = foodBase > 0 ? foodBase : 0.01;
+    const gift = resolveGiftCart({
+      flagged: canGiftJumbo,
+      items: cartItems,
+      fulfillment,
+    });
+    if (gift.variant === 'free_pickup') {
+      return NextResponse.json(
+        { error: 'Este cupón de recoger se confirma sin pago' },
+        { status: 400 }
+      );
+    }
+    const waiveFood = gift.variant === 'shipping_only';
+    const chargeBase = foodBase > 0 ? foodBase : waiveFood ? 0 : 0.01;
     const platilloCount = countDeliveryPlatillos(cartItems);
     const split = calcCheckoutSplit({
-      priceBaseTotal: chargeBase,
+      priceBaseTotal: serverBase,
       fulfillment,
       platilloCount,
       uberFee,
+      giftFoodCredit: canGiftJumbo ? giftBase : 0,
     });
 
-    if (split.applicationFeeCentavos <= 0 || split.applicationFeeCentavos >= split.totalChargedCentavos) {
+    if (split.totalChargedCentavos < 1) {
+      return NextResponse.json({ error: 'No hay un cobro válido para este canje' }, { status: 400 });
+    }
+    if (
+      !waiveFood &&
+      (split.applicationFeeCentavos <= 0 || split.applicationFeeCentavos >= split.totalChargedCentavos)
+    ) {
       return NextResponse.json(
         { error: 'El split de Connect dejó una application_fee inválida' },
         { status: 400 }
@@ -191,10 +231,12 @@ export async function POST(req: Request) {
       currency: 'mxn',
       automatic_payment_methods: { enabled: true },
       receipt_email: email,
-      transfer_data: {
-        destination,
-      },
-      application_fee_amount: split.applicationFeeCentavos,
+      ...(waiveFood
+        ? {}
+        : {
+            transfer_data: { destination },
+            application_fee_amount: split.applicationFeeCentavos,
+          }),
       metadata: {
         price_base_total: String(serverBase),
         uber_fee: String(split.uberFee),
@@ -211,11 +253,17 @@ export async function POST(req: Request) {
         customer_email: email.slice(0, 200),
         fulfillment,
         pickup_at: isPickup ? pickupAtIso : '',
-        loyalty_kind: loyaltyKind || '',
+        loyalty_kind: canGiftJumbo ? 'jumbo_credit' : loyaltyKind || '',
         food_base_original: String(serverBase),
         food_base_charged: String(chargeBase),
+        jumbo_reward_id: canGiftJumbo && jumboReward ? jumboReward.id : '',
+        gift_shipping_only: waiveFood ? '1' : '',
       },
     });
+
+    if (canGiftJumbo && jumboReward) {
+      await reserveJumboReward(supabase, jumboReward.id, existingCustomerId || '', paymentIntent.id);
+    }
 
     const profileLoginToken = crypto.randomUUID().replace(/-/g, '');
     const insert = await supabase
@@ -227,7 +275,9 @@ export async function POST(req: Request) {
         customer_phone: phone,
         customer_email: email,
         delivery_address: address,
-        delivery_references: references || null,
+        delivery_references: canGiftJumbo
+          ? [references, 'PROMOCIÓN · Papas Jumbo de regalo'].filter(Boolean).join(' · ')
+          : references || null,
         total_charged: split.totalCharged,
         restaurant_payout: split.restaurantPayout,
         platform_fee: split.platformFee,
@@ -238,7 +288,7 @@ export async function POST(req: Request) {
         status: 'awaiting_payment',
         items: items || [],
         profile_login_token: profileLoginToken,
-        loyalty_kind: loyaltyKind,
+        loyalty_kind: canGiftJumbo ? 'jumbo_credit' : loyaltyKind,
       })
       .select('id')
       .single();
@@ -262,8 +312,13 @@ export async function POST(req: Request) {
         restaurantPayout: split.restaurantPayout,
         platformFee: split.platformFee,
       },
-      loyalty: loyaltyKind
-        ? { kind: loyaltyKind, label: loyaltyLabel(loyaltyKind), foodOriginal: serverBase, foodCharged: chargeBase }
+      loyalty: loyaltyKind || canGiftJumbo
+        ? {
+            kind: loyaltyKind || 'tenth_jumbo',
+            label: canGiftJumbo ? 'Papas Jumbo de regalo aplicadas' : loyaltyLabel(loyaltyKind),
+            foodOriginal: serverBase,
+            foodCharged: chargeBase,
+          }
         : null,
     });
   } catch (error) {

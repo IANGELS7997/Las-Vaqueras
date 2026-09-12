@@ -27,9 +27,11 @@ type PendingCheckout = {
 function PaymentForm({
   pending,
   onPaid,
+  submitLabel,
 }: {
   pending: PendingCheckout;
   onPaid: (order: Order) => void;
+  submitLabel: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -109,7 +111,7 @@ function PaymentForm({
             Procesando pago...
           </>
         ) : (
-          'Pagar ahora'
+          submitLabel
         )}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
@@ -123,10 +125,12 @@ export function CheckoutPayment({
   clientSecret,
   pending,
   onPaid,
+  submitLabel = 'Pagar ahora',
 }: {
   clientSecret: string;
   pending: PendingCheckout;
   onPaid: (order: Order) => void;
+  submitLabel?: string;
 }) {
   return (
     <Elements
@@ -137,7 +141,7 @@ export function CheckoutPayment({
         locale: 'es',
       }}
     >
-      <PaymentForm pending={pending} onPaid={onPaid} />
+      <PaymentForm pending={pending} onPaid={onPaid} submitLabel={submitLabel} />
     </Elements>
   );
 }

@@ -3,6 +3,7 @@ import { readCustomerIdFromRequest } from '@/lib/customer-auth';
 import { avatarPublicUrl } from '@/lib/customers';
 import { loyaltyKindForOrdinal, loyaltyLabel, paidOrderOrdinal } from '@/lib/loyalty';
 import { countPaidOrders } from '@/lib/loyalty-guard';
+import { getAvailableJumboReward, getLatestRedeemedJumboReward } from '@/lib/loyalty-reward';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -36,6 +37,10 @@ export async function GET() {
   const paid = await countPaidOrders(supabase, row.id);
   const nextOrdinal = paidOrderOrdinal(paid);
   const nextKind = loyaltyKindForOrdinal(nextOrdinal);
+  const jumboReward =
+    (await getAvailableJumboReward(supabase, row.id)) ||
+    (await getLatestRedeemedJumboReward(supabase, row.id));
+  const jumboAvailable = jumboReward?.status === 'available' || jumboReward?.status === 'reserved';
   return NextResponse.json({
     customer: {
       id: row.id,
@@ -51,6 +56,14 @@ export async function GET() {
       nextOrdinal,
       nextLabel: loyaltyLabel(nextKind),
       cycleLabel: `Pedido ${nextOrdinal} de 10`,
+      jumboGift: jumboReward
+        ? {
+            available: jumboAvailable,
+            expiresAt: jumboReward.expires_at,
+            code: jumboAvailable ? jumboReward.code || null : null,
+            redeemedOrderId: jumboReward.redeemed_order_id || null,
+          }
+        : { available: false, expiresAt: null, code: null, redeemedOrderId: null },
     },
   });
 }

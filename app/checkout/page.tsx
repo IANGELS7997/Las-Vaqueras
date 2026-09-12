@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, ArrowLeft, CreditCard, Loader2, User, Mail, Clock } from 'lucide-react';
+import { Trash2, ArrowLeft, CreditCard, Loader2, User, Mail, Clock, Ticket } from 'lucide-react';
 import { CheckoutPayment } from '@/components/checkout-payment';
 import { DeliveryMap } from '@/components/delivery-map';
 import { MenuProductImage } from '@/components/menu-product-image';
@@ -31,6 +31,13 @@ import {
   readCheckoutDraft,
   writeCheckoutDraft,
 } from '@/lib/checkout-draft';
+import {
+  clearGiftRedeem,
+  GIFT_COUPON_TITLE,
+  GIFT_FULFILLMENT_COPY,
+  readGiftRedeem,
+} from '@/lib/gift-checkout';
+import { lineWebAfterGift, resolveGiftCart } from '@/lib/gift-cart';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
 import { FINAL_SALE_CONSENT } from '@/lib/final-sale';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
@@ -43,7 +50,7 @@ const PENDING_KEY = 'lv_pending_checkout';
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, removeItem, clearCart, setLastOrder } = useCart();
-  const { ready, mode } = useFulfillment();
+  const { ready, mode, setMode } = useFulfillment();
   const isPickup = mode === 'pickup';
 
   const [firstName, setFirstName] = useState('');
@@ -77,14 +84,20 @@ export default function CheckoutPage() {
     deliveryFee: number;
     totalCharged: number;
   } | null>(null);
+  const [giftMode, setGiftMode] = useState(() => readGiftRedeem() === 'jumbo');
 
   const priceBaseTotal = calcCartBaseTotal(items);
   const platilloCount = countDeliveryPlatillos(items);
+  const gift = resolveGiftCart({ flagged: giftMode, items, fulfillment: mode });
+  const isGiftCheckout = gift.active;
+  const isFreeGift = gift.variant === 'free_pickup';
+  const giftLineUid = gift.giftLineUid;
   const split = calcCheckoutSplit({
     priceBaseTotal,
     fulfillment: mode ?? 'delivery',
     platilloCount,
     uberFee: isPickup ? 0 : quotedFee ?? 0,
+    giftFoodCredit: gift.creditBase,
   });
   const displaySplit = paySplit ?? split;
 
@@ -115,7 +128,22 @@ export default function CheckoutPage() {
       setDropoffLng(draft.lng);
       setPickupAt(draft.pickupAt);
     }
+    setGiftMode(readGiftRedeem() === 'jumbo');
     setDraftReady(true);
+  }, []);
+
+  useEffect(() => {
+    void fetch('/api/customer/me')
+      .then((response) => response.json())
+      .then((payload) => {
+        const profile = payload.customer;
+        if (!profile) return;
+        setFirstName((value) => value || profile.firstName || '');
+        setLastName((value) => value || profile.lastName || '');
+        setPhone((value) => value || profile.phone || '');
+        setEmail((value) => value || profile.email || '');
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -160,6 +188,10 @@ export default function CheckoutPage() {
       setLoyaltyNote('');
       return;
     }
+    if (gift.active) {
+      setLoyaltyNote('Papas Jumbo cubiertas por el cupón. El resto a precio de carta.');
+      return;
+    }
     const timer = window.setTimeout(() => {
       void fetch('/api/loyalty/preview', {
         method: 'POST',
@@ -176,7 +208,19 @@ export default function CheckoutPage() {
         .catch(() => setLoyaltyNote(''));
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [phone, email, mode, street]);
+  }, [phone, email, mode, street, gift.active]);
+
+  useEffect(() => {
+    if (giftMode && !gift.active) {
+      clearGiftRedeem();
+      setGiftMode(false);
+    }
+  }, [giftMode, gift.active]);
+
+  useEffect(() => {
+    if (!isGiftCheckout || !isPickup || pickupAt || pickupSlots.length === 0) return;
+    setPickupAt(pickupSlots[0].iso);
+  }, [isGiftCheckout, isPickup, pickupAt, pickupSlots]);
 
   useEffect(() => {
     if (!ready) return;
@@ -185,9 +229,13 @@ export default function CheckoutPage() {
       return;
     }
     if (!mode) {
+      if (giftMode) {
+        setMode('pickup');
+        return;
+      }
       router.replace('/');
     }
-  }, [ready, isOpen, mode, router]);
+  }, [ready, isOpen, mode, giftMode, router, setMode]);
 
   useEffect(() => {
     setClientSecret('');
@@ -283,7 +331,14 @@ export default function CheckoutPage() {
       }));
       return;
     }
-    if (!isPickup && (quotedFee == null || quoting)) return;
+    if (!isFreeGift && !isPickup && (quotedFee == null || quoting)) return;
+    if (gift.active) {
+      const session = await fetch('/api/customer/me').then((response) => response.json()).catch(() => null);
+      if (!session?.customer) {
+        setPayError('Entra a tu perfil para usar el cupón');
+        return;
+      }
+    }
     setCreatingIntent(true);
     setPayError('');
 
@@ -301,6 +356,26 @@ export default function CheckoutPage() {
       lat: isPickup ? undefined : dropoffLat,
       lng: isPickup ? undefined : dropoffLng,
     };
+    if (isFreeGift) {
+      const giftResponse = await fetch('/api/loyalty/fulfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fulfillment: mode,
+          pickupAt,
+          items,
+        }),
+      });
+      const giftPayload = await giftResponse.json();
+      setCreatingIntent(false);
+      if (!giftResponse.ok) {
+        setPayError(giftPayload.error || 'No se pudo canjear');
+        return;
+      }
+      handlePaid(giftPayload.order as Order);
+      return;
+    }
+
     const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -343,6 +418,7 @@ export default function CheckoutPage() {
   const handlePaid = (order: Order) => {
     sessionStorage.removeItem(PENDING_KEY);
     clearCheckoutDraft();
+    clearGiftRedeem();
     setLastOrder(order);
     clearCart();
     router.push(`/orders/${order.id}`);
@@ -362,7 +438,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-12 pt-6">
+    <div className="mx-auto max-w-3xl px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-6">
       <button
         onClick={() => router.push('/menu')}
         className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-brand-400"
@@ -370,8 +446,48 @@ export default function CheckoutPage() {
         <ArrowLeft className="h-4 w-4" />
         Seguir pidiendo
       </button>
+      {isGiftCheckout ? (
+        <p className="mb-4 -mt-2 text-xs text-muted-foreground">
+          Puedes agregar más platillos. El cupón sigue cubriendo las Papas Jumbo; lo demás se cobra aparte.
+        </p>
+      ) : null}
 
-      <h1 className="mb-6 text-2xl font-bold text-white">Checkout</h1>
+      <h1 className="mb-6 text-xl font-bold text-white sm:text-2xl">
+        {isGiftCheckout ? GIFT_COUPON_TITLE : 'Checkout'}
+      </h1>
+      {isGiftCheckout ? (
+        <div className="mb-6 -mt-2 space-y-3">
+          <p className="text-sm text-muted-foreground">{GIFT_FULFILLMENT_COPY}</p>
+          {!clientSecret ? (
+            <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setMode('pickup')}
+                className={cn(
+                  'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold leading-tight',
+                  isPickup
+                    ? 'border-brand-500 bg-brand-500 text-white'
+                    : 'border-border bg-card text-muted-foreground'
+                )}
+              >
+                Recoger · sin costo
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('delivery')}
+                className={cn(
+                  'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold leading-tight',
+                  !isPickup
+                    ? 'border-brand-500 bg-brand-500 text-white'
+                    : 'border-border bg-card text-muted-foreground'
+                )}
+              >
+                Domicilio · solo envío
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 md:grid-cols-5">
         <div className="space-y-6 md:col-span-3">
@@ -406,8 +522,24 @@ export default function CheckoutPage() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-sm font-semibold text-white">
-                        {formatMXN(calcCartLineWeb(item))}
+                    <span className="text-right text-sm font-semibold text-white">
+                      {item.uid === giftLineUid ? (
+                        <>
+                          <span className="block text-xs font-medium text-brand-400">Cupón</span>
+                          {item.quantity > 1 ? (
+                            <>
+                              <span className="mr-1 text-xs font-normal text-muted-foreground line-through">
+                                {formatMXN(calcCartLineWeb(item))}
+                              </span>
+                              {formatMXN(lineWebAfterGift(item, giftLineUid))}
+                            </>
+                          ) : (
+                            formatMXN(0)
+                          )}
+                        </>
+                      ) : (
+                        formatMXN(calcCartLineWeb(item))
+                      )}
                     </span>
                     {!clientSecret && (
                       <button
@@ -436,7 +568,7 @@ export default function CheckoutPage() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Nombre"
-                    disabled={Boolean(clientSecret)}
+                    disabled={Boolean(clientSecret) || gift.active}
                     className={cn(errors.firstName && 'border-red-500')}
                   />
                   {errors.firstName && <p className="mt-1 text-xs text-red-400">{errors.firstName}</p>}
@@ -447,7 +579,7 @@ export default function CheckoutPage() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Apellido"
-                    disabled={Boolean(clientSecret)}
+                    disabled={Boolean(clientSecret) || gift.active}
                     className={cn(errors.lastName && 'border-red-500')}
                   />
                   {errors.lastName && <p className="mt-1 text-xs text-red-400">{errors.lastName}</p>}
@@ -459,7 +591,7 @@ export default function CheckoutPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+52 614 ..."
-                  disabled={Boolean(clientSecret)}
+                  disabled={Boolean(clientSecret) || gift.active}
                   className={cn(errors.phone && 'border-red-500')}
                 />
                 {errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}
@@ -475,7 +607,7 @@ export default function CheckoutPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tucorreo@email.com"
-                  disabled={Boolean(clientSecret)}
+                  disabled={Boolean(clientSecret) || gift.active}
                   className={cn(errors.email && 'border-red-500')}
                 />
                 {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
@@ -604,10 +736,46 @@ export default function CheckoutPage() {
           </div>
 
           <div className="rounded-2xl border border-border/60 bg-card p-4">
-            <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
-              <CreditCard className="h-4 w-4 text-brand-500" />
-              Pago
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-white">
+              {isGiftCheckout ? (
+                <Ticket className="h-4 w-4 text-brand-500" />
+              ) : (
+                <CreditCard className="h-4 w-4 text-brand-500" />
+              )}
+              {isGiftCheckout ? GIFT_COUPON_TITLE : 'Pago'}
             </h2>
+            {isGiftCheckout ? (
+              <div className="mb-4 space-y-2">
+                <p className="text-sm leading-relaxed text-muted-foreground">{GIFT_FULFILLMENT_COPY}</p>
+                {gift.variant === 'free_pickup' ? (
+                  <p className="text-xs text-brand-400">
+                    Recoger: una orden de Jumbo cubierta. Total $0.00 MXN.
+                  </p>
+                ) : gift.variant === 'mixed_pickup' ? (
+                  <p className="text-xs text-brand-400">
+                    Recoger: el Jumbo va en el cupón. Pagas {formatMXN(displaySplit.subtotalWeb)} por el resto.
+                  </p>
+                ) : quoting ? (
+                  <p className="flex items-center gap-1.5 text-xs text-brand-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Cotizando envío con Uber Direct…
+                  </p>
+                ) : quotedFee != null ? (
+                  <p className="text-xs text-brand-400">
+                    Envío cotizado: {formatMXN(displaySplit.deliveryFee)}. El Jumbo del cupón no se cobra
+                    {displaySplit.subtotalWeb > 0
+                      ? `; los demás artículos suman ${formatMXN(displaySplit.subtotalWeb)}.`
+                      : '.'}
+                  </p>
+                ) : quoteError ? (
+                  <p className="text-xs text-red-400">{quoteError}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Completa dirección, C.P. y el punto en el mapa para cotizar el envío.
+                  </p>
+                )}
+              </div>
+            ) : null}
             {clientSecret ? (
               <CheckoutPayment
                 clientSecret={clientSecret}
@@ -629,6 +797,13 @@ export default function CheckoutPage() {
                   paymentIntentId,
                 }}
                 onPaid={handlePaid}
+                submitLabel={
+                  gift.variant === 'shipping_only' || gift.variant === 'mixed_delivery'
+                    ? 'Canjear · pagar envío'
+                    : gift.variant === 'mixed_pickup'
+                      ? 'Canjear · pagar'
+                      : 'Pagar ahora'
+                }
               />
             ) : (
               <div>
@@ -648,7 +823,9 @@ export default function CheckoutPage() {
                     disabled={Boolean(clientSecret)}
                   />
                   <span>
-                    {FINAL_SALE_CONSENT}{' '}
+                    {isGiftCheckout
+                      ? 'Confirmo las condiciones de este cupón. No admite cancelación ni devolución.'
+                      : FINAL_SALE_CONSENT}{' '}
                     <a href="/terminos" className="text-brand-400 underline-offset-2 hover:underline">
                       Términos
                     </a>
@@ -664,7 +841,7 @@ export default function CheckoutPage() {
                     creatingIntent ||
                     !acceptFinalSale ||
                     (isPickup && pickupSlots.length === 0) ||
-                    (!isPickup && (quoting || quotedFee == null))
+                    (!isFreeGift && !isPickup && (quoting || quotedFee == null))
                   }
                   className="w-full bg-brand-500 text-white hover:bg-brand-600"
                   size="lg"
@@ -672,8 +849,14 @@ export default function CheckoutPage() {
                   {creatingIntent ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Preparando pago...
+                      {isGiftCheckout ? 'Canjeando...' : 'Preparando pago...'}
                     </>
+                  ) : gift.variant === 'free_pickup' ? (
+                    'Canjear'
+                  ) : gift.variant === 'mixed_pickup' ? (
+                    'Canjear · pagar'
+                  ) : gift.active ? (
+                    'Canjear · pagar envío'
                   ) : (
                     'Pagar'
                   )}
@@ -717,7 +900,7 @@ export default function CheckoutPage() {
               <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-base font-bold">
                 <span className="text-white">Total</span>
-                <span className="text-brand-500">{formatMXN(displaySplit.totalCharged)}</span>
+                <span className="text-brand-500">{formatMXN(isFreeGift ? 0 : displaySplit.totalCharged)}</span>
               </div>
             </div>
           </div>
