@@ -16,6 +16,10 @@ export type CheckoutSplitInput = {
   /** Raw Uber Direct quote. Legacy alias: deliveryFee. */
   uberFee?: number;
   deliveryFee?: number;
+  /** Gift redeem: descuenta esta carta de la comida; el 3% de envío usa la carta completa. */
+  giftFoodCredit?: number;
+  /** @deprecated usa giftFoodCredit */
+  waiveFood?: boolean;
 };
 
 export type CheckoutSplit = {
@@ -41,10 +45,16 @@ export function calcCheckoutSplit({
   fulfillment = 'delivery',
   uberFee,
   deliveryFee: legacyDeliveryFee,
+  giftFoodCredit = 0,
+  waiveFood = false,
 }: CheckoutSplitInput): CheckoutSplit {
-  const subtotalWeb = calcWebPrice(priceBaseTotal);
+  const credit = waiveFood
+    ? priceBaseTotal
+    : Math.min(Math.max(0, priceBaseTotal), Math.max(0, giftFoodCredit));
+  const chargedBase = Math.round((priceBaseTotal - credit) * 100) / 100;
+  const subtotalWeb = calcWebPrice(chargedBase);
   const customerFee = calcCustomerFee(subtotalWeb);
-  const restaurantGross = calcRestaurantPayout(priceBaseTotal);
+  const restaurantGross = calcRestaurantPayout(chargedBase);
   const rawUber = uberFee ?? legacyDeliveryFee ?? DELIVERY_FEE;
 
   const delivery =

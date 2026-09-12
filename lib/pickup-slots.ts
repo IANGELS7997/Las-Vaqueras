@@ -22,10 +22,29 @@ function addDays(year: number, month: number, dayOfMonth: number, days: number) 
   };
 }
 
-export function generatePickupSlots(from: Date = new Date()): PickupSlot[] {
-  if (!getOpenStatus(from).isOpen) return [];
+function nextOpenMoment(from: Date): Date | null {
+  const cursor = new Date(from.getTime());
+  for (let step = 0; step < 7 * 24 * 4; step += 1) {
+    if (getOpenStatus(cursor).isOpen) return cursor;
+    cursor.setMinutes(cursor.getMinutes() + 15);
+  }
+  return null;
+}
 
-  const earliest = new Date(from.getTime() + PICKUP_LEAD_MINUTES * 60 * 1000);
+export function generatePickupSlots(
+  from: Date = new Date(),
+  options?: { allowWhenClosed?: boolean }
+): PickupSlot[] {
+  let start = from;
+  if (!getOpenStatus(start).isOpen) {
+    if (!options?.allowWhenClosed) return [];
+    const nextOpen = nextOpenMoment(start);
+    if (!nextOpen) return [];
+    start = nextOpen;
+  }
+
+  const lead = start === from ? PICKUP_LEAD_MINUTES : 0;
+  const earliest = new Date(start.getTime() + lead * 60 * 1000);
   const wall = getRestaurantWallClock(earliest);
   const remainder = wall.minute % PICKUP_SLOT_MINUTES;
   let minute = remainder === 0 ? wall.minute : wall.minute + (PICKUP_SLOT_MINUTES - remainder);
@@ -80,8 +99,12 @@ export function generatePickupSlots(from: Date = new Date()): PickupSlot[] {
   return slots;
 }
 
-export function isValidPickupAt(iso: string, from: Date = new Date()): boolean {
-  return generatePickupSlots(from).some((slot) => slot.iso === iso);
+export function isValidPickupAt(
+  iso: string,
+  from: Date = new Date(),
+  options?: { allowWhenClosed?: boolean }
+): boolean {
+  return generatePickupSlots(from, options).some((slot) => slot.iso === iso);
 }
 
 export function formatPickupAt(iso: string): string {

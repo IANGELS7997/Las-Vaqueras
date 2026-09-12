@@ -16,6 +16,8 @@ import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
 import { addressKey, clientIp, normalizeEmail, normalizePhone, type LoyaltyKind } from '@/lib/loyalty';
+import { sendGiftOrderEmail } from '@/lib/gift-order-email';
+import { grantJumboReward, redeemJumboReward } from '@/lib/loyalty-reward';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -35,6 +37,8 @@ async function orderResponseWithProfile(args: {
   cardFingerprint?: string | null;
   ip?: string;
   loyaltyKind?: LoyaltyKind | null;
+  jumboRewardId?: string | null;
+  paymentIntentId?: string;
 }) {
   const profile = await upsertCustomer(args.supabase, {
     firstName: args.firstName,
@@ -64,6 +68,32 @@ async function orderResponseWithProfile(args: {
       ip: args.ip || null,
       address_key: addressKey({ address: args.orderRow.delivery_address }),
       order_id: args.orderRow.id,
+    });
+  }
+  if (kind === 'tenth_jumbo') {
+    await grantJumboReward(args.supabase, profile.id, args.orderRow.id);
+  }
+  const jumboRewardId = args.jumboRewardId;
+  if (jumboRewardId) {
+    await redeemJumboReward(
+      args.supabase,
+      jumboRewardId,
+      profile.id,
+      args.orderRow.id,
+      args.paymentIntentId
+    );
+    const token =
+      'profile_login_token' in args.orderRow
+        ? String((args.orderRow as DbOrderRow & { profile_login_token?: string }).profile_login_token || '')
+        : '';
+    await sendGiftOrderEmail({
+      to: args.email,
+      customerName: args.orderRow.customer_name,
+      orderId: args.orderRow.id,
+      token,
+      fulfillment: args.orderRow.fulfillment_type === 'pickup' ? 'pickup' : 'delivery',
+      pickupAt: args.orderRow.pickup_at,
+      totalCharged: Number(args.orderRow.total_charged || 0),
     });
   }
   const response = NextResponse.json({
@@ -198,6 +228,8 @@ export async function POST(req: Request) {
         cardFingerprint,
         ip: clientIp(req.headers),
         loyaltyKind: (paymentIntent.metadata.loyalty_kind || null) as LoyaltyKind | null,
+        jumboRewardId: paymentIntent.metadata.jumbo_reward_id || null,
+        paymentIntentId,
       });
     }
 
@@ -240,6 +272,8 @@ export async function POST(req: Request) {
       cardFingerprint,
       ip: clientIp(req.headers),
       loyaltyKind: (paymentIntent.metadata.loyalty_kind || null) as LoyaltyKind | null,
+      jumboRewardId: paymentIntent.metadata.jumbo_reward_id || null,
+      paymentIntentId,
     });
   } catch (error) {
     const message =
