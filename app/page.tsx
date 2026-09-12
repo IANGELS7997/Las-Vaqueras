@@ -96,7 +96,7 @@ export default function FulfillmentGatePage() {
       {!open.isOpen && (
         <div className="mt-8 w-full max-w-md text-center">
           <p className="text-sm text-muted-foreground">
-            Estamos cerrados. Abrimos {nextHours}. Puedes ver el menú, pero no se puede pedir hasta que abramos.
+            Estamos cerrados. Abrimos {nextHours}.
           </p>
           <Button
             asChild
