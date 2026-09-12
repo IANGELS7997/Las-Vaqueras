@@ -3,37 +3,41 @@
 import { useEffect, useRef, useState } from 'react';
 
 const ALERT_EVENT = 'lv-kitchen-alert';
-const SOUND_SRC = '/sounds/new-order.wav';
-const CHIME_NOTES = [
-  { freq: 523.25, at: 0, dur: 0.85 },
-  { freq: 659.25, at: 0.38, dur: 0.9 },
-  { freq: 783.99, at: 0.76, dur: 1.05 },
-  { freq: 1046.5, at: 1.2, dur: 1.35 },
+const SOUND_SRC = '/sounds/new-order.wav?v=3c';
+const MOTIF = [
+  { freq: 349, dur: 0.1, peak: 0.16 },
+  { freq: 440, dur: 0.1, peak: 0.16 },
+  { freq: 349, dur: 0.1, peak: 0.16 },
+  { freq: 440, dur: 0.1, peak: 0.16 },
 ] as const;
-const CHIME_GAP_MS = 2750;
+const PHRASES = 8;
+const PHRASE_REST = 0.1;
 
 function playBeep(ctx: AudioContext) {
   const now = ctx.currentTime;
-  for (const note of CHIME_NOTES) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = note.freq;
-    const start = now + note.at;
-    const end = start + note.dur;
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.09, start + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, end);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(start);
-    osc.stop(end + 0.02);
+  let cursor = now;
+  for (let phrase = 0; phrase < PHRASES; phrase += 1) {
+    for (const step of MOTIF) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = step.freq;
+      const end = cursor + step.dur;
+      gain.gain.setValueAtTime(0.0001, cursor);
+      gain.gain.exponentialRampToValueAtTime(step.peak, cursor + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(cursor);
+      osc.stop(end + 0.02);
+      cursor = end + 0.035;
+    }
+    cursor += PHRASE_REST;
   }
 }
 
 function playBeepTwice(ctx: AudioContext) {
   playBeep(ctx);
-  window.setTimeout(() => playBeep(ctx), CHIME_GAP_MS);
 }
 
 export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boolean) => void }) {
@@ -115,16 +119,18 @@ export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boole
   }
 
   return (
-    <div className="mb-6 flex items-center justify-between rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-medium text-emerald-200">
-      <span>🟢 Turno Activo — Alertas e impresión de comandas al pagar</span>
+    <div className="mb-6 flex flex-col gap-3 rounded-md border border-emerald-800 bg-emerald-950 p-3 text-sm font-medium text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
+      <span className="flex items-center gap-2">
+        <span className="h-3 w-3 shrink-0 animate-pulse rounded-full bg-emerald-400" />
+        Turno activo — alerta de pedido e impresión al pagar
+      </span>
       <button
         type="button"
         onClick={playFullAlert}
-        className="rounded-md border border-emerald-700 px-3 py-1 text-xs text-emerald-100 transition-colors hover:bg-emerald-900"
+        className="min-h-11 rounded-md border border-emerald-700 px-4 py-2 text-sm text-emerald-50 transition-colors hover:bg-emerald-900"
       >
-        Probar sonido
+        Probar alerta
       </button>
-      <span className="h-3 w-3 animate-pulse rounded-full bg-emerald-400" />
     </div>
   );
 }
