@@ -1,4 +1,4 @@
-import { iangelJson, iangelPreflight, isIangelLocalDemo, isTestOrderRow, requireIangel } from '@/lib/iangel-auth';
+import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
 import { isActiveTrip, mapIangelOrder } from '@/lib/iangel-order';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -24,10 +24,7 @@ export async function GET(req: Request) {
     return iangelJson(req, { error: queued.error.message }, 500);
   }
 
-  const rows = ((queued.data || []) as Record<string, unknown>[]).filter((row) =>
-    isIangelLocalDemo(req) ? isTestOrderRow(row) : true
-  );
-  const orders = rows.map(mapIangelOrder);
+  const orders = ((queued.data || []) as Record<string, unknown>[]).map(mapIangelOrder);
   const active = orders.find((order) => isActiveTrip(order.dispatchStatus)) || null;
   return iangelJson(req, { inShift: true, riderActive: true, riderBusy: Boolean(active), active, queue: orders });
 }

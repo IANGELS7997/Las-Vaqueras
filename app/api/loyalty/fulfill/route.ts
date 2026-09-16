@@ -11,9 +11,8 @@ import {
 } from '@/lib/loyalty-reward';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { isValidPickupAt } from '@/lib/pickup-slots';
-import { getOpenStatus, PRUEBA_OPEN_COOKIE, RESTAURANT_INFO } from '@/lib/restaurant';
+import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { createAdminSupabase } from '@/lib/supabase-admin';
-import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
 
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Entra a tu perfil para canjear' }, { status: 401 });
   }
 
-  if (!getOpenStatus(new Date(), { prueba: cookies().get(PRUEBA_OPEN_COOKIE)?.value === '1' }).isOpen) {
+  if (!getOpenStatus().isOpen) {
     return NextResponse.json({ error: 'El restaurante está cerrado' }, { status: 400 });
   }
 

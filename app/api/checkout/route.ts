@@ -7,7 +7,6 @@ import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidPickupAt } from '@/lib/pickup-slots';
 import { formatDeliveryReferences, isValidCoord } from '@/lib/delivery-address';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
-import { cookies } from 'next/headers';
 import { clientIp, discountedFoodBase, loyaltyLabel, normalizePhone } from '@/lib/loyalty';
 import { findCustomerIdByPhone, resolveLoyaltyKind } from '@/lib/loyalty-guard';
 import {
@@ -19,7 +18,7 @@ import {
 } from '@/lib/loyalty-reward';
 import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
-import { getOpenStatus, PRUEBA_OPEN_COOKIE, RESTAURANT_INFO } from '@/lib/restaurant';
+import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
 import { createDeliveryQuote, isUberQuoteConfigured } from '@/lib/uber-direct';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -57,7 +56,7 @@ export async function POST(req: Request) {
         items?: CartItem[];
       };
 
-    if (!getOpenStatus(new Date(), { prueba: cookies().get(PRUEBA_OPEN_COOKIE)?.value === '1' }).isOpen) {
+    if (!getOpenStatus().isOpen) {
       return NextResponse.json({ error: 'El restaurante está cerrado' }, { status: 400 });
     }
     if (!isFulfillmentMode(fulfillment)) {

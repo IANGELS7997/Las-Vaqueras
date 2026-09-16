@@ -1,4 +1,4 @@
-import { iangelJson, iangelPreflight, isIangelLocalDemo, isTestOrderRow, requireIangel } from '@/lib/iangel-auth';
+import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
 import { mapIangelOrder } from '@/lib/iangel-order';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -14,9 +14,5 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const supabase = createAdminSupabase();
   const found = await supabase.from('orders').select('*').eq('id', params.id).maybeSingle();
   if (!found.data) return iangelJson(req, { error: 'Pedido no encontrado' }, 404);
-  const row = found.data as Record<string, unknown>;
-  if (isIangelLocalDemo(req) && !isTestOrderRow(row)) {
-    return iangelJson(req, { error: 'La sesión de prueba solo puede ver pedidos de prueba' }, 403);
-  }
-  return iangelJson(req, { order: mapIangelOrder(row) });
+  return iangelJson(req, { order: mapIangelOrder(found.data as Record<string, unknown>) });
 }

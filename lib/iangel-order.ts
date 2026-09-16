@@ -1,4 +1,3 @@
-import { isTestOrderRow } from '@/lib/iangel-auth';
 import { patchFromRiderAction } from '@/lib/order-lifecycle';
 
 export type IangelOrder = {
@@ -58,7 +57,6 @@ export async function runIangelOrderAction(order: Record<string, unknown>, actio
       pickupPin: (order.pickup_pin as string | null) || null,
       etaMinutes: order.eta_minutes == null ? null : Number(order.eta_minutes),
     },
-    pin,
-    isTestOrderRow(order)
+    pin
   );
 }

@@ -1,6 +1,7 @@
+import { createHmac, timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 
-export const IANGEL_LOCAL_TOKEN = 'iangel-local';
+const TOKEN_PREFIX = 'iangel.v1.';
 
 export function iangelAllowedOrigins() {
   const extra = (process.env.IANGEL_APP_ORIGIN || '')
@@ -36,25 +37,47 @@ export function readIangelBearer(req: Request) {
   return auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
 }
 
-export function isIangelLocalDemo(req: Request) {
-  return readIangelBearer(req) === IANGEL_LOCAL_TOKEN;
+function tokenSecret() {
+  return process.env.IANGEL_API_SECRET || process.env.IANGEL_RIDER_PASSWORD || '';
+}
+
+function safeEqual(a: string, b: string) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
+
+export function issueIangelToken() {
+  const secret = tokenSecret();
+  const exp = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  const body = String(exp);
+  const sig = createHmac('sha256', secret).update(body).digest('hex');
+  return `${TOKEN_PREFIX}${body}.${sig}`;
+}
+
+export function verifyIangelToken(token: string) {
+  const secret = tokenSecret();
+  if (!secret || !token.startsWith(TOKEN_PREFIX)) return false;
+  const rest = token.slice(TOKEN_PREFIX.length);
+  const dot = rest.lastIndexOf('.');
+  if (dot < 0) return false;
+  const body = rest.slice(0, dot);
+  const sig = rest.slice(dot + 1);
+  const expected = createHmac('sha256', secret).update(body).digest('hex');
+  if (!safeEqual(expected, sig)) return false;
+  const exp = Number(body);
+  return Number.isFinite(exp) && Date.now() < exp;
 }
 
 export async function requireIangel(req: Request) {
   if (req.method === 'OPTIONS') return iangelPreflight(req);
-  if (isIangelLocalDemo(req)) return null;
   const secret = process.env.IANGEL_API_SECRET || '';
   const headerKey = req.headers.get('x-iangel-key') || '';
   if (secret && headerKey === secret) return null;
-  const password = process.env.IANGEL_RIDER_PASSWORD || '';
   const bearer = readIangelBearer(req);
-  if (password && bearer && bearer === password) return null;
+  if (verifyIangelToken(bearer)) return null;
+  const password = process.env.IANGEL_RIDER_PASSWORD || '';
+  if (password && bearer && safeEqual(bearer, password)) return null;
   return iangelJson(req, { error: 'No autorizado' }, 401);
-}
-
-export function isTestOrderRow(row: Record<string, unknown>) {
-  const payload = row.n8n_payload;
-  if (payload && typeof payload === 'object' && (payload as { test?: boolean }).test === true) return true;
-  const code = String(row.short_code || '');
-  return code.startsWith('PRUE') || code.startsWith('SYN');
 }

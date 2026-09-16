@@ -211,8 +211,7 @@ export function patchFromKitchenStatus(
 export function patchFromRiderAction(
   action: string,
   current: OrderSyncInput & { pickupPin?: string | null },
-  pin?: string,
-  testOrder = false
+  pin?: string
 ): { patch: Record<string, unknown>; customerText: string } {
   const patch: Record<string, unknown> = {};
   let customerText = '';
@@ -224,7 +223,7 @@ export function patchFromRiderAction(
     customerText = 'IANGEL aceptó tu pedido. Cocina lo está preparando.';
   } else if (action === 'pickup' || action === 'en_route') {
     const expectedPin = String(current.pickupPin || '');
-    if (action === 'pickup' && expectedPin && !testOrder && expectedPin !== String(pin || '')) {
+    if (action === 'pickup' && expectedPin && expectedPin !== String(pin || '')) {
       throw new Error('PIN de recojo incorrecto.');
     }
     patch.dispatch_status = action === 'pickup' ? 'picked_up' : 'en_route';
