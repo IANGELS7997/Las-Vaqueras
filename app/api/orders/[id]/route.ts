@@ -3,6 +3,8 @@ import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(
   _req: Request,
@@ -18,5 +20,8 @@ export async function GET(
     return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
   }
 
-  return NextResponse.json({ order: mapDbOrder(data as DbOrderRow) });
+  return NextResponse.json(
+    { order: mapDbOrder(data as DbOrderRow) },
+    { headers: { 'Cache-Control': 'no-store, max-age=0' } }
+  );
 }

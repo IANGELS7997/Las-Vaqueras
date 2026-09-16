@@ -8,6 +8,8 @@ import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   const customerId = await readCustomerIdFromRequest();
@@ -41,7 +43,8 @@ export async function GET() {
     (await getAvailableJumboReward(supabase, row.id)) ||
     (await getLatestRedeemedJumboReward(supabase, row.id));
   const jumboAvailable = jumboReward?.status === 'available' || jumboReward?.status === 'reserved';
-  return NextResponse.json({
+  return NextResponse.json(
+    {
     customer: {
       id: row.id,
       firstName: row.first_name,
@@ -65,5 +68,7 @@ export async function GET() {
           }
         : { available: false, expiresAt: null, code: null, redeemedOrderId: null },
     },
-  });
+    },
+    { headers: { 'Cache-Control': 'no-store, max-age=0' } }
+  );
 }

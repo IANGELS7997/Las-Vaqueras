@@ -78,6 +78,18 @@ export function mapDbOrder(row: DbOrderRow): Order {
   };
 }
 
+export function customerStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    awaiting_payment: 'Pago pendiente',
+    pending: 'Recibido',
+    preparing: 'En cocina',
+    in_transit: 'En camino',
+    delivered: 'Entregado',
+    cancelled: 'Cancelado',
+  };
+  return labels[status] || status;
+}
+
 export function isOrderStatus(value: string): value is OrderStatus {
   return ORDER_STATUSES.includes(value as OrderStatus);
 }

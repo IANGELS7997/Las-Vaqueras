@@ -8,6 +8,7 @@ import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
+import { customerStatusLabel } from '@/lib/orders-map';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     let cancelled = false;
 
     const load = async () => {
-      const response = await fetch(`/api/orders/${params.id}`);
+      const response = await fetch(`/api/orders/${params.id}`, { cache: 'no-store' });
       if (response.ok) {
         const payload = await response.json();
         const nextOrder = payload.order as Order;
@@ -137,7 +138,10 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
 
       <div className="text-center">
         <h2 className="mb-2 text-2xl font-bold text-orange-500">Rastreo de Pedido</h2>
-        <p className="text-sm text-muted-foreground">Orden #{order.id.slice(0, 8)}</p>
+        <p className="text-sm text-muted-foreground">Orden #{order.shortCode || order.id.slice(0, 8)}</p>
+        {!isCancelled && status !== 'awaiting_payment' ? (
+          <p className="mt-3 text-lg font-bold text-orange-400">{customerStatusLabel(status)}</p>
+        ) : null}
         <button
           type="button"
           onClick={() => router.push('/')}

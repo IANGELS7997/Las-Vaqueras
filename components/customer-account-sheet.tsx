@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GIFT_FULFILLMENT_COPY, writeGiftRedeem } from '@/lib/gift-checkout';
 import { PwaInstallHint } from '@/components/pwa-install-hint';
+import { customerStatusLabel } from '@/lib/orders-map';
 import { formatMXN } from '@/lib/pricing';
 import type { Order } from '@/types';
 
@@ -67,8 +68,8 @@ export function CustomerAccountSheet() {
   const [phone, setPhone] = useState('');
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const loadMe = async () => {
-    const response = await fetch('/api/customer/me');
+    const loadMe = async () => {
+    const response = await fetch('/api/customer/me', { cache: 'no-store' });
     if (!response.ok) return;
     const payload = await response.json();
     setCustomer(payload.customer || null);
@@ -77,7 +78,12 @@ export function CustomerAccountSheet() {
   };
 
   useEffect(() => {
-    if (open) void loadMe();
+    if (!open) return;
+    void loadMe();
+    const poll = window.setInterval(() => {
+      void loadMe();
+    }, 4000);
+    return () => window.clearInterval(poll);
   }, [open]);
 
   const handleLookup = async () => {
@@ -551,7 +557,7 @@ function StepPeekDialog({
               <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {order.status}
+              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status)}
             </p>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
               {order.items.slice(0, 4).map((item) => (
@@ -586,7 +592,7 @@ function OrderList({ orders, onOpen }: { orders: Order[]; onOpen: () => void }) 
             <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {order.status}
+            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status)}
           </p>
         </Link>
       ))}
