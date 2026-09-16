@@ -100,7 +100,35 @@ export function chihuahuaDate(
   );
 }
 
-export function getOpenStatus(date: Date = new Date()): { isOpen: boolean; label: string } {
+export const PRUEBA_OPEN_COOKIE = 'lv_prueba';
+const PRUEBA_MAX_AGE = 2 * 60 * 60;
+
+function isNearNow(date: Date) {
+  return Math.abs(date.getTime() - Date.now()) < 120_000;
+}
+
+/** Solo con ?prueba=1 (cookie 2h). No abre el local para todo el público. */
+export function isPruebaOpen(prueba?: boolean): boolean {
+  if (prueba === true) return true;
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('prueba') === '1') {
+      sessionStorage.setItem('lv-prueba-open', '1');
+      document.cookie = `${PRUEBA_OPEN_COOKIE}=1; Path=/; Max-Age=${PRUEBA_MAX_AGE}; SameSite=Lax`;
+      return true;
+    }
+    if (sessionStorage.getItem('lv-prueba-open') === '1') return true;
+    return document.cookie.split(';').some((part) => part.trim() === `${PRUEBA_OPEN_COOKIE}=1`);
+  } catch {
+    return false;
+  }
+}
+
+export function getOpenStatus(date: Date = new Date(), options?: { prueba?: boolean }): { isOpen: boolean; label: string } {
+  if (isNearNow(date) && isPruebaOpen(options?.prueba)) {
+    return { isOpen: true, label: 'Abierto (prueba)' };
+  }
   const wall = getRestaurantWallClock(date);
   const schedule = SCHEDULE[wall.day];
   if (!schedule) return { isOpen: false, label: 'Cerrado' };
