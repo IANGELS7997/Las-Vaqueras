@@ -48,8 +48,14 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
             {order.pickupAt ? ` · ${formatPickupAt(order.pickupAt)}` : ''}
           </p>
         ) : (
-          <p className="font-bold">ENTREGA A DOMICILIO</p>
+          <p className="font-bold">
+            {order.kitchenLabel || 'ENTREGA A DOMICILIO'}
+            {order.cookHold ? ' · ESPERA' : ''}
+          </p>
         )}
+        {order.shortCode ? <p className="font-bold">CODIGO #{order.shortCode}</p> : null}
+        {order.pickupPin ? <p className="font-bold">PIN RECOJO: {order.pickupPin}</p> : null}
+        {order.leaveAtDoor ? <p className="font-bold">DEJAR EN LA PUERTA</p> : null}
       </div>
       <div className="my-1 border-t border-dashed border-black" />
       <div>

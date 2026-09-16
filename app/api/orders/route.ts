@@ -3,6 +3,8 @@ import Stripe from 'stripe';
 import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
 import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
+import type { DeliveryProvider } from '@/lib/iangel-constants';
+import { afterPaymentConfirmed } from '@/lib/after-payment';
 import {
   CUSTOMER_COOKIE,
   customerCookieOptions,
@@ -163,12 +165,16 @@ export async function POST(req: Request) {
         (fulfillment === 'pickup' ? 0 : paymentIntent.metadata.delivery_fee) ||
         0
     );
+    const provider = (
+      paymentIntent.metadata.delivery_provider || (fulfillment === 'pickup' ? 'pickup' : 'uber')
+    ) as DeliveryProvider;
     const pickupAt = paymentIntent.metadata.pickup_at || null;
     const split = calcCheckoutSplit({
       priceBaseTotal,
       fulfillment,
       platilloCount,
       uberFee,
+      provider,
     });
     const email = customer.email.trim().toLowerCase();
     const address =
@@ -218,6 +224,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: updated.error.message }, { status: 500 });
       }
 
+      await afterPaymentConfirmed(updated.data as DbOrderRow);
+
       return orderResponseWithProfile({
         orderRow: updated.data as DbOrderRow,
         firstName,
@@ -261,6 +269,8 @@ export async function POST(req: Request) {
     if (insert.error) {
       return NextResponse.json({ error: insert.error.message }, { status: 500 });
     }
+
+    await afterPaymentConfirmed(insert.data as DbOrderRow);
 
     return orderResponseWithProfile({
       orderRow: insert.data as DbOrderRow,

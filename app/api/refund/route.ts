@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
+import { canRefundCancel } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
 
@@ -26,6 +27,19 @@ export async function POST(req: Request) {
 
     if (typeof paymentIntentId !== 'string' || !paymentIntentId.startsWith('pi_')) {
       return NextResponse.json({ error: 'paymentIntentId inválido' }, { status: 400 });
+    }
+
+    const supabase = createAdminSupabase();
+    const existing = await supabase
+      .from('orders')
+      .select('status, cook_hold, dispatch_status')
+      .eq('stripe_payment_intent_id', paymentIntentId)
+      .maybeSingle();
+    if (existing.data && !canRefundCancel(existing.data)) {
+      return NextResponse.json(
+        { error: 'Ya se prepara o el rider recogió. No hay reembolso.' },
+        { status: 400 }
+      );
     }
 
     const stripe = getStripe();

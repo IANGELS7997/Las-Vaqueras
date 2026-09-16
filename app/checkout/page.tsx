@@ -44,6 +44,9 @@ import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import type { Order } from '@/types';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DeliveryOptions } from '@/components/delivery-options';
+import type { DeliveryProvider } from '@/types';
+import type { RoutingResult } from '@/lib/iangel-routing';
 
 const PENDING_KEY = 'lv_pending_checkout';
 
@@ -76,6 +79,13 @@ export default function CheckoutPage() {
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
+  const [routing, setRouting] = useState<RoutingResult | null>(null);
+  const [provider, setProvider] = useState<DeliveryProvider | null>(null);
+  const [quoteTokens, setQuoteTokens] = useState<Record<string, string>>({});
+  const [quoteExpiresAt, setQuoteExpiresAt] = useState<string | null>(null);
+  const [leaveAtDoor, setLeaveAtDoor] = useState(false);
+  const [gatedCommunity, setGatedCommunity] = useState(false);
+  const [phoneAlt, setPhoneAlt] = useState('');
   const [acceptFinalSale, setAcceptFinalSale] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const [loyaltyNote, setLoyaltyNote] = useState('');
@@ -92,11 +102,13 @@ export default function CheckoutPage() {
   const isGiftCheckout = gift.active;
   const isFreeGift = gift.variant === 'free_pickup';
   const giftLineUid = gift.giftLineUid;
+  const selectedOption = routing?.options.find((option) => option.kind === provider);
   const split = calcCheckoutSplit({
     priceBaseTotal,
     fulfillment: mode ?? 'delivery',
     platilloCount,
-    uberFee: isPickup ? 0 : quotedFee ?? 0,
+    uberFee: isPickup ? 0 : selectedOption?.uberFee ?? 0,
+    provider: isPickup ? 'pickup' : provider || 'uber',
     giftFoodCredit: gift.creditBase,
   });
   const displaySplit = paySplit ?? split;
@@ -249,6 +261,8 @@ export default function CheckoutPage() {
       setQuotedFee(0);
       setQuoteError('');
       setQuoting(false);
+      setRouting(null);
+      setProvider('pickup');
       return;
     }
     if (
@@ -277,12 +291,24 @@ export default function CheckoutPage() {
           extNumber,
           postalCode,
           phone,
+          gatedCommunity,
+          priceBaseTotal,
         }),
       })
         .then(async (response) => {
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.error || 'No se pudo cotizar el envío');
-          setQuotedFee(payload.fee);
+          setRouting(payload.routing || null);
+          setQuoteTokens(payload.tokens || {});
+          setQuoteExpiresAt(payload.expiresAt || null);
+          const nextKind = payload.routing?.defaultKind || null;
+          setProvider(nextKind);
+          const selected = (payload.routing?.options || []).find(
+            (option: { kind: string; customerFee: number }) => option.kind === nextKind
+          );
+          setQuotedFee(selected ? selected.customerFee : payload.fee);
+          if (payload.blocked) setQuoteError(payload.blockedReason || 'Fuera de zona');
+          else setQuoteError('');
         })
         .catch((error: Error) => {
           setQuotedFee(null);
@@ -292,7 +318,7 @@ export default function CheckoutPage() {
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [isPickup, dropoffLat, dropoffLng, street, extNumber, postalCode, phone]);
+  }, [isPickup, dropoffLat, dropoffLng, street, extNumber, postalCode, phone, gatedCommunity, priceBaseTotal]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -331,7 +357,7 @@ export default function CheckoutPage() {
       }));
       return;
     }
-    if (!isFreeGift && !isPickup && (quotedFee == null || quoting)) return;
+    if (!isFreeGift && !isPickup && (quotedFee == null || quoting || !provider || routing?.blocked)) return;
     if (gift.active) {
       const session = await fetch('/api/customer/me').then((response) => response.json()).catch(() => null);
       if (!session?.customer) {
@@ -350,6 +376,7 @@ export default function CheckoutPage() {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       phone,
+      phoneAlt,
       email,
       address,
       references: isPickup ? '' : references,
@@ -387,6 +414,10 @@ export default function CheckoutPage() {
         customer,
         items,
         acceptFinalSale: true,
+        provider,
+        quoteToken: provider && provider !== 'pickup' ? quoteTokens[provider] : undefined,
+        leaveAtDoor,
+        gatedCommunity,
       }),
     });
     const payload = await response.json();
@@ -596,6 +627,17 @@ export default function CheckoutPage() {
                 />
                 {errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}
               </div>
+              {!isPickup ? (
+                <div>
+                  <Label className="mb-1.5">Segundo teléfono (opcional)</Label>
+                  <Input
+                    value={phoneAlt}
+                    onChange={(e) => setPhoneAlt(e.target.value)}
+                    placeholder="Otro número de contacto"
+                    disabled={Boolean(clientSecret)}
+                  />
+                </div>
+              ) : null}
               <div>
                 <Label className="mb-1.5 flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5 text-brand-500" />
@@ -719,6 +761,22 @@ export default function CheckoutPage() {
                     />
                     {errors.map && <p className="mt-1 text-xs text-red-400">{errors.map}</p>}
                   </div>
+                  <DeliveryOptions
+                    routing={routing}
+                    selected={provider === 'pickup' ? null : provider}
+                    onSelect={(kind) => {
+                      setProvider(kind);
+                      const option = routing?.options.find((item) => item.kind === kind);
+                      setQuotedFee(option ? option.customerFee : null);
+                    }}
+                    expiresAt={quoteExpiresAt}
+                    leaveAtDoor={leaveAtDoor}
+                    onLeaveAtDoor={setLeaveAtDoor}
+                    gatedCommunity={gatedCommunity}
+                    onGated={setGatedCommunity}
+                    quoting={quoting}
+                    quoteError={quoteError}
+                  />
                   <div>
                     <Label className="mb-1.5">Referencias (opcional)</Label>
                     <Textarea
@@ -785,6 +843,7 @@ export default function CheckoutPage() {
                     firstName: firstName.trim(),
                     lastName: lastName.trim(),
                     phone,
+                    phoneAlt,
                     email,
                     address: isPickup
                       ? RESTAURANT_INFO.address
@@ -841,7 +900,7 @@ export default function CheckoutPage() {
                     creatingIntent ||
                     !acceptFinalSale ||
                     (isPickup && pickupSlots.length === 0) ||
-                    (!isFreeGift && !isPickup && (quoting || quotedFee == null))
+                    (!isFreeGift && !isPickup && (quoting || quotedFee == null || !provider || routing?.blocked))
                   }
                   className="w-full bg-brand-500 text-white hover:bg-brand-600"
                   size="lg"

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Clock, MapPin, Package, Phone } from 'lucide-react';
 import { MenuProductImage } from '@/components/menu-product-image';
+import { IangelTrackingCard } from '@/components/iangel-tracking-card';
 import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
@@ -17,7 +18,7 @@ const STEP_LABELS = ['Recibido', 'En Cocina', 'En Camino', 'Entregado'];
 function isOrderStatus(value: unknown): value is OrderStatus {
   return (
     typeof value === 'string' &&
-    ['awaiting_payment', 'pending', 'preparing', 'in_transit', 'delivered', 'cancelled'].includes(value)
+    ['awaiting_payment', 'pending', 'preparing', 'in_transit', 'delivered', 'delivered_unclaimed', 'cancelled'].includes(value)
   );
 }
 
@@ -142,6 +143,12 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         </button>
       </div>
       {status !== 'awaiting_payment' ? <PwaInstallHint /> : null}
+      {order.provider === 'self' || order.provider === 'wait_self' ? (
+        <IangelTrackingCard
+          order={{ ...order, status }}
+          token={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('s') : null}
+        />
+      ) : null}
 
       {status === 'awaiting_payment' ? (
         <div className="mt-8 rounded-2xl border border-border/60 bg-card p-6 text-center">

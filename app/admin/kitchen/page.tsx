@@ -51,6 +51,12 @@ const STATUS_CONFIG: Record<
   preparing: { label: 'Preparando', icon: ChefHat, color: 'text-brand-400', bgColor: 'bg-brand-500/15' },
   in_transit: { label: 'En camino', icon: Bike, color: 'text-yellow-400', bgColor: 'bg-yellow-500/15' },
   delivered: { label: 'Entregado', icon: CheckCircle2, color: 'text-green-400', bgColor: 'bg-green-500/15' },
+  delivered_unclaimed: {
+    label: 'No reclamado',
+    icon: XCircle,
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/15',
+  },
   cancelled: { label: 'Cancelado', icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/15' },
 };
 
@@ -128,8 +134,12 @@ export default function KitchenDashboardPage() {
     };
   }, [printingOrderId]);
 
-  const activeOrders = orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled');
-  const completedOrders = orders.filter((o) => o.status === 'delivered' || o.status === 'cancelled');
+  const activeOrders = orders.filter(
+    (o) => o.status !== 'delivered' && o.status !== 'delivered_unclaimed' && o.status !== 'cancelled'
+  );
+  const completedOrders = orders.filter(
+    (o) => o.status === 'delivered' || o.status === 'delivered_unclaimed' || o.status === 'cancelled'
+  );
 
   const handlePrint = (orderId: string) => {
     setPrintingOrderId(orderId);
@@ -242,8 +252,10 @@ export default function KitchenDashboardPage() {
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-bold text-white">#{order.id}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{getTimeAgo(order.createdAt)}</span>
+                      <span className="block text-3xl font-black tabular-nums text-white">
+                        #{order.shortCode || order.id.slice(0, 4).toUpperCase()}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{getTimeAgo(order.createdAt)}</span>
                     </div>
                     <div
                       className={cn(
@@ -262,11 +274,21 @@ export default function KitchenDashboardPage() {
                     <div>
                       <p className="text-white">{order.customer.name}</p>
                       <p>{order.customer.phone}</p>
+                      {order.phoneAlt ? <p>Tel 2: {order.phoneAlt}</p> : null}
                     </div>
                   </div>
                   <div className="mb-3 flex items-start gap-2 text-xs text-muted-foreground">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
                     <div>
+                      {order.kitchenLabel ? (
+                        <p className="font-black text-white">
+                          {order.kitchenLabel}
+                          {order.cookHold ? ' · no preparar hasta aviso' : ''}
+                        </p>
+                      ) : null}
+                      {order.pickupPin ? (
+                        <p className="text-lg font-black tabular-nums text-brand-400">PIN recojo {order.pickupPin}</p>
+                      ) : null}
                       {order.fulfillment === 'pickup' ? (
                         <>
                           <p className="font-semibold text-white">Recoger en tienda</p>
@@ -320,7 +342,7 @@ export default function KitchenDashboardPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    {NEXT_STATUS[order.status] && (
+                    {NEXT_STATUS[order.status] && !order.cookHold && (
                       <Button
                         onClick={() => handleAdvanceStatus(order)}
                         size="sm"
@@ -330,6 +352,11 @@ export default function KitchenDashboardPage() {
                         Avanzar a {STATUS_CONFIG[NEXT_STATUS[order.status]].label}
                       </Button>
                     )}
+                    {order.cookHold ? (
+                      <p className="flex-1 rounded-lg bg-amber-500/15 px-3 py-2 text-xs font-semibold text-amber-400">
+                        ESPERA · no preparar hasta “Ya puedes preparar”
+                      </p>
+                    ) : null}
                     <Button
                       onClick={() => handlePrint(order.id)}
                       variant="outline"

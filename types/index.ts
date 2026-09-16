@@ -77,15 +77,19 @@ export type OrderStatus =
   | 'preparing'
   | 'in_transit'
   | 'delivered'
+  | 'delivered_unclaimed'
   | 'cancelled';
 
 export type FulfillmentMode = 'delivery' | 'pickup';
+export type DeliveryProvider = 'pickup' | 'self' | 'uber' | 'wait_self';
+export type KitchenTicketLabel = 'CASA' | 'ESPERA' | 'UBER' | 'RECOGER';
 
 export interface OrderCustomer {
   name: string;
   firstName?: string;
   lastName?: string;
   phone: string;
+  phoneAlt?: string;
   email: string;
   address: string;
   references: string;
@@ -111,4 +115,18 @@ export interface Order {
   fulfillment: FulfillmentMode;
   pickupAt?: string | null;
   cardFunding?: string | null;
+  shortCode?: string | null;
+  pickupPin?: string | null;
+  provider?: DeliveryProvider;
+  cookHold?: boolean;
+  leaveAtDoor?: boolean;
+  dispatchStatus?: string | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
+  riderLat?: number | null;
+  riderLng?: number | null;
+  phoneAlt?: string | null;
+  kitchenLabel?: KitchenTicketLabel;
+  etaMinutes?: number | null;
+  gatedCommunity?: boolean;
 }

@@ -54,6 +54,42 @@
   }
 }
 
+.iangel-surface {
+  --ia-sky: #38bdf8;
+  --ia-sky-deep: #0284c7;
+  --ia-sky-soft: #e0f2fe;
+  --ia-white: #ffffff;
+  --ia-bg: #f8fbff;
+  --ia-ink: #0f172a;
+  --ia-muted: #64748b;
+  --ia-ok: #059669;
+  --ia-wait: #d97706;
+  --ia-alert: #dc2626;
+  --ia-line: #e2e8f0;
+  color: var(--ia-ink);
+  background: var(--ia-bg);
+}
+
+.iangel-pulse {
+  animation: iangel-pulse 1.2s ease-in-out 2;
+}
+
+@keyframes iangel-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(2 132 199 / 0%);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgb(2 132 199 / 18%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iangel-pulse {
+    animation: none;
+  }
+}
+
 #ticket-comanda {
   display: none;
 }

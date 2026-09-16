@@ -1,4 +1,5 @@
 import { calcCustomerDeliveryFee } from '@/lib/delivery-tarifa';
+import { SELF_FEE_MXN, type DeliveryProvider } from '@/lib/iangel-constants';
 import {
   calcCustomerFee,
   calcRestaurantPayout,
@@ -16,6 +17,7 @@ export type CheckoutSplitInput = {
   /** Raw Uber Direct quote. Legacy alias: deliveryFee. */
   uberFee?: number;
   deliveryFee?: number;
+  provider?: DeliveryProvider;
   /** Gift redeem: descuenta esta carta de la comida; el 3% de envío usa la carta completa. */
   giftFoodCredit?: number;
   /** @deprecated usa giftFoodCredit */
@@ -38,7 +40,36 @@ export type CheckoutSplit = {
   restaurantPayoutCentavos: number;
   applicationFeeCentavos: number;
   deliveryFee: number;
+  provider: DeliveryProvider;
 };
+
+function deliveryForProvider(input: {
+  fulfillment: FulfillmentMode;
+  provider: DeliveryProvider;
+  rawUber: number;
+  priceBaseTotal: number;
+}): { deliveryFee: number; deliveryDiscount: number; uberFee: number; provider: DeliveryProvider } {
+  if (input.fulfillment === 'pickup' || input.provider === 'pickup') {
+    return { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0, provider: 'pickup' };
+  }
+  if (input.provider === 'self' || input.provider === 'wait_self') {
+    return {
+      deliveryFee: SELF_FEE_MXN,
+      deliveryDiscount: 0,
+      uberFee: 0,
+      provider: input.provider,
+    };
+  }
+  const calc = calcCustomerDeliveryFee({
+    uberFee: input.rawUber,
+    priceBaseTotal: input.priceBaseTotal,
+  });
+  return {
+    ...calc,
+    uberFee: input.rawUber,
+    provider: 'uber',
+  };
+}
 
 export function calcCheckoutSplit({
   priceBaseTotal,
@@ -47,6 +78,7 @@ export function calcCheckoutSplit({
   deliveryFee: legacyDeliveryFee,
   giftFoodCredit = 0,
   waiveFood = false,
+  provider: providerInput,
 }: CheckoutSplitInput): CheckoutSplit {
   const credit = waiveFood
     ? priceBaseTotal
@@ -56,17 +88,15 @@ export function calcCheckoutSplit({
   const customerFee = calcCustomerFee(subtotalWeb);
   const restaurantGross = calcRestaurantPayout(chargedBase);
   const rawUber = uberFee ?? legacyDeliveryFee ?? DELIVERY_FEE;
+  const provider: DeliveryProvider =
+    fulfillment === 'pickup' ? 'pickup' : providerInput || 'uber';
 
-  const delivery =
-    fulfillment === 'pickup'
-      ? { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 }
-      : {
-          ...calcCustomerDeliveryFee({
-            uberFee: rawUber,
-            priceBaseTotal,
-          }),
-          uberFee: rawUber,
-        };
+  const delivery = deliveryForProvider({
+    fulfillment,
+    provider,
+    rawUber,
+    priceBaseTotal,
+  });
 
   const totalCharged = Number((subtotalWeb + customerFee + delivery.deliveryFee).toFixed(2));
   const stripeFee = calcStripeFee(totalCharged);
@@ -92,5 +122,6 @@ export function calcCheckoutSplit({
     restaurantPayoutCentavos,
     applicationFeeCentavos: totalChargedCentavos - restaurantPayoutCentavos,
     deliveryFee: delivery.deliveryFee,
+    provider: delivery.provider,
   };
 }

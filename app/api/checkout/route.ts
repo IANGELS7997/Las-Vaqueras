@@ -19,9 +19,11 @@ import {
 } from '@/lib/loyalty-reward';
 import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
+import { SELF_FEE_MXN, type DeliveryProvider } from '@/lib/iangel-constants';
+import { resolvePaidDelivery } from '@/lib/iangel-checkout';
+import { randomPin, randomShortCode } from '@/lib/iangel-state';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
-import { createDeliveryQuote, isUberQuoteConfigured } from '@/lib/uber-direct';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -37,25 +39,42 @@ function isValidEmail(value: string): boolean {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale } =
-      body as {
-        priceBaseTotal: number;
-        stripeAccountId?: string;
-        restaurantId?: string;
-        fulfillment?: string;
-        pickupAt?: string | null;
-        acceptFinalSale?: boolean;
-        customer?: {
-          name?: string;
-          phone?: string;
-          email?: string;
-          address?: string;
-          references?: string;
-          lat?: number | null;
-          lng?: number | null;
-        };
-        items?: CartItem[];
+    const {
+      priceBaseTotal,
+      stripeAccountId,
+      customer,
+      items,
+      restaurantId,
+      fulfillment,
+      pickupAt,
+      acceptFinalSale,
+      provider: providerInput,
+      quoteToken,
+      leaveAtDoor,
+      gatedCommunity,
+    } = body as {
+      priceBaseTotal: number;
+      stripeAccountId?: string;
+      restaurantId?: string;
+      fulfillment?: string;
+      pickupAt?: string | null;
+      acceptFinalSale?: boolean;
+      provider?: DeliveryProvider;
+      quoteToken?: string;
+      leaveAtDoor?: boolean;
+      gatedCommunity?: boolean;
+      customer?: {
+        name?: string;
+        phone?: string;
+        phoneAlt?: string;
+        email?: string;
+        address?: string;
+        references?: string;
+        lat?: number | null;
+        lng?: number | null;
       };
+      items?: CartItem[];
+    };
 
     if (!getOpenStatus().isOpen) {
       return NextResponse.json({ error: 'El restaurante está cerrado' }, { status: 400 });
@@ -73,6 +92,10 @@ export async function POST(req: Request) {
     const cartItems = Array.isArray(items) ? items : [];
     const isPickup = fulfillment === 'pickup';
     let uberFee = 0;
+    let paidDelivery: Awaited<ReturnType<typeof resolvePaidDelivery>> | null = null;
+    const leaveDoor = leaveAtDoor === true;
+    const gated = gatedCommunity === true;
+    const phoneAlt = customer?.phoneAlt?.trim() || '';
     const destination =
       (typeof stripeAccountId === 'string' && stripeAccountId.startsWith('acct_')
         ? stripeAccountId
@@ -114,24 +137,28 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const requestedProvider: DeliveryProvider = isPickup
+      ? 'pickup'
+      : providerInput === 'self' || providerInput === 'wait_self' || providerInput === 'uber'
+        ? providerInput
+        : 'uber';
     if (!isPickup) {
-      if (!isUberQuoteConfigured()) {
-        return NextResponse.json(
-          {
-            error:
-              'Falta el Client Secret real de Uber Direct. Cópialo desde https://direct.uber.com, no el placeholder de n8n.',
-          },
-          { status: 400 }
-        );
+      try {
+        paidDelivery = await resolvePaidDelivery({
+          lat,
+          lng,
+          address,
+          phone,
+          priceBaseTotal,
+          provider: requestedProvider,
+          quoteToken,
+          gatedCommunity: gated,
+        });
+        uberFee = paidDelivery.uberFee;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'No se pudo validar el envío';
+        return NextResponse.json({ error: message }, { status: 400 });
       }
-      const quote = await createDeliveryQuote({
-        dropoffStreet: address.split(',')[0] || address,
-        dropoffZip: /\b(\d{5})\b/.exec(address)?.[1] || '31210',
-        dropoffLat: lat,
-        dropoffLng: lng,
-        dropoffPhone: phone,
-      });
-      uberFee = quote.fee;
     }
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: 'El correo no es válido' }, { status: 400 });
@@ -204,11 +231,13 @@ export async function POST(req: Request) {
     const waiveFood = gift.variant === 'shipping_only';
     const chargeBase = foodBase > 0 ? foodBase : waiveFood ? 0 : 0.01;
     const platilloCount = countDeliveryPlatillos(cartItems);
+    const deliveryProvider: DeliveryProvider = isPickup ? 'pickup' : paidDelivery?.provider || requestedProvider;
     const split = calcCheckoutSplit({
       priceBaseTotal: serverBase,
       fulfillment,
       platilloCount,
       uberFee,
+      provider: deliveryProvider,
       giftFoodCredit: canGiftJumbo ? giftBase : 0,
     });
 
@@ -258,6 +287,15 @@ export async function POST(req: Request) {
         food_base_charged: String(chargeBase),
         jumbo_reward_id: canGiftJumbo && jumboReward ? jumboReward.id : '',
         gift_shipping_only: waiveFood ? '1' : '',
+        delivery_provider: deliveryProvider,
+        dispatch_status: paidDelivery?.dispatchStatus || (isPickup ? 'pickup_store' : 'awaiting_n8n'),
+        dropoff_lat: isPickup ? '' : String(lat),
+        dropoff_lng: isPickup ? '' : String(lng),
+        customer_phone_alt: phoneAlt.slice(0, 40),
+        leave_at_door: leaveDoor ? '1' : '',
+        cook_hold: paidDelivery?.cookHold ? '1' : '',
+        uber_quote_id: paidDelivery?.uberQuoteId || '',
+        gated_community: gated ? '1' : '',
       },
     });
 
@@ -266,6 +304,21 @@ export async function POST(req: Request) {
     }
 
     const profileLoginToken = crypto.randomUUID().replace(/-/g, '');
+    const shortCode = randomShortCode();
+    const pickupPin = randomPin();
+    const n8nPayload = {
+      provider: deliveryProvider,
+      dispatch_status: paidDelivery?.dispatchStatus || (isPickup ? 'pickup_store' : 'awaiting_n8n'),
+      uber_quote_id: paidDelivery?.uberQuoteId || null,
+      uber_quote_fee: paidDelivery?.uberFee ?? null,
+      dropoff_lat: isPickup ? null : lat,
+      dropoff_lng: isPickup ? null : lng,
+      customer_phone: phone,
+      customer_phone_alt: phoneAlt || null,
+      leave_at_door: leaveDoor,
+      cook_hold: Boolean(paidDelivery?.cookHold),
+      items: items || [],
+    };
     const insert = await supabase
       .from('orders')
       .insert({
@@ -273,6 +326,7 @@ export async function POST(req: Request) {
         restaurant_id: restaurantId || null,
         customer_name: name,
         customer_phone: phone,
+        customer_phone_alt: phoneAlt || null,
         customer_email: email,
         delivery_address: address,
         delivery_references: canGiftJumbo
@@ -289,6 +343,20 @@ export async function POST(req: Request) {
         items: items || [],
         profile_login_token: profileLoginToken,
         loyalty_kind: canGiftJumbo ? 'jumbo_credit' : loyaltyKind,
+        dropoff_lat: isPickup ? null : lat,
+        dropoff_lng: isPickup ? null : lng,
+        delivery_provider: deliveryProvider,
+        uber_quote_id: paidDelivery?.uberQuoteId || null,
+        uber_quote_fee: paidDelivery?.uberFee ?? null,
+        quote_expires_at: paidDelivery?.quoteExpiresAt || null,
+        self_fee: paidDelivery?.selfFee ?? (deliveryProvider === 'self' || deliveryProvider === 'wait_self' ? SELF_FEE_MXN : null),
+        cook_hold: Boolean(paidDelivery?.cookHold),
+        leave_at_door: leaveDoor,
+        dispatch_status: n8nPayload.dispatch_status,
+        pickup_pin: pickupPin,
+        short_code: shortCode,
+        gated_community: gated,
+        n8n_payload: n8nPayload,
       })
       .select('id')
       .single();
