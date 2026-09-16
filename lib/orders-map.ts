@@ -1,4 +1,5 @@
 import type { CartItem, Order, OrderStatus } from '@/types';
+import { customerStatusLabel as syncCustomerLabel } from '@/lib/order-lifecycle';
 
 export const ORDER_STATUSES: OrderStatus[] = [
   'awaiting_payment',
@@ -41,6 +42,12 @@ export type DbOrderRow = {
   dispatch_status?: string | null;
   short_code?: string | null;
   pickup_pin?: string | null;
+  cook_hold?: boolean | null;
+  leave_at_door?: boolean | null;
+  incident_type?: string | null;
+  eta_minutes?: number | null;
+  rider_lat?: number | null;
+  rider_lng?: number | null;
 };
 
 function toNumber(value: number | string): number {
@@ -68,26 +75,22 @@ export function mapDbOrder(row: DbOrderRow): Order {
     platformFee: toNumber(row.platform_fee),
     status: row.status,
     createdAt: row.created_at,
-    estimatedMinutes: 35,
+    estimatedMinutes: row.eta_minutes && Number(row.eta_minutes) > 0 ? Number(row.eta_minutes) : 12,
     fulfillment: row.fulfillment_type === 'pickup' ? 'pickup' : 'delivery',
     pickupAt: row.pickup_at || null,
     cardFunding: row.card_funding || null,
     dispatchStatus: row.dispatch_status || null,
     shortCode: row.short_code || null,
     pickupPin: row.pickup_pin || null,
+    cookHold: Boolean(row.cook_hold),
+    leaveAtDoor: Boolean(row.leave_at_door),
+    incidentType: row.incident_type || null,
+    etaMinutes: row.eta_minutes == null ? null : Number(row.eta_minutes),
   };
 }
 
-export function customerStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    awaiting_payment: 'Pago pendiente',
-    pending: 'Recibido',
-    preparing: 'En cocina',
-    in_transit: 'En camino',
-    delivered: 'Entregado',
-    cancelled: 'Cancelado',
-  };
-  return labels[status] || status;
+export function customerStatusLabel(status: string, dispatchStatus?: string | null) {
+  return syncCustomerLabel(status, dispatchStatus);
 }
 
 export function isOrderStatus(value: string): value is OrderStatus {

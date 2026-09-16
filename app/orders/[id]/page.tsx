@@ -8,12 +8,9 @@ import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
-import { customerStatusLabel } from '@/lib/orders-map';
+import { CUSTOMER_STEPS, viewFromOrder } from '@/lib/order-lifecycle';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
-
-const STEPS: OrderStatus[] = ['pending', 'preparing', 'in_transit', 'delivered'];
-const STEP_LABELS = ['Recibido', 'En Cocina', 'En Camino', 'Entregado'];
 
 function isOrderStatus(value: unknown): value is OrderStatus {
   return (
@@ -81,11 +78,23 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           filter: `id=eq.${params.id}`,
         },
         (payload) => {
-          const nextStatus = payload.new?.status;
-          if (isOrderStatus(nextStatus)) {
-            setStatus(nextStatus);
-            setOrder((prev) => (prev ? { ...prev, status: nextStatus } : prev));
-          }
+          const row = payload.new as Record<string, unknown> | undefined;
+          if (!row) return;
+          const nextStatus = row.status;
+          setOrder((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: isOrderStatus(nextStatus) ? nextStatus : prev.status,
+                  dispatchStatus: typeof row.dispatch_status === 'string' ? row.dispatch_status : prev.dispatchStatus,
+                  leaveAtDoor: row.leave_at_door == null ? prev.leaveAtDoor : Boolean(row.leave_at_door),
+                  cookHold: row.cook_hold == null ? prev.cookHold : Boolean(row.cook_hold),
+                  etaMinutes: row.eta_minutes == null ? prev.etaMinutes : Number(row.eta_minutes),
+                  estimatedMinutes: row.eta_minutes == null ? prev.estimatedMinutes : Number(row.eta_minutes),
+                }
+              : prev
+          );
+          if (isOrderStatus(nextStatus)) setStatus(nextStatus);
         }
       )
       .subscribe();
@@ -97,10 +106,21 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     };
   }, [lastOrder, params.id]);
 
-  const currentStep = STEPS.indexOf(status);
-  const isCancelled = status === 'cancelled';
+  const sync = order
+    ? viewFromOrder({
+        status: order.status,
+        dispatchStatus: order.dispatchStatus,
+        fulfillment: order.fulfillment,
+        cookHold: order.cookHold,
+        leaveAtDoor: order.leaveAtDoor,
+        incidentType: order.incidentType,
+        etaMinutes: order.etaMinutes ?? order.estimatedMinutes,
+      })
+    : null;
+  const currentStep = sync?.stepIndex ?? 0;
+  const isCancelled = status === 'cancelled' || sync?.customerPhase === 'cancelled';
   const progressWidth =
-    currentStep <= 0 ? '0%' : `${(currentStep / (STEPS.length - 1)) * 100}%`;
+    currentStep <= 0 ? '0%' : `${(currentStep / (CUSTOMER_STEPS.length - 1)) * 100}%`;
 
   if (loading) {
     return (
@@ -139,8 +159,11 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
       <div className="text-center">
         <h2 className="mb-2 text-2xl font-bold text-orange-500">Rastreo de Pedido</h2>
         <p className="text-sm text-muted-foreground">Orden #{order.shortCode || order.id.slice(0, 8)}</p>
-        {!isCancelled && status !== 'awaiting_payment' ? (
-          <p className="mt-3 text-lg font-bold text-orange-400">{customerStatusLabel(status)}</p>
+        {!isCancelled && status !== 'awaiting_payment' && sync ? (
+          <>
+            <p className="mt-3 text-lg font-bold text-orange-400">{sync.customerLabel}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{sync.customerDetail}</p>
+          </>
         ) : null}
         <button
           type="button"
@@ -171,7 +194,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
             className="absolute left-4 top-4 h-0.5 bg-orange-500 transition-all duration-500"
             style={{ width: progressWidth }}
           />
-          {STEP_LABELS.map((label, idx) => (
+          {CUSTOMER_STEPS.map((label, idx) => (
             <div key={label} className="z-10 flex flex-col items-center">
               <div
                 className={cn(
@@ -198,7 +221,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         <div className="mb-4 flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-2.5">
           <Clock className="h-4 w-4 text-orange-500" />
           <span className="text-sm text-muted-foreground">
-            Tiempo estimado: <span className="font-semibold text-white">~{order.estimatedMinutes} min</span>
+            Tiempo estimado: <span className="font-semibold text-white">~{sync?.etaMinutes || order.estimatedMinutes} min</span>
           </span>
         </div>
       )}

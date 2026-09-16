@@ -557,7 +557,7 @@ function StepPeekDialog({
               <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status)}
+              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status, order.dispatchStatus)}
             </p>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
               {order.items.slice(0, 4).map((item) => (
@@ -592,7 +592,7 @@ function OrderList({ orders, onOpen }: { orders: Order[]; onOpen: () => void }) 
             <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status)}
+            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status, order.dispatchStatus)}
           </p>
         </Link>
       ))}

@@ -34,6 +34,7 @@ import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { ThermalTicket } from '@/components/thermal-ticket';
 import { MenuProductImage } from '@/components/menu-product-image';
+import { viewFromOrder } from '@/lib/order-lifecycle';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -87,7 +88,7 @@ export default function KitchenDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const response = await fetch('/api/kitchen/orders');
+      const response = await fetch('/api/kitchen/orders', { cache: 'no-store' });
       if (!response.ok) return;
       const payload = await response.json();
       const nextOrders = (payload.orders || []) as Order[];
@@ -138,12 +139,15 @@ export default function KitchenDashboardPage() {
   const handleAdvanceStatus = async (order: Order) => {
     const next = NEXT_STATUS[order.status];
     if (!next) return;
-    await fetch(`/api/orders/${order.id}/status`, {
+    const response = await fetch(`/api/orders/${order.id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: next }),
     });
-    setOrders((prev) => prev.map((item) => (item.id === order.id ? { ...item, status: next } : item)));
+    const payload = await response.json().catch(() => ({}));
+    setOrders((prev) =>
+      prev.map((item) => (item.id === order.id ? (payload.order as Order) || { ...item, status: next } : item))
+    );
   };
 
   const handleCancelOrder = async () => {
@@ -319,9 +323,16 @@ export default function KitchenDashboardPage() {
                       PIN recojo {order.pickupPin}
                     </p>
                   ) : null}
-                  {order.dispatchStatus ? (
-                    <p className="mb-2 text-xs text-yellow-400">IANGEL: {order.dispatchStatus}</p>
-                  ) : null}
+                  <p className="mb-2 text-xs text-yellow-400">
+                    IANGEL: {viewFromOrder({
+                      status: order.status,
+                      dispatchStatus: order.dispatchStatus,
+                      fulfillment: order.fulfillment,
+                      cookHold: order.cookHold,
+                      leaveAtDoor: order.leaveAtDoor,
+                      incidentType: order.incidentType,
+                    }).riderLabel}
+                  </p>
                   <div className="mb-3 flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total</span>
                     <span className="font-bold text-brand-500">{formatMXN(order.total)}</span>

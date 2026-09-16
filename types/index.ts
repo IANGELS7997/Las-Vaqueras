@@ -114,4 +114,8 @@ export interface Order {
   dispatchStatus?: string | null;
   shortCode?: string | null;
   pickupPin?: string | null;
+  cookHold?: boolean;
+  leaveAtDoor?: boolean;
+  incidentType?: string | null;
+  etaMinutes?: number | null;
 }
