@@ -48,6 +48,9 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     };
 
     void load();
+    const poll = window.setInterval(() => {
+      void load();
+    }, 4000);
 
     const token = new URLSearchParams(window.location.search).get('s');
     if (token) {
@@ -62,6 +65,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     if (!realtime) {
       return () => {
         cancelled = true;
+        window.clearInterval(poll);
       };
     }
 
@@ -87,6 +91,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
 
     return () => {
       cancelled = true;
+      window.clearInterval(poll);
       void realtime.removeChannel(channel);
     };
   }, [lastOrder, params.id]);

@@ -242,7 +242,7 @@ export default function KitchenDashboardPage() {
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-bold text-white">#{order.id}</span>
+                      <span className="text-sm font-bold text-white">#{order.shortCode || order.id.slice(0, 8)}</span>
                       <span className="ml-2 text-xs text-muted-foreground">{getTimeAgo(order.createdAt)}</span>
                     </div>
                     <div
@@ -314,6 +314,14 @@ export default function KitchenDashboardPage() {
                     ))}
                   </div>
 
+                  {order.pickupPin ? (
+                    <p className="mb-2 text-xs font-semibold tracking-widest text-brand-400">
+                      PIN recojo {order.pickupPin}
+                    </p>
+                  ) : null}
+                  {order.dispatchStatus ? (
+                    <p className="mb-2 text-xs text-yellow-400">IANGEL: {order.dispatchStatus}</p>
+                  ) : null}
                   <div className="mb-3 flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total</span>
                     <span className="font-bold text-brand-500">{formatMXN(order.total)}</span>

@@ -111,4 +111,7 @@ export interface Order {
   fulfillment: FulfillmentMode;
   pickupAt?: string | null;
   cardFunding?: string | null;
+  dispatchStatus?: string | null;
+  shortCode?: string | null;
+  pickupPin?: string | null;
 }

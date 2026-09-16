@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Bike, Store } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 import { Button } from '@/components/ui/button';
@@ -10,13 +10,25 @@ import { useFulfillment } from '@/lib/fulfillment-context';
 import { getNextOpenLabel, getOpenStatus } from '@/lib/restaurant';
 import { cn } from '@/lib/utils';
 
-export default function FulfillmentGatePage() {
+function FulfillmentGatePage() {
   const router = useRouter();
   const { ready, setMode, enableBrowseMenu } = useFulfillment();
+  const searchParams = useSearchParams();
+  const prueba = searchParams.get('prueba') === '1';
   const [open, setOpen] = useState({ isOpen: false, label: 'Cerrado' });
   const [nextHours, setNextHours] = useState('');
 
   useEffect(() => {
+    if (prueba) {
+      try {
+        sessionStorage.setItem('lv-prueba-open', '1');
+        document.cookie = 'lv_prueba=1; Path=/; Max-Age=7200; SameSite=Lax';
+      } catch {
+        /* ignore */
+      }
+      setOpen({ isOpen: true, label: 'Abierto (prueba)' });
+      return;
+    }
     const update = () => {
       const now = new Date();
       setOpen(getOpenStatus(now));
@@ -25,7 +37,7 @@ export default function FulfillmentGatePage() {
     update();
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [prueba]);
 
   const choose = (mode: 'delivery' | 'pickup') => {
     if (!open.isOpen) return;
@@ -41,7 +53,9 @@ export default function FulfillmentGatePage() {
     <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-10">
       <BrandLogo className="h-20 sm:h-24" priority />
       <h1 className="mt-6 text-center text-2xl font-bold text-white sm:text-3xl">¿Cómo quieres tu pedido?</h1>
-      <p className="mt-2 text-center text-sm text-muted-foreground">Elige una opción para ver el menú.</p>
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        {prueba ? 'Modo prueba: el local está abierto solo en esta sesión.' : 'Elige una opción para ver el menú.'}
+      </p>
 
       <div className="mt-8 grid w-full grid-cols-2 gap-3 sm:gap-4">
         <button
@@ -110,5 +124,13 @@ export default function FulfillmentGatePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-[50vh]" />}>
+      <FulfillmentGatePage />
+    </Suspense>
   );
 }
