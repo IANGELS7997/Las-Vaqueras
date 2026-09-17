@@ -2,8 +2,8 @@
 export const WEB_MARKUP = 1;
 export const SERVICE_FEE_RATE = 0;
 export const RESTAURANT_PAYOUT_RATE = 0.85;
-/** 3% of carta taken from the platform 15% and applied to delivery. */
-export const DELIVERY_DISCOUNT_RATE = 0.03;
+/** 3% of Uber Direct quote, taken from the platform 15%. Never applied to IANGEL $50. */
+export const UBER_QUOTE_DISCOUNT_RATE = 0.03;
 export const DELIVERY_FEE = 35;
 
 /** Menu / line price = carta. */
@@ -20,8 +20,8 @@ export function calcRestaurantPayout(mBase: number): number {
   return Math.round(mBase * RESTAURANT_PAYOUT_RATE * 100) / 100;
 }
 
-export function calcDeliveryDiscountFromCarta(priceBaseTotal: number): number {
-  return Math.round(Math.max(0, priceBaseTotal) * DELIVERY_DISCOUNT_RATE * 100) / 100;
+export function calcUberQuoteDiscount(uberQuote: number): number {
+  return Math.round(Math.max(0, uberQuote) * UBER_QUOTE_DISCOUNT_RATE * 100) / 100;
 }
 
 /** Mexico cards: 3.6% + $3 MXN, plus 16% IVA. */

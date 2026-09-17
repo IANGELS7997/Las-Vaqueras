@@ -1,11 +1,11 @@
 import { calcCustomerDeliveryFee } from '@/lib/delivery-tarifa';
+import { SELF_FEE_MXN, type DeliveryProvider } from '@/lib/iangel-constants';
 import {
   calcCustomerFee,
   calcRestaurantPayout,
   calcStripeFee,
   calcStripeShare,
   calcWebPrice,
-  DELIVERY_FEE,
 } from '@/lib/pricing';
 import type { FulfillmentMode } from '@/types';
 
@@ -13,12 +13,11 @@ export type CheckoutSplitInput = {
   priceBaseTotal: number;
   fulfillment?: FulfillmentMode;
   platilloCount?: number;
-  /** Raw Uber Direct quote. Legacy alias: deliveryFee. */
+  provider?: DeliveryProvider;
+  /** Raw Uber Direct quote. Used only when provider is uber. */
   uberFee?: number;
   deliveryFee?: number;
-  /** Gift redeem: descuenta esta carta de la comida; el 3% de envío usa la carta completa. */
   giftFoodCredit?: number;
-  /** @deprecated usa giftFoodCredit */
   waiveFood?: boolean;
 };
 
@@ -43,6 +42,7 @@ export type CheckoutSplit = {
 export function calcCheckoutSplit({
   priceBaseTotal,
   fulfillment = 'delivery',
+  provider,
   uberFee,
   deliveryFee: legacyDeliveryFee,
   giftFoodCredit = 0,
@@ -55,18 +55,16 @@ export function calcCheckoutSplit({
   const subtotalWeb = calcWebPrice(chargedBase);
   const customerFee = calcCustomerFee(subtotalWeb);
   const restaurantGross = calcRestaurantPayout(chargedBase);
-  const rawUber = uberFee ?? legacyDeliveryFee ?? DELIVERY_FEE;
+  const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'uber';
+  const rawUber = uberFee ?? legacyDeliveryFee ?? 0;
 
-  const delivery =
-    fulfillment === 'pickup'
-      ? { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 }
-      : {
-          ...calcCustomerDeliveryFee({
-            uberFee: rawUber,
-            priceBaseTotal,
-          }),
-          uberFee: rawUber,
-        };
+  let delivery = { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 };
+  if (kind === 'self' || kind === 'wait_self') {
+    delivery = { deliveryFee: SELF_FEE_MXN, deliveryDiscount: 0, uberFee: 0 };
+  } else if (kind === 'uber') {
+    const priced = calcCustomerDeliveryFee({ uberFee: rawUber });
+    delivery = { ...priced, uberFee: Math.round(rawUber * 100) / 100 };
+  }
 
   const totalCharged = Number((subtotalWeb + customerFee + delivery.deliveryFee).toFixed(2));
   const stripeFee = calcStripeFee(totalCharged);

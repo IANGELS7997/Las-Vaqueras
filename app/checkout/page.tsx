@@ -74,6 +74,9 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState('');
   const [paymentIntentId, setPaymentIntentId] = useState('');
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
+  const [quotedKind, setQuotedKind] = useState<'self' | 'wait_self' | 'uber' | null>(null);
+  const [quotedUberRaw, setQuotedUberRaw] = useState(0);
+  const [waitNotice, setWaitNotice] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
   const [acceptFinalSale, setAcceptFinalSale] = useState(false);
@@ -96,7 +99,8 @@ export default function CheckoutPage() {
     priceBaseTotal,
     fulfillment: mode ?? 'delivery',
     platilloCount,
-    uberFee: isPickup ? 0 : quotedFee ?? 0,
+    provider: isPickup ? 'pickup' : quotedKind || undefined,
+    uberFee: isPickup ? 0 : quotedKind === 'uber' ? quotedUberRaw : 0,
     giftFoodCredit: gift.creditBase,
   });
   const displaySplit = paySplit ?? split;
@@ -247,6 +251,9 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isPickup) {
       setQuotedFee(0);
+      setQuotedKind(null);
+      setQuotedUberRaw(0);
+      setWaitNotice(null);
       setQuoteError('');
       setQuoting(false);
       return;
@@ -260,6 +267,9 @@ export default function CheckoutPage() {
       !isValidPostalCode(postalCode)
     ) {
       setQuotedFee(null);
+      setQuotedKind(null);
+      setQuotedUberRaw(0);
+      setWaitNotice(null);
       setQuoteError('');
       return;
     }
@@ -277,22 +287,29 @@ export default function CheckoutPage() {
           extNumber,
           postalCode,
           phone,
+          priceBaseTotal,
         }),
       })
         .then(async (response) => {
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.error || 'No se pudo cotizar el envío');
-          setQuotedFee(payload.fee);
+          setQuotedFee(payload.customerFee ?? payload.fee);
+          setQuotedKind(payload.kind === 'self' || payload.kind === 'wait_self' || payload.kind === 'uber' ? payload.kind : 'uber');
+          setQuotedUberRaw(Number(payload.uberFee) || 0);
+          setWaitNotice(typeof payload.waitNotice === 'string' ? payload.waitNotice : null);
         })
         .catch((error: Error) => {
           setQuotedFee(null);
+          setQuotedKind(null);
+          setQuotedUberRaw(0);
+          setWaitNotice(null);
           setQuoteError(error.message);
         })
         .finally(() => setQuoting(false));
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [isPickup, dropoffLat, dropoffLng, street, extNumber, postalCode, phone]);
+  }, [isPickup, dropoffLat, dropoffLng, street, extNumber, postalCode, phone, priceBaseTotal]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -761,7 +778,7 @@ export default function CheckoutPage() {
                 ) : quoting ? (
                   <p className="flex items-center gap-1.5 text-xs text-brand-400">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Cotizando envío con Uber Direct…
+                    Cotizando envío…
                   </p>
                 ) : quotedFee != null ? (
                   <p className="text-xs text-brand-400">
@@ -891,10 +908,17 @@ export default function CheckoutPage() {
                   <span className="text-white">Calculando...</span>
                 </div>
               ) : quotedFee != null ? (
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Envío</span>
-                  <span className="text-white">{formatMXN(displaySplit.deliveryFee)}</span>
-                </div>
+                <>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Envío</span>
+                    <span className="text-white">{formatMXN(displaySplit.deliveryFee)}</span>
+                  </div>
+                  {waitNotice ? (
+                    <p className="rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-xs leading-relaxed text-brand-400">
+                      {waitNotice}
+                    </p>
+                  ) : null}
+                </>
               ) : (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Envío</span>

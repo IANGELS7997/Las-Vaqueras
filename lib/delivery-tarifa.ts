@@ -1,4 +1,4 @@
-import { calcDeliveryDiscountFromCarta } from '@/lib/pricing';
+import { calcUberQuoteDiscount } from '@/lib/pricing';
 import { getMenuItemById } from '@/lib/mock-data';
 
 function money(value: number): number {
@@ -22,13 +22,12 @@ export function countDeliveryPlatillos(
   }, 0);
 }
 
-/** Customer pays Uber quote minus 3% of carta. Never below $0. */
+/** Uber Direct only: customer pays quote × 0.97. */
 export function calcCustomerDeliveryFee(input: {
   uberFee: number;
-  priceBaseTotal: number;
 }): { deliveryFee: number; deliveryDiscount: number } {
   const uberFee = money(Math.max(0, input.uberFee));
-  const discount = calcDeliveryDiscountFromCarta(input.priceBaseTotal);
+  const discount = calcUberQuoteDiscount(uberFee);
   const deliveryFee = money(Math.max(0, uberFee - discount));
   return {
     deliveryFee,
