@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --lv-header-h: 10.5rem;
     --background: 0 0% 4%;
     --foreground: 0 0% 100%;
     --card: 0 0% 9%;

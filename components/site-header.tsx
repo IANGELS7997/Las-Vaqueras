@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { MapPin, Clock, Phone, Mail, Bike, Store } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { RESTAURANT_INFO, getOpenStatus, getTodayHours } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
 import { CustomerAccountSheet } from '@/components/customer-account-sheet';
@@ -13,8 +13,30 @@ import { cn } from '@/lib/utils';
 export function SiteHeader() {
   const pathname = usePathname();
   const { mode, setMode, ready } = useFulfillment();
+  const headerRef = useRef<HTMLElement>(null);
   const [status, setStatus] = useState({ isOpen: false, label: 'Cerrado' });
   const [todayHours, setTodayHours] = useState('');
+  const hideHeader = pathname.startsWith('/admin') || pathname.startsWith('/connect');
+
+  useLayoutEffect(() => {
+    if (hideHeader) {
+      document.documentElement.style.setProperty('--lv-header-h', '0px');
+      return;
+    }
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () => {
+      document.documentElement.style.setProperty('--lv-header-h', `${el.offsetHeight}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    window.addEventListener('resize', apply);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', apply);
+    };
+  }, [hideHeader, pathname, ready, mode, status.isOpen, todayHours]);
 
   useEffect(() => {
     const update = () => {
@@ -27,7 +49,7 @@ export function SiteHeader() {
     return () => clearInterval(interval);
   }, []);
 
-  if (pathname.startsWith('/admin') || pathname.startsWith('/connect')) return null;
+  if (hideHeader) return null;
 
   const showModeSwitch = ready && mode && pathname !== '/' && status.isOpen;
 
@@ -76,7 +98,10 @@ export function SiteHeader() {
   ) : null;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur-md">
+    <header
+      ref={headerRef}
+      className="fixed inset-x-0 top-0 z-40 border-b border-border/60 bg-background pt-[env(safe-area-inset-top)]"
+    >
       <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
