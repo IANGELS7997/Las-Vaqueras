@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { readCustomerIdFromRequest } from '@/lib/customer-auth';
+import {
+  CUSTOMER_COOKIE,
+  customerCookieOptions,
+  customerSessionToken,
+  readCustomerIdFromRequest,
+} from '@/lib/customer-auth';
 import { avatarPublicUrl } from '@/lib/customers';
 import { loyaltyKindForOrdinal, loyaltyLabel, paidOrderOrdinal } from '@/lib/loyalty';
 import { countPaidOrders } from '@/lib/loyalty-guard';
@@ -43,7 +48,7 @@ export async function GET() {
     (await getAvailableJumboReward(supabase, row.id)) ||
     (await getLatestRedeemedJumboReward(supabase, row.id));
   const jumboAvailable = jumboReward?.status === 'available' || jumboReward?.status === 'reserved';
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
     customer: {
       id: row.id,
@@ -71,4 +76,6 @@ export async function GET() {
     },
     { headers: { 'Cache-Control': 'no-store, max-age=0' } }
   );
+  response.cookies.set(CUSTOMER_COOKIE, await customerSessionToken(row.id), customerCookieOptions());
+  return response;
 }
