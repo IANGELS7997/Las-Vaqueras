@@ -8,13 +8,29 @@ export function iangelAllowedOrigins() {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  return ['https://app.pureiangel.com', 'http://localhost:3001', 'http://127.0.0.1:3001', ...extra];
+  return [
+    'https://app.pureiangel.com',
+    'https://app-pureiangel.vercel.app',
+    'https://app-pureiangel-angel-salinas-creador.vercel.app',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    ...extra,
+  ];
+}
+
+function isIangelAppOrigin(origin: string) {
+  if (iangelAllowedOrigins().includes(origin)) return true;
+  try {
+    const host = new URL(origin).hostname;
+    return host.startsWith('app-pureiangel-') && host.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
 }
 
 export function iangelCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') || '';
-  const allowed = iangelAllowedOrigins();
-  const match = allowed.includes(origin) ? origin : allowed[0];
+  const match = isIangelAppOrigin(origin) ? origin : iangelAllowedOrigins()[0];
   return {
     'Access-Control-Allow-Origin': match,
     'Access-Control-Allow-Credentials': 'true',

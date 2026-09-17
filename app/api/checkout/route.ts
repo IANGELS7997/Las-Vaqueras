@@ -7,6 +7,7 @@ import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidPickupAt } from '@/lib/pickup-slots';
 import { formatDeliveryReferences, isValidCoord } from '@/lib/delivery-address';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
+import { cookies } from 'next/headers';
 import { clientIp, discountedFoodBase, loyaltyLabel, normalizePhone } from '@/lib/loyalty';
 import { findCustomerIdByPhone, resolveLoyaltyKind } from '@/lib/loyalty-guard';
 import {
