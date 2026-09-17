@@ -110,7 +110,7 @@ export async function POST(req: Request) {
     }
     if (!isPickup && !isValidCoord(lat, lng)) {
       return NextResponse.json(
-        { error: 'Confirma la puerta de entrega en el mapa' },
+        { error: 'Confirma el punto de entrega en el mapa' },
         { status: 400 }
       );
     }

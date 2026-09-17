@@ -37,7 +37,7 @@ declare global {
 }
 
 const RIDER_PIN_COPY =
-  'El punto marcado por la cruz es la ubicación que utiliza el rider para la entrega. Mueve el mapa hasta que la cruz quede sobre la puerta de tu casa, no sobre la calle, y pulsa Confirmar puerta de entrega. Si el punto no coincide con tu domicilio, el pedido puede entregarse en otro lugar.';
+  'El punto marcado por la cruz es la ubicación que utiliza el rider para la entrega. Mueve el mapa hasta que la cruz quede sobre la puerta de tu casa, no sobre la calle, y pulsa Confirmar punto de entrega. Si el punto no coincide con tu domicilio, el pedido puede entregarse en otro lugar.';
 
 let leafletLoader: Promise<LeafletNamespace> | null = null;
 
@@ -172,18 +172,29 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
         {RIDER_PIN_COPY}
       </p>
       {geoError ? <p className="text-sm text-red-400">{geoError}</p> : null}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Button type="button" variant="secondary" className="min-h-14 text-base" disabled={disabled} onClick={useMyLocation}>
+      <div className="flex w-full flex-col gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-12 w-full rounded-xl px-4 text-sm font-semibold touch-manipulation sm:text-base"
+          disabled={disabled}
+          onClick={useMyLocation}
+        >
           Usar mi ubicación
         </Button>
-        <Button type="button" className="min-h-14 text-base font-bold" disabled={disabled} onClick={confirmDoor}>
-          Confirmar puerta de entrega
+        <Button
+          type="button"
+          className="h-12 w-full rounded-xl px-4 text-sm font-bold touch-manipulation sm:text-base"
+          disabled={disabled}
+          onClick={confirmDoor}
+        >
+          Confirmar punto de entrega
         </Button>
       </div>
       {lat != null && lng != null ? (
-        <p className="text-xs font-semibold text-emerald-400">Puerta confirmada. El rider llega a este punto.</p>
+        <p className="text-xs font-semibold text-emerald-400">Punto de entrega confirmado. El rider llega aquí.</p>
       ) : (
-        <p className="text-xs text-muted-foreground">Confirma la puerta para continuar el pedido.</p>
+        <p className="text-xs text-muted-foreground">Confirma el punto de entrega para continuar el pedido.</p>
       )}
     </div>
   );

@@ -314,7 +314,7 @@ export default function CheckoutPage() {
         dropoffLng == null ||
         !isValidCoord(dropoffLat, dropoffLng)
       ) {
-        e.map = 'Confirma la puerta de entrega en el mapa';
+        e.map = 'Confirma el punto de entrega en el mapa';
       }
     }
     setErrors(e);
