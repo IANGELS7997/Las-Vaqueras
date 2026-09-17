@@ -21,7 +21,7 @@ import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
-import { createDeliveryQuote, isUberQuoteConfigured } from '@/lib/uber-direct';
+import { resolvePaidDelivery } from '@/lib/iangel-checkout';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -73,6 +73,8 @@ export async function POST(req: Request) {
     const cartItems = Array.isArray(items) ? items : [];
     const isPickup = fulfillment === 'pickup';
     let uberFee = 0;
+    let deliveryProvider: 'pickup' | 'self' | 'uber' | 'wait_self' = isPickup ? 'pickup' : 'uber';
+    let dispatchStatus = isPickup ? 'pickup_store' : 'needs_n8n_uber';
     const destination =
       (typeof stripeAccountId === 'string' && stripeAccountId.startsWith('acct_')
         ? stripeAccountId
@@ -115,23 +117,17 @@ export async function POST(req: Request) {
       );
     }
     if (!isPickup) {
-      if (!isUberQuoteConfigured()) {
-        return NextResponse.json(
-          {
-            error:
-              'Falta el Client Secret real de Uber Direct. Cópialo desde https://direct.uber.com, no el placeholder de n8n.',
-          },
-          { status: 400 }
-        );
-      }
-      const quote = await createDeliveryQuote({
-        dropoffStreet: address.split(',')[0] || address,
-        dropoffZip: /\b(\d{5})\b/.exec(address)?.[1] || '31210',
-        dropoffLat: lat,
-        dropoffLng: lng,
-        dropoffPhone: phone,
+      const paid = await resolvePaidDelivery({
+        lat,
+        lng,
+        street: address.split(',')[0] || address,
+        zip: /\b(\d{5})\b/.exec(address)?.[1] || '31210',
+        phone,
+        priceBaseTotal,
       });
-      uberFee = quote.fee;
+      deliveryProvider = paid.kind;
+      dispatchStatus = paid.dispatchStatus;
+      uberFee = paid.uberFee;
     }
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: 'El correo no es válido' }, { status: 400 });
@@ -208,6 +204,7 @@ export async function POST(req: Request) {
       priceBaseTotal: serverBase,
       fulfillment,
       platilloCount,
+      provider: deliveryProvider,
       uberFee,
       giftFoodCredit: canGiftJumbo ? giftBase : 0,
     });
@@ -260,6 +257,7 @@ export async function POST(req: Request) {
         gift_shipping_only: waiveFood ? '1' : '',
         dropoff_lat: isPickup ? '' : String(lat),
         dropoff_lng: isPickup ? '' : String(lng),
+        delivery_provider: deliveryProvider,
       },
     });
 
@@ -293,6 +291,8 @@ export async function POST(req: Request) {
         loyalty_kind: canGiftJumbo ? 'jumbo_credit' : loyaltyKind,
         dropoff_lat: isPickup ? null : lat,
         dropoff_lng: isPickup ? null : lng,
+        delivery_provider: deliveryProvider,
+        dispatch_status: dispatchStatus,
       })
       .select('id')
       .single();

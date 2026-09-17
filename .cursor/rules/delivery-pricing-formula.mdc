@@ -1,5 +1,5 @@
 ---
-description: Fórmula justa web — carta, 85/12/3, envío Uber menos 3%
+description: Fórmula justa web — carta 85/15, IANGEL $50, Uber quote × 0.97
 alwaysApply: true
 ---
 
@@ -7,9 +7,10 @@ alwaysApply: true
 
 - Comida = carta (`price_base`). No subir `price_base`. Sin markup 1.13 ni 4%.
 - Dueño = `0.85 × carta − Stripe/2`. Stripe MX ≈ `1.16 × (0.036 × total + 3)`; mitad dueño, mitad plataforma.
-- Del 15% del proyecto: **12%** plataforma, **3% de carta** descuenta el envío.
 - Recoger: comida = carta, envío $0.
-- Domicilio: `envío = max(0, Uber Direct quote − 0.03 × carta)`. Quote tal cual (no volver a sumar IVA). Cliente paga ese envío. Sin tarifa $9, sin subsidio $25/$30, sin piso $45.
+- IANGEL (≤ 4 km, turno 12:00–21:00, rider activo): envío **$50**. Sin 3%. Sin Uber.
+- Rider ocupado en ese radio: sigue **$50**. Aviso 35–45 min. **Sin Express / Uber Direct.**
+- Uber Direct (4001 m+ o fuera de turno): `envío = quote × 0.97` (3% de tu 15%, sobre el envío). Más de 5 km igual Uber.
 - Ticket: **Comida + Envío**. Sin mínimo de carrito ni combo obligatorio.
 - Combos en el modal: chico luego grande, arriba; ninguno preseleccionado; “Sin combo” al final.
 ---
