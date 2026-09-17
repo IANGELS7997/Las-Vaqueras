@@ -15,6 +15,11 @@ export const metadata: Metadata = {
     'Pide tus Papas Vaqueras, Boneless, Hamburguesas y Tortas a domicilio en Chihuahua. Entrega rápida y pago en línea.',
   manifest: '/manifest.webmanifest',
   themeColor: '#f97316',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
+  },
   icons: {
     icon: '/logo-vaqueras.png',
     apple: '/logo-vaqueras.png',
@@ -39,7 +44,9 @@ export default function RootLayout({
             <OrdersProvider>
               <div className="flex min-h-screen flex-col">
                 <SiteHeader />
-                <main className="flex-1">{children}</main>
+                <main className="flex-1" style={{ paddingTop: 'var(--lv-header-h, 10.5rem)' }}>
+                  {children}
+                </main>
                 <SiteFooter />
               </div>
             </OrdersProvider>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User } from 'lucide-react';
+import { ArrowLeft, User } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useFulfillment } from '@/lib/fulfillment-context';
 import { getMenuItemById } from '@/lib/mock-data';
@@ -103,6 +103,18 @@ export function CustomerAccountSheet() {
     await loadMe();
   };
 
+  const handleSheetBack = () => {
+    if (showPromos) {
+      setShowPromos(false);
+      return;
+    }
+    if (showOrders) {
+      setShowOrders(false);
+      return;
+    }
+    setOpen(false);
+  };
+
   const handleLogout = async () => {
     await fetch('/api/customer/logout', { method: 'POST' });
     setCustomer(null);
@@ -137,7 +149,16 @@ export function CustomerAccountSheet() {
   const pastOrders = orders.filter((order) => !ACTIVE.has(order.status));
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setShowOrders(false);
+          setShowPromos(false);
+        }
+      }}
+    >
       <SheetTrigger asChild>
         <button
           type="button"
@@ -147,13 +168,28 @@ export function CustomerAccountSheet() {
           <User className="h-4 w-4" />
         </button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-[88vw] max-w-sm overflow-y-auto border-border bg-background">
-        <SheetHeader>
-          <SheetTitle className="text-white">Mi perfil</SheetTitle>
+      <SheetContent
+        side="left"
+        className="w-[88vw] max-w-sm overflow-y-auto border-border bg-background pt-[max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))]"
+      >
+        <button
+          type="button"
+          onClick={handleSheetBack}
+          className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-brand-400"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {showPromos || showOrders ? 'Atrás' : 'Atrás · inicio'}
+        </button>
+        <SheetHeader className="pr-8 text-left">
+          <SheetTitle className="text-white">
+            {showPromos ? 'Promociones' : showOrders ? 'Mis pedidos' : 'Mi perfil'}
+          </SheetTitle>
           <SheetDescription>
-            {customer
-              ? 'Tus datos y pedidos de Las Vaqueras'
-              : 'Entra con el nombre, apellido y celular de tu compra'}
+            {showPromos || showOrders
+              ? 'Usa Atrás para volver al perfil'
+              : customer
+                ? 'Tus datos y pedidos de Las Vaqueras'
+                : 'Entra con el nombre, apellido y celular de tu compra'}
           </SheetDescription>
         </SheetHeader>
 
