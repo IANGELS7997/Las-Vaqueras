@@ -12,6 +12,7 @@ import { namesFromCheckout } from '@/lib/customer-from-checkout';
 import { fullCustomerName } from '@/lib/customer-identity';
 import { upsertCustomer } from '@/lib/customers';
 import { isFulfillmentMode } from '@/lib/fulfillment';
+import { isValidCoord } from '@/lib/delivery-address';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
@@ -25,6 +26,22 @@ export const runtime = 'nodejs';
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function dropoffFromPayload(input: {
+  fulfillment: string;
+  lat?: number | null;
+  lng?: number | null;
+  metaLat?: string;
+  metaLng?: string;
+}) {
+  if (input.fulfillment === 'pickup') {
+    return { dropoff_lat: null as number | null, dropoff_lng: null as number | null };
+  }
+  const lat = typeof input.lat === 'number' ? input.lat : Number(input.metaLat);
+  const lng = typeof input.lng === 'number' ? input.lng : Number(input.metaLng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !isValidCoord(lat, lng)) return null;
+  return { dropoff_lat: lat, dropoff_lng: lng };
 }
 
 async function orderResponseWithProfile(args: {
@@ -121,6 +138,8 @@ export async function POST(req: Request) {
         email: string;
         address: string;
         references?: string;
+        lat?: number | null;
+        lng?: number | null;
       };
       items: CartItem[];
     };
@@ -174,6 +193,13 @@ export async function POST(req: Request) {
     const address =
       fulfillment === 'pickup' ? RESTAURANT_INFO.address : customer.address.trim();
     const references = fulfillment === 'pickup' ? null : customer.references?.trim() || null;
+    const dropoff = dropoffFromPayload({
+      fulfillment,
+      lat: customer.lat,
+      lng: customer.lng,
+      metaLat: paymentIntent.metadata.dropoff_lat,
+      metaLng: paymentIntent.metadata.dropoff_lng,
+    });
 
     const supabase = createAdminSupabase();
     const existing = await supabase
@@ -209,6 +235,7 @@ export async function POST(req: Request) {
           status: 'pending',
           card_funding: cardFunding,
           card_fingerprint: cardFingerprint,
+          ...(dropoff || {}),
         })
         .eq('id', row.id)
         .select('*')
@@ -254,6 +281,7 @@ export async function POST(req: Request) {
         items: items || [],
         card_funding: cardFunding,
         card_fingerprint: cardFingerprint,
+        ...(dropoff || {}),
       })
       .select('*')
       .single();

@@ -314,7 +314,7 @@ export default function CheckoutPage() {
         dropoffLng == null ||
         !isValidCoord(dropoffLat, dropoffLng)
       ) {
-        e.map = 'Marca el punto exacto en el mapa';
+        e.map = 'Confirma la puerta de entrega en el mapa';
       }
     }
     setErrors(e);
@@ -708,6 +708,9 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <Label className="mb-1.5">Punto exacto de entrega</Label>
+                    <p className="mb-2 text-xs leading-relaxed text-muted-foreground">
+                      Coloca la cruz sobre tu puerta. Esa es la ubicación que usa el rider.
+                    </p>
                     <DeliveryMap
                       lat={dropoffLat}
                       lng={dropoffLng}
@@ -792,6 +795,8 @@ export default function CheckoutPage() {
                     references: isPickup
                       ? ''
                       : formatDeliveryReferences(references, dropoffLat, dropoffLng),
+                    lat: isPickup ? undefined : dropoffLat,
+                    lng: isPickup ? undefined : dropoffLng,
                   },
                   items,
                   paymentIntentId,

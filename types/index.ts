@@ -89,6 +89,8 @@ export interface OrderCustomer {
   email: string;
   address: string;
   references: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export type PaymentMethod = 'apple_pay' | 'google_pay' | 'card';

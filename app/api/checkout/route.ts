@@ -110,7 +110,7 @@ export async function POST(req: Request) {
     }
     if (!isPickup && !isValidCoord(lat, lng)) {
       return NextResponse.json(
-        { error: 'Marca el punto exacto de entrega en el mapa' },
+        { error: 'Confirma la puerta de entrega en el mapa' },
         { status: 400 }
       );
     }
@@ -258,6 +258,8 @@ export async function POST(req: Request) {
         food_base_charged: String(chargeBase),
         jumbo_reward_id: canGiftJumbo && jumboReward ? jumboReward.id : '',
         gift_shipping_only: waiveFood ? '1' : '',
+        dropoff_lat: isPickup ? '' : String(lat),
+        dropoff_lng: isPickup ? '' : String(lng),
       },
     });
 
@@ -289,6 +291,8 @@ export async function POST(req: Request) {
         items: items || [],
         profile_login_token: profileLoginToken,
         loyalty_kind: canGiftJumbo ? 'jumbo_credit' : loyaltyKind,
+        dropoff_lat: isPickup ? null : lat,
+        dropoff_lng: isPickup ? null : lng,
       })
       .select('id')
       .single();

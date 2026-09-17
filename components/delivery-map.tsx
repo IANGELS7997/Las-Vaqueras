@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CHIHUAHUA_CENTER } from '@/lib/delivery-address';
+import { Button } from '@/components/ui/button';
 
 type DeliveryMapProps = {
   lat: number | null;
@@ -12,7 +13,9 @@ type DeliveryMapProps = {
 
 type LeafletMap = {
   setView: (center: [number, number], zoom: number) => LeafletMap;
-  on: (event: string, handler: (e: { latlng: { lat: number; lng: number } }) => void) => void;
+  on: (event: string, handler: (e?: { latlng?: { lat: number; lng: number } }) => void) => void;
+  getCenter: () => { lat: number; lng: number };
+  invalidateSize?: () => void;
   remove: () => void;
 };
 
@@ -32,6 +35,9 @@ declare global {
     L?: LeafletNamespace;
   }
 }
+
+const RIDER_PIN_COPY =
+  'El punto marcado por la cruz es la ubicación que utiliza el rider para la entrega. Mueve el mapa hasta que la cruz quede sobre la puerta de tu casa, no sobre la calle, y pulsa Confirmar puerta de entrega. Si el punto no coincide con tu domicilio, el pedido puede entregarse en otro lugar.';
 
 let leafletLoader: Promise<LeafletNamespace> | null = null;
 
@@ -69,6 +75,31 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
   const markerRef = useRef<LeafletMarker | null>(null);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
+  const [geoError, setGeoError] = useState('');
+
+  function centerOn(nextLat: number, nextLng: number, zoom = 18) {
+    mapRef.current?.setView([nextLat, nextLng], zoom);
+  }
+
+  function useMyLocation() {
+    if (disabled || !navigator.geolocation) {
+      setGeoError('Activa la ubicación en el celular para acercar el mapa.');
+      return;
+    }
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => centerOn(pos.coords.latitude, pos.coords.longitude, 18),
+      () => setGeoError('No se pudo leer tu ubicación. Mueve el mapa hasta tu puerta.'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
+  function confirmDoor() {
+    const map = mapRef.current;
+    if (!map || disabled) return;
+    const center = map.getCenter();
+    onPickRef.current(center.lat, center.lng);
+  }
 
   useEffect(() => {
     const el = containerRef.current;
@@ -78,26 +109,30 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
     void loadLeaflet()
       .then((L) => {
         if (cancelled || !el) return;
-        const map = L.map(el, { zoomControl: true }).setView(
-          [lat ?? CHIHUAHUA_CENTER.lat, lng ?? CHIHUAHUA_CENTER.lng],
-          lat && lng ? 16 : 13
-        );
+        const startLat = lat ?? CHIHUAHUA_CENTER.lat;
+        const startLng = lng ?? CHIHUAHUA_CENTER.lng;
+        const map = L.map(el, { zoomControl: true }).setView([startLat, startLng], lat && lng ? 18 : 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; OpenStreetMap',
           maxZoom: 19,
         }).addTo(map);
-        map.on('click', (event) => {
-          if (disabled) return;
-          onPickRef.current(event.latlng.lat, event.latlng.lng);
-        });
         mapRef.current = map;
+        window.setTimeout(() => map.invalidateSize?.(), 80);
         if (lat && lng) {
           markerRef.current = L.marker([lat, lng]).addTo(map);
         }
+        if (!lat && !lng && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              if (cancelled) return;
+              centerOn(pos.coords.latitude, pos.coords.longitude, 18);
+            },
+            () => undefined,
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        }
       })
-      .catch(() => {
-        // El formulario de dirección sigue funcionando sin mapa
-      });
+      .catch(() => undefined);
 
     return () => {
       cancelled = true;
@@ -111,7 +146,6 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
     const map = mapRef.current;
     const L = window.L;
     if (!map || !L || lat == null || lng == null) return;
-    map.setView([lat, lng], 16);
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lng]);
     } else {
@@ -120,14 +154,37 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
   }, [lat, lng]);
 
   return (
-    <div className="space-y-2">
-      <div
-        ref={containerRef}
-        className="h-56 w-full overflow-hidden rounded-xl border border-border/60 bg-secondary/40"
-      />
-      <p className="rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-sm font-semibold leading-snug text-brand-400">
-        Toca el mapa para marcar el punto exacto de entrega. El repartidor usa esa ubicación.
+    <div className="space-y-3">
+      <div className="relative">
+        <div
+          ref={containerRef}
+          className="h-[min(45vh,360px)] min-h-[320px] w-full overflow-hidden rounded-xl border border-border/60 bg-secondary/40"
+        />
+        <div className="pointer-events-none absolute inset-0 z-[400] flex items-center justify-center">
+          <span className="relative block h-10 w-10">
+            <span className="absolute left-1/2 top-0 h-full w-0.5 -translate-x-1/2 bg-brand-400 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]" />
+            <span className="absolute left-0 top-1/2 h-0.5 w-full -translate-y-1/2 bg-brand-400 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]" />
+            <span className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-brand-500" />
+          </span>
+        </div>
+      </div>
+      <p className="rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-3 text-sm font-medium leading-relaxed text-brand-400">
+        {RIDER_PIN_COPY}
       </p>
+      {geoError ? <p className="text-sm text-red-400">{geoError}</p> : null}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Button type="button" variant="secondary" className="min-h-14 text-base" disabled={disabled} onClick={useMyLocation}>
+          Usar mi ubicación
+        </Button>
+        <Button type="button" className="min-h-14 text-base font-bold" disabled={disabled} onClick={confirmDoor}>
+          Confirmar puerta de entrega
+        </Button>
+      </div>
+      {lat != null && lng != null ? (
+        <p className="text-xs font-semibold text-emerald-400">Puerta confirmada. El rider llega a este punto.</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">Confirma la puerta para continuar el pedido.</p>
+      )}
     </div>
   );
 }
