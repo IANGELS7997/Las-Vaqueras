@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 
 export const CUSTOMER_COOKIE = 'lv_customer';
+export const CUSTOMER_SESSION_MAX_AGE = 60 * 60 * 24 * 180;
 
 function sessionSecret() {
   return (
@@ -51,6 +52,7 @@ export function customerCookieOptions() {
     sameSite: 'lax' as const,
     secure: process.env.NODE_ENV === 'production',
     path: '/',
+    maxAge: CUSTOMER_SESSION_MAX_AGE,
   };
 }
 

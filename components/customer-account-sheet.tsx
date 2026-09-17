@@ -23,6 +23,11 @@ import { GIFT_FULFILLMENT_COPY, writeGiftRedeem } from '@/lib/gift-checkout';
 import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { customerStatusLabel } from '@/lib/orders-map';
 import { formatMXN } from '@/lib/pricing';
+import {
+  clearStoredCustomerLogin,
+  readStoredCustomerLogin,
+  writeStoredCustomerLogin,
+} from '@/lib/customer-login-store';
 import type { Order } from '@/types';
 
 type CustomerProfile = {
@@ -70,12 +75,39 @@ export function CustomerAccountSheet() {
 
     const loadMe = async () => {
     const response = await fetch('/api/customer/me', { cache: 'no-store' });
-    if (!response.ok) return;
+    if (!response.ok) return false;
     const payload = await response.json();
-    setCustomer(payload.customer || null);
+    const nextCustomer = (payload.customer || null) as CustomerProfile | null;
+    setCustomer(nextCustomer);
     setOrders(payload.orders || []);
     setLoyalty(payload.loyalty || null);
+    if (nextCustomer) {
+      writeStoredCustomerLogin({
+        firstName: nextCustomer.firstName,
+        lastName: nextCustomer.lastName,
+        phone: nextCustomer.phone,
+      });
+    }
+    return Boolean(nextCustomer);
   };
+
+  const restoreSession = async () => {
+    const hasSession = await loadMe();
+    if (hasSession) return;
+    const saved = readStoredCustomerLogin();
+    if (!saved) return;
+    const response = await fetch('/api/customer/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(saved),
+    });
+    if (!response.ok) return;
+    await loadMe();
+  };
+
+  useEffect(() => {
+    void restoreSession();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -117,6 +149,7 @@ export function CustomerAccountSheet() {
 
   const handleLogout = async () => {
     await fetch('/api/customer/logout', { method: 'POST' });
+    clearStoredCustomerLogin();
     setCustomer(null);
     setOrders([]);
     setShowOrders(false);
@@ -162,10 +195,16 @@ export function CustomerAccountSheet() {
       <SheetTrigger asChild>
         <button
           type="button"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-card text-white"
+          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-card text-white"
           aria-label="Mi perfil"
         >
-          <User className="h-4 w-4" />
+          {customer?.avatarUrl ? (
+            <img src={customer.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : customer ? (
+            <span className="text-[11px] font-bold">{initials}</span>
+          ) : (
+            <User className="h-4 w-4" />
+          )}
         </button>
       </SheetTrigger>
       <SheetContent
