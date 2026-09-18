@@ -21,6 +21,7 @@ import { sendGiftOrderEmail } from '@/lib/gift-order-email';
 import { grantJumboReward, redeemJumboReward } from '@/lib/loyalty-reward';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
+import { dispatchUberDirectAfterPayment } from '@/lib/uber-dispatch';
 
 export const runtime = 'nodejs';
 
@@ -42,6 +43,35 @@ function dropoffFromPayload(input: {
   const lng = typeof input.lng === 'number' ? input.lng : Number(input.metaLng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !isValidCoord(lat, lng)) return null;
   return { dropoff_lat: lat, dropoff_lng: lng };
+}
+
+async function persistUberDispatch(
+  supabase: ReturnType<typeof createAdminSupabase>,
+  row: DbOrderRow,
+  provider: string | null | undefined
+) {
+  const coords = row as DbOrderRow & {
+    dropoff_lat?: number | null;
+    dropoff_lng?: number | null;
+    uber_delivery_id?: string | null;
+  };
+  const patch = await dispatchUberDirectAfterPayment({
+    orderId: row.id,
+    fulfillment: row.fulfillment_type || 'delivery',
+    provider,
+    alreadyDeliveryId: coords.uber_delivery_id,
+    address: row.delivery_address,
+    lat: coords.dropoff_lat ?? null,
+    lng: coords.dropoff_lng ?? null,
+    phone: row.customer_phone,
+    customerName: row.customer_name,
+    notes: row.delivery_references,
+    items: Array.isArray(row.items) ? row.items : [],
+  });
+  if (!patch) return row;
+  const saved = await supabase.from('orders').update(patch).eq('id', row.id).select('*').single();
+  if (saved.error || !saved.data) return { ...row, dispatch_status: patch.dispatch_status } as DbOrderRow;
+  return saved.data as DbOrderRow;
 }
 
 async function orderResponseWithProfile(args: {
@@ -245,8 +275,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: updated.error.message }, { status: 500 });
       }
 
+      const withUber = await persistUberDispatch(
+        supabase,
+        updated.data as DbOrderRow,
+        paymentIntent.metadata.delivery_provider ||
+          (updated.data as { delivery_provider?: string }).delivery_provider
+      );
+
       return orderResponseWithProfile({
-        orderRow: updated.data as DbOrderRow,
+        orderRow: withUber,
         firstName,
         lastName,
         phone: customer.phone,
@@ -281,6 +318,9 @@ export async function POST(req: Request) {
         items: items || [],
         card_funding: cardFunding,
         card_fingerprint: cardFingerprint,
+        delivery_provider: paymentIntent.metadata.delivery_provider || null,
+        dispatch_status:
+          paymentIntent.metadata.delivery_provider === 'uber' ? 'needs_n8n_uber' : null,
         ...(dropoff || {}),
       })
       .select('*')
@@ -290,8 +330,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: insert.error.message }, { status: 500 });
     }
 
+    const insertedUber = await persistUberDispatch(
+      supabase,
+      insert.data as DbOrderRow,
+      paymentIntent.metadata.delivery_provider
+    );
+
     return orderResponseWithProfile({
-      orderRow: insert.data as DbOrderRow,
+      orderRow: insertedUber,
       firstName,
       lastName,
       phone: customer.phone,

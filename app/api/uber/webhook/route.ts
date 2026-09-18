@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import {
+  isUberIgnoredMoneyEvent,
   kitchenStatusFromUber,
   parseUberWebhook,
   verifyUberSignature,
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   const event = parseUberWebhook(payload);
-  if (event.kind === 'event.courier_update') {
+  if (isUberIgnoredMoneyEvent(event.kind)) {
     return new NextResponse(null, { status: 200 });
   }
 
@@ -52,11 +53,15 @@ export async function POST(req: Request) {
   }
 
   const nextStatus = kitchenStatusFromUber(event.status);
-  const patch: Record<string, string | null> = {
+  const patch: Record<string, string | number | null> = {
     uber_delivery_id: event.deliveryId,
     uber_status: event.status,
     uber_tracking_url: event.trackingUrl,
   };
+  if (event.courierLat != null && event.courierLng != null) {
+    patch.rider_lat = event.courierLat;
+    patch.rider_lng = event.courierLng;
+  }
   if (found.data.fulfillment_type === 'delivery' && nextStatus && found.data.status !== 'cancelled') {
     patch.status = nextStatus;
   }

@@ -7,6 +7,8 @@ export type UberWebhookEvent = {
   status: string | null;
   orderId: string | null;
   trackingUrl: string | null;
+  courierLat: number | null;
+  courierLng: number | null;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -27,14 +29,36 @@ export function verifyUberSignature(rawBody: string, signature: string | null, s
   return timingSafeEqual(left, right);
 }
 
+function asCoord(value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (value === 0) return null;
+  return value;
+}
+
+function courierCoords(root: Record<string, unknown>, data: Record<string, unknown>) {
+  const courier = asRecord(data.courier);
+  const fromCourier = asRecord(courier?.location);
+  const fromRoot = asRecord(root.location);
+  const lat = asCoord(fromCourier?.lat) ?? asCoord(fromRoot?.lat);
+  const lng = asCoord(fromCourier?.lng) ?? asCoord(fromRoot?.lng);
+  return { lat, lng };
+}
+
+function asDeliveryId(...values: unknown[]) {
+  for (const value of values) {
+    const id = asString(value);
+    if (id && id.startsWith('del_')) return id;
+  }
+  return null;
+}
+
 export function parseUberWebhook(payload: unknown): UberWebhookEvent {
   const root = asRecord(payload) || {};
   const data = asRecord(root.data) || {};
   const manifest = asRecord(data.manifest) || asRecord(root.manifest) || {};
 
   const kind = asString(root.kind) || asString(root.event_type) || 'unknown';
-  const deliveryId =
-    asString(data.id) || asString(root.delivery_id) || asString(root.id);
+  const deliveryId = asDeliveryId(root.delivery_id, data.id, data.delivery_id);
   const status = asString(data.status) || asString(root.status);
   const orderId =
     asString(manifest.reference) ||
@@ -43,8 +67,14 @@ export function parseUberWebhook(payload: unknown): UberWebhookEvent {
     asString(root.external_id) ||
     asString(root.external_order_id);
   const trackingUrl = asString(data.tracking_url) || asString(root.tracking_url);
+  const { lat: courierLat, lng: courierLng } = courierCoords(root, data);
 
-  return { kind, deliveryId, status, orderId, trackingUrl };
+  return { kind, deliveryId, status, orderId, trackingUrl, courierLat, courierLng };
+}
+
+/** Reembolsos y recálculo de cobro: se acusan 200 y no se toca el pedido. */
+export function isUberIgnoredMoneyEvent(kind: string) {
+  return kind === 'event.refund_request' || kind === 'event.billing_update';
 }
 
 export function kitchenStatusFromUber(uberStatus: string | null): OrderStatus | null {

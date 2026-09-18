@@ -70,6 +70,7 @@ const RIDER_LABEL: Record<string, string> = {
   delivered_unclaimed: 'Sin reclamar',
   incident: 'Incidente',
   needs_n8n_uber: 'Reasignar envío',
+  uber_dispatched: 'Uber Direct',
   cancelled: 'Cancelado',
 };
 
@@ -107,6 +108,23 @@ export function viewFromOrder(input: OrderSyncInput): OrderSyncView {
     customerLabel = 'Incidente en el envío';
     customerDetail = 'Hubo un percance. No pagarás otro envío; cocina sigue el pedido.';
     stepIndex = kitchenStatus === 'in_transit' ? 2 : 1;
+  } else if (dispatch === 'uber_dispatched') {
+    if (kitchenStatus === 'in_transit') {
+      customerPhase = 'en_route';
+      customerLabel = 'En camino';
+      customerDetail = 'Uber Direct lleva tu pedido.';
+      stepIndex = 2;
+    } else if (kitchenStatus === 'preparing') {
+      customerPhase = 'kitchen';
+      customerLabel = 'En cocina';
+      customerDetail = 'Uber Direct recogerá cuando esté listo.';
+      stepIndex = 1;
+    } else {
+      customerPhase = 'received';
+      customerLabel = 'Recibido';
+      customerDetail = 'Cocina ya tiene tu pedido. El envío va por Uber Direct.';
+      stepIndex = 0;
+    }
   } else if (kitchenStatus === 'delivered' || dispatch === 'delivered' || dispatch === 'delivered_unclaimed') {
     customerPhase = 'delivered';
     customerLabel = dispatch === 'delivered_unclaimed' ? 'Entregado · no reclamado' : 'Entregado';

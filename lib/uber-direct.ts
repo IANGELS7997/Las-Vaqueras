@@ -37,6 +37,16 @@ function encodeAddress(input: {
   });
 }
 
+/** Uber Direct cobra `fee` en centavos. La fórmula 0.97 se aplica después, en pricing. */
+function centsToMxn(cents: number) {
+  return Math.round(cents) / 100;
+}
+
+function uberErrorMessage(payload: { message?: string; code?: string }, fallback: string) {
+  if (payload.message && payload.code) return `${payload.code}: ${payload.message}`;
+  return payload.message || payload.code || fallback;
+}
+
 async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expires_at > Date.now() + 30_000) {
     return cachedToken.access_token;
@@ -85,6 +95,7 @@ export async function createDeliveryQuote(input: {
   const token = await getAccessToken();
   const customerId = process.env.UBER_DIRECT_CUSTOMER_ID || '';
   const pickupPhone = toE164Mx(RESTAURANT_INFO.phone);
+  // DeliveryQuoteReq (Direct API): pickup_name no existe en cotización.
   const body: Record<string, unknown> = {
     pickup_address: encodeAddress({
       street: RESTAURANT_INFO.pickupStreet,
@@ -99,7 +110,6 @@ export async function createDeliveryQuote(input: {
     dropoff_latitude: input.dropoffLat,
     dropoff_longitude: input.dropoffLng,
     pickup_phone_number: pickupPhone,
-    pickup_name: RESTAURANT_INFO.name,
   };
   if (input.dropoffPhone && input.dropoffPhone.replace(/\D/g, '').length >= 10) {
     body.dropoff_phone_number = toE164Mx(input.dropoffPhone);
@@ -125,13 +135,104 @@ export async function createDeliveryQuote(input: {
     code?: string;
   };
   if (!response.ok || typeof payload.fee !== 'number' || !payload.id) {
-    throw new Error(payload.message || 'Uber no pudo cotizar esta ruta');
+    throw new Error(uberErrorMessage(payload, 'Uber no pudo cotizar esta ruta'));
   }
 
   return {
     quoteId: payload.id,
-    fee: Math.round(payload.fee) / 100,
+    fee: centsToMxn(payload.fee),
     durationMinutes: typeof payload.duration === 'number' ? payload.duration : null,
     expiresAt: payload.expires || null,
+  };
+}
+
+export type ManifestItemSize = 'small' | 'medium' | 'large' | 'xlarge';
+
+export type CreateDeliveryInput = {
+  quoteId: string;
+  dropoffStreet: string;
+  dropoffZip: string;
+  dropoffLat: number;
+  dropoffLng: number;
+  dropoffName: string;
+  dropoffPhone: string;
+  dropoffNotes?: string;
+  externalId: string;
+  manifestItems: Array<{
+    name: string;
+    quantity: number;
+    size?: ManifestItemSize;
+  }>;
+};
+
+export type CreatedDelivery = {
+  deliveryId: string;
+  status: string | null;
+  trackingUrl: string | null;
+  sandbox: boolean;
+};
+
+/** Create Delivery. El checkout de producción sigue despachando por n8n. */
+export async function createDelivery(input: CreateDeliveryInput): Promise<CreatedDelivery> {
+  const token = await getAccessToken();
+  const customerId = process.env.UBER_DIRECT_CUSTOMER_ID || '';
+  const pickupPhone = toE164Mx(RESTAURANT_INFO.phone);
+  const notes = (input.dropoffNotes || '').slice(0, 280);
+
+  const body: Record<string, unknown> = {
+    quote_id: input.quoteId,
+    pickup_name: RESTAURANT_INFO.name,
+    pickup_business_name: RESTAURANT_INFO.name,
+    pickup_address: encodeAddress({
+      street: RESTAURANT_INFO.pickupStreet,
+      zipCode: RESTAURANT_INFO.zipCode,
+    }),
+    pickup_phone_number: pickupPhone,
+    pickup_latitude: RESTAURANT_INFO.pickupLat,
+    pickup_longitude: RESTAURANT_INFO.pickupLng,
+    dropoff_name: input.dropoffName,
+    dropoff_address: encodeAddress({
+      street: input.dropoffStreet,
+      zipCode: input.dropoffZip,
+    }),
+    dropoff_phone_number: toE164Mx(input.dropoffPhone),
+    dropoff_latitude: input.dropoffLat,
+    dropoff_longitude: input.dropoffLng,
+    manifest_items: input.manifestItems.map((item) => ({
+      name: item.name,
+      quantity: Math.max(1, item.quantity),
+      size: item.size || 'medium',
+    })),
+    manifest_reference: input.externalId,
+    external_id: input.externalId,
+    idempotency_key: input.externalId,
+  };
+  if (notes) body.dropoff_notes = notes;
+
+  const response = await fetch(`https://api.uber.com/v1/customers/${customerId}/deliveries`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json()) as {
+    id?: string;
+    status?: string;
+    tracking_url?: string;
+    live_mode?: boolean;
+    message?: string;
+    code?: string;
+  };
+  if (!response.ok || !payload.id) {
+    throw new Error(uberErrorMessage(payload, 'Uber no pudo crear la entrega'));
+  }
+
+  return {
+    deliveryId: payload.id,
+    status: payload.status || null,
+    trackingUrl: payload.tracking_url || null,
+    sandbox: payload.live_mode === false,
   };
 }
