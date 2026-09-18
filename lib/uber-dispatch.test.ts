@@ -45,6 +45,19 @@ async function main() {
   });
   assert(already === null, 'si ya hay delivery_id no se duplica');
 
+  const tooFar = await dispatchUberDirectAfterPayment({
+    orderId: '00000000-0000-0000-0000-000000000004',
+    fulfillment: 'delivery',
+    provider: 'uber',
+    address: 'C. Escuadron 201 712, 31000',
+    lat: 28.634801,
+    lng: -106.067276,
+    phone: '6141812108',
+    customerName: 'Prueba',
+    items: [],
+  });
+  assert(tooFar?.dispatch_status === 'needs_n8n_uber', 'más de 4000 m no crea courier');
+
   console.log('uber-dispatch tests: ok');
 }
 
