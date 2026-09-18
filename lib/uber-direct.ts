@@ -7,10 +7,30 @@ type UberToken = {
 
 let cachedToken: UberToken | null = null;
 
+/** Sandbox when UBER_USE_SANDBOX=1 (Preview/local). Production live stays on UBER_DIRECT_*. */
+function useUberSandbox() {
+  return process.env.UBER_USE_SANDBOX === '1' || process.env.UBER_USE_SANDBOX === 'true';
+}
+
+function uberCreds() {
+  if (useUberSandbox()) {
+    return {
+      clientId: process.env.UBER_PRUEBAS_API_CLIENT_ID || process.env.UBER_DIRECT_CLIENT_ID || '',
+      secret: process.env.UBER_PRUEBAS_CLIENT_SECRET || process.env.UBER_DIRECT_CLIENT_SECRET || '',
+      customerId: process.env.UBER_PRUEBAS_API_CUSTOMER || process.env.UBER_DIRECT_CUSTOMER_ID || '',
+      sandbox: true,
+    };
+  }
+  return {
+    clientId: process.env.UBER_DIRECT_CLIENT_ID || '',
+    secret: process.env.UBER_DIRECT_CLIENT_SECRET || '',
+    customerId: process.env.UBER_DIRECT_CUSTOMER_ID || '',
+    sandbox: false,
+  };
+}
+
 export function isUberQuoteConfigured(): boolean {
-  const secret = process.env.UBER_DIRECT_CLIENT_SECRET || '';
-  const clientId = process.env.UBER_DIRECT_CLIENT_ID || '';
-  const customerId = process.env.UBER_DIRECT_CUSTOMER_ID || '';
+  const { clientId, secret, customerId } = uberCreds();
   if (!clientId || !customerId || !secret) return false;
   if (secret.includes('n8n_BLANK_VALUE')) return false;
   return secret.length >= 16;
@@ -51,9 +71,10 @@ async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expires_at > Date.now() + 30_000) {
     return cachedToken.access_token;
   }
+  const { clientId, secret } = uberCreds();
   if (!isUberQuoteConfigured()) {
     throw new Error(
-      'Falta el Client Secret real de Uber Direct. El valor de n8n es un placeholder, cópialo desde https://direct.uber.com (Developer).'
+      'Falta el Client Secret de Uber Direct. En sandbox usa UBER_PRUEBAS_*; en live copia desde https://direct.uber.com (Developer).'
     );
   }
 
@@ -61,8 +82,8 @@ async function getAccessToken(): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: process.env.UBER_DIRECT_CLIENT_ID || '',
-      client_secret: process.env.UBER_DIRECT_CLIENT_SECRET || '',
+      client_id: clientId,
+      client_secret: secret,
       grant_type: 'client_credentials',
       scope: 'eats.deliveries',
     }),
@@ -93,7 +114,7 @@ export async function createDeliveryQuote(input: {
   dropoffPhone?: string;
 }): Promise<DeliveryQuote> {
   const token = await getAccessToken();
-  const customerId = process.env.UBER_DIRECT_CUSTOMER_ID || '';
+  const { customerId } = uberCreds();
   const pickupPhone = toE164Mx(RESTAURANT_INFO.phone);
   // DeliveryQuoteReq (Direct API): pickup_name no existe en cotización.
   const body: Record<string, unknown> = {
@@ -175,7 +196,7 @@ export type CreatedDelivery = {
 /** Create Delivery. El checkout de producción sigue despachando por n8n. */
 export async function createDelivery(input: CreateDeliveryInput): Promise<CreatedDelivery> {
   const token = await getAccessToken();
-  const customerId = process.env.UBER_DIRECT_CUSTOMER_ID || '';
+  const { customerId } = uberCreds();
   const pickupPhone = toE164Mx(RESTAURANT_INFO.phone);
   const notes = (input.dropoffNotes || '').slice(0, 280);
 
