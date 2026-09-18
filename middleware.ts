@@ -21,6 +21,7 @@ function isKitchenAppPath(pathname: string) {
     pathname.startsWith('/admin') ||
     pathname.startsWith('/api/kitchen') ||
     pathname === '/api/refund' ||
+    pathname === '/api/uber/organization' ||
     pathname.startsWith('/api/products/availability') ||
     /^\/api\/orders\/[^/]+\/status$/.test(pathname)
   );

@@ -73,6 +73,7 @@ export async function POST(req: Request) {
     const cartItems = Array.isArray(items) ? items : [];
     const isPickup = fulfillment === 'pickup';
     let uberFee = 0;
+    let uberQuoteId: string | null = null;
     let deliveryProvider: 'pickup' | 'self' | 'uber' | 'wait_self' = isPickup ? 'pickup' : 'uber';
     let dispatchStatus = isPickup ? 'pickup_store' : 'needs_n8n_uber';
     const destination =
@@ -128,6 +129,7 @@ export async function POST(req: Request) {
       deliveryProvider = paid.kind;
       dispatchStatus = paid.dispatchStatus;
       uberFee = paid.uberFee;
+      uberQuoteId = paid.uberQuoteId;
     }
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: 'El correo no es válido' }, { status: 400 });
@@ -258,6 +260,7 @@ export async function POST(req: Request) {
         dropoff_lat: isPickup ? '' : String(lat),
         dropoff_lng: isPickup ? '' : String(lng),
         delivery_provider: deliveryProvider,
+        uber_quote_id: uberQuoteId || '',
       },
     });
 
