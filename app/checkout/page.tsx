@@ -19,6 +19,7 @@ import {
   formatMXN,
 } from '@/lib/pricing';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
+import { resolveStripeConnectDestination } from '@/lib/stripe-connect-destination';
 import {
   formatDeliveryAddress,
   formatDeliveryReferences,
@@ -400,7 +401,10 @@ export default function CheckoutPage() {
         priceBaseTotal,
         fulfillment: mode,
         pickupAt: isPickup ? pickupAt : null,
-        stripeAccountId: process.env.NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID,
+        stripeAccountId: resolveStripeConnectDestination(null, {
+          live: process.env.NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID_LIVE,
+          fallback: process.env.NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID,
+        }),
         customer,
         items,
         acceptFinalSale: true,

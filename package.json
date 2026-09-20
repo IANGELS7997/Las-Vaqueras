@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:routing": "npx tsx lib/iangel-routing.test.ts"
+    "test:routing": "npx tsx lib/iangel-routing.test.ts",
+    "test:connect": "npx tsx lib/stripe-connect-destination.test.ts",
+    "stripe:organize-connect": "npx tsx scripts/organize-stripe-connect-roles.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

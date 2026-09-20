@@ -1,14 +1,47 @@
 ---
-description: Reminder — restaurant owner must finish Stripe Connect Express onboarding
+description: Stripe Connect roles — platform AS EUNOIA, owner Express, money split 85/15
 alwaysApply: true
 ---
 
-# Stripe Connect: dueño pendiente
+# Stripe Connect: roles y dinero (Las Vaqueras)
 
-El dueño de Las Vaqueras **aún no puede** completar el onboarding Express. Recuérdalo al usuario **al inicio de cada sesión** y si habla de cobros live, payouts o merge de `feat/stripe-live-connect`.
+Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, payouts, Connect o merge de `feat/stripe-live-connect`.
 
-- Cuenta Connect live: `acct_1UDRDcLzV1Sjysxx` (restaurante). Matriz: Pureiangel `acct_1UBgeMPukuGTlRTl`.
-- CLABE y KYC son del **negocio / representante legal**, no del banco Treasury de la plataforma.
-- Link de onboarding: caduca en minutos. Generar uno fresco con `node scripts/create-onboarding-link.js` cuando el dueño esté listo.
-- `transfers` sigue inactivo hasta que terminen el formulario. No hacer cobros live reales ni merge a `main` de Connect hasta verificar transfers activo.
-- Rama: `feat/stripe-live-connect`. n8n de pago no publicar por esto.
+## Cuentas (mapa acordado — cerrado)
+
+| Rol | Cuenta | Quién |
+|-----|--------|--------|
+| **Plataforma (matriz)** | `acct_1UBgeMPukuGTlRTl` | Desarrollador — **AS EUNOIA**. Único admin. Claves, webhooks, cobro al cliente. |
+| **Dueño restaurante (Express)** | `acct_1UDqrILSkdFzTSOj` | Carlos Adrian Lopez Garcia. Solo su 85% de comida. Solo Express + cocina. |
+| **Express desarrollador** | `acct_1UDRDcLzV1Sjysxx` | **Eliminada** (2026-09-19). Bloqueada en código. |
+
+- Dashboard plataforma: **AS EUNOIA** (confirmado). Email: `iangels7997@gmail.com`.
+- Persona / RFC desarrollador: Angel Ivan Salinas Ortiz · `SAOA0009154F8`. Dirección: Mauricio Corredor #5116, Col. Panamericana, 31210.
+- Payout plataforma (15% + Stripe/2 + 100% envío): CLABE BBVA `012180015164387876`, titular **Angel Ivan Salinas Ortiz**.
+- Dueño Express: email `servicio@lasvaqueras.com.mx`, tel `+52 614 413 6539`, URL `https://www.lasvaqueras.com.mx/`, local Rio de Janeiro 903, Panamericana, 31210. CLABE MercadoLibre `722969017600593921`, titular **Carlos Adrian Lopez Garcia**.
+- Descriptor al cliente: `LAS-VAQUERAS-WEB`.
+- **Pureiangel se elimina de todos lados** (Stripe branding/descriptores/perfiles). No reintroducir.
+- Plataforma **sin URL** de AS EUNOIA por ahora.
+- Destination: cobro en plataforma → transfer solo a `acct_1UDqr…`. Resolver: [`lib/stripe-connect-destination.ts`](lib/stripe-connect-destination.ts).
+- Env: `STRIPE_CONNECT_ACCOUNT_ID_LIVE` / `NEXT_PUBLIC_STRIPE_CONNECT_ACCOUNT_ID_LIVE` = dueño. El código ignora `acct_1UDRDc…` aunque quede en vars viejas.
+- El dueño **nunca** tiene login de la plataforma, n8n, Vercel ni GitHub. Solo cocina.
+
+## Split live
+
+- Cliente: comida carta + envío (fee servicio hoy = 0%).
+- Dueño: `0.85 × comida − Stripe/2` → solo `acct_1UDqrILSkdFzTSOj`.
+- Plataforma: resto (≈15% comida + Stripe/2 + 100% envío) → saldo de `acct_1UBgeMPukuGTlRTl`.
+- Recoger: envío $0; misma regla 85/15 sobre comida.
+
+## Pendiente (preguntar al usuario)
+
+1. **RFC y tipo** del dueño (PF vs empresa). Lo pasará después — **pedirlo** al hablar de Connect KYC o live.
+2. n8n de pago: seguir **inactivo**. Host `n8n.pureiangel.com` es solo infra.
+3. Limpiar en Vercel las vars viejas sin `_LIVE` que aún listan la cuenta eliminada (shared prod/preview/dev).
+4. Antes de cobros live reales: `pk_live_` + `sk_live_` en Production (había `pk_test_` en publishable).
+5. No dejar `STRIPE_SECRET_KEY_LIVE` en `.env` tras scripts.
+
+## Rama / script
+
+- Rama histórica: `chore/stripe-connect-roles`.
+- Script: [`scripts/organize-stripe-connect-roles.ts`](scripts/organize-stripe-connect-roles.ts) — `npm run stripe:organize-connect` con clave live restringida/secret.
