@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
+import { resolveStripeConnectDestination } from '@/lib/stripe-connect-destination';
 import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidPickupAt } from '@/lib/pickup-slots';
@@ -76,10 +77,13 @@ export async function POST(req: Request) {
     let uberQuoteId: string | null = null;
     let deliveryProvider: 'pickup' | 'self' | 'uber' | 'wait_self' = isPickup ? 'pickup' : 'uber';
     let dispatchStatus = isPickup ? 'pickup_store' : 'needs_n8n_uber';
-    const destination =
-      (typeof stripeAccountId === 'string' && stripeAccountId.startsWith('acct_')
-        ? stripeAccountId
-        : process.env.STRIPE_CONNECT_ACCOUNT_ID) || '';
+    const destination = resolveStripeConnectDestination(
+      typeof stripeAccountId === 'string' ? stripeAccountId : null,
+      {
+        live: process.env.STRIPE_CONNECT_ACCOUNT_ID_LIVE,
+        fallback: process.env.STRIPE_CONNECT_ACCOUNT_ID,
+      }
+    );
 
     if (!isPositiveNumber(priceBaseTotal)) {
       return NextResponse.json(
@@ -139,7 +143,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'Falta stripeAccountId. Pon STRIPE_CONNECT_ACCOUNT_ID (acct_... de test) en .env',
+            'Falta destination Connect válido. Usa STRIPE_CONNECT_ACCOUNT_ID_LIVE (dueño acct_…) o STRIPE_CONNECT_ACCOUNT_ID de test. No uses cuentas eliminadas.',
         },
         { status: 400 }
       );
