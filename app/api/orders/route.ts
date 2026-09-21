@@ -259,6 +259,7 @@ export async function POST(req: Request) {
           paymentIntent.metadata.delivery_provider ||
           (row as { delivery_provider?: string }).delivery_provider,
       });
+      const loyaltyKindMeta = paymentIntent.metadata.loyalty_kind || null;
 
       const updated = await supabase
         .from('orders')
@@ -275,6 +276,7 @@ export async function POST(req: Request) {
           dispatch_status: paidStatus.dispatch_status,
           card_funding: cardFunding,
           card_fingerprint: cardFingerprint,
+          loyalty_kind: loyaltyKindMeta,
           ...(dropoff || {}),
         })
         .eq('id', row.id)
@@ -311,6 +313,7 @@ export async function POST(req: Request) {
       fulfillment,
       deliveryProvider: paymentIntent.metadata.delivery_provider || null,
     });
+    const loyaltyKindMeta = paymentIntent.metadata.loyalty_kind || null;
 
     const insert = await supabase
       .from('orders')
@@ -335,6 +338,7 @@ export async function POST(req: Request) {
         card_fingerprint: cardFingerprint,
         delivery_provider: paymentIntent.metadata.delivery_provider || null,
         dispatch_status: paidStatus.dispatch_status,
+        loyalty_kind: loyaltyKindMeta,
         ...(dropoff || {}),
       })
       .select('*')

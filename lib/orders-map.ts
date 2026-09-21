@@ -48,6 +48,7 @@ export type DbOrderRow = {
   eta_minutes?: number | null;
   rider_lat?: number | null;
   rider_lng?: number | null;
+  loyalty_kind?: string | null;
 };
 
 function toNumber(value: number | string): number {
@@ -86,6 +87,7 @@ export function mapDbOrder(row: DbOrderRow): Order {
     leaveAtDoor: Boolean(row.leave_at_door),
     incidentType: row.incident_type || null,
     etaMinutes: row.eta_minutes == null ? null : Number(row.eta_minutes),
+    loyaltyKind: row.loyalty_kind || null,
   };
 }
 

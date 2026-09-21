@@ -29,6 +29,32 @@ export function loyaltyLabel(kind: LoyaltyKind | null): string {
   return '';
 }
 
+/** Líneas grandes para ticket de caja / POS (sin comisiones). */
+export function loyaltyCajaTicketLines(kind: string | null | undefined): string[] {
+  if (kind === 'first_30') {
+    return [
+      '*** PROMO PRIMER PEDIDO ***',
+      '30% DESCUENTO EN COMIDA',
+      'APLICAR TAMBIEN EN EL POS',
+    ];
+  }
+  if (kind === 'fifth_20') {
+    return [
+      '*** PROMO 5.o PEDIDO ***',
+      '20% DESCUENTO EN COMIDA',
+      'APLICAR TAMBIEN EN EL POS',
+    ];
+  }
+  if (kind === 'tenth_jumbo' || kind === 'jumbo_credit') {
+    return [
+      '*** PROMO 10.o PEDIDO ***',
+      'PAPAS JUMBO DE REGALO',
+      'MARCAR REGALO EN EL POS',
+    ];
+  }
+  return [];
+}
+
 export function discountedFoodBase(priceBaseTotal: number, kind: LoyaltyKind | null): number {
   const rate = foodDiscountRate(kind);
   return Math.round(Math.max(0, priceBaseTotal) * (1 - rate) * 100) / 100;
