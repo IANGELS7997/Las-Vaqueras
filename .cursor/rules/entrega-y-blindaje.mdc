@@ -7,14 +7,23 @@ alwaysApply: true
 
 Recuérdalo al usuario si habla de **entrega**, **go-live**, **activar n8n**, cobros live o “ya está listo”.
 
-## Blindar el código (punto 5 — en curso con Sentry)
+## Blindar el código (punto 5)
 
-1. Revisar vars/env: sin cuentas eliminadas como destination LIVE, sin `pk_test_` en Production, sin `UBER_USE_SANDBOX` en Production.
-2. Fallar en claro si falta destination Connect, claves live mezcladas con test — [`lib/runtime-env.ts`](lib/runtime-env.ts) + `sentry.server.config.ts`.
-3. **Sentry** proyecto `las-vaqueras` (org `angel-salinas-creador`): DSN en Vercel Production; capturas en checkout / orders / delivery-quote / refund / global-error.
-4. Alerta email en Sentry Dashboard (Issues → Alerts → “Notify me by email”) — configurar una vez en UI.
-5. Cocina solo en `cocina.lasvaqueras.com.mx`; `/admin` no expuesto en dominio público.
-6. No publicar scripts de prueba (Uber sandbox smoke, simulate-order) como flujo de Production.
+1. Catálogo: [`lib/env-catalog.ts`](lib/env-catalog.ts). Boot: [`lib/runtime-env.ts`](lib/runtime-env.ts) + `sentry.server.config.ts`.
+2. Health celular: `GET /api/ops/health?token=OPS_HEALTH_SECRET` → JSON ok/fatal + checks (Stripe, Supabase, cocina, Resend, Connect).
+3. Panel cocina: franja sistema vía `/api/kitchen/ops-status` (cookie cocina).
+4. Local: `npm run env:audit` (no imprime secretos).
+5. **Sentry** proyecto `las-vaqueras`: alerta email en Dashboard (Issues → Alerts) — una vez en UI.
+6. Cocina solo `cocina.lasvaqueras.com.mx`. Sin scripts de prueba como flujo Production.
+7. n8n “pago exitoso” sigue **inactivo** hasta que el usuario lo pida.
+
+### Ops sin PC en casa (celular)
+
+1. Abrir bookmark: `https://lasvaqueras.com.mx/api/ops/health?token=…` (token = `OPS_HEALTH_SECRET`).
+2. Si `fatal: true` o HTTP 503 → no cobrar / no repartir hasta corregir; revisar Sentry + correo cocina offline.
+3. Cocina: pestaña abierta + turno + auto-imprimir. Si cae, llega correo a Angel + dueño.
+4. Stripe Express del dueño: magic link (sin password). Dashboard plataforma = AS EUNOIA (solo Angel).
+5. Pedido atorado: emergencia en panel cocina (forzar listo/entregado) o refund desde cocina si ya cobró.
 
 ## Punto 6 — Entrega formal (RECORDATORIO — después)
 
@@ -29,9 +38,10 @@ Cuando diga que la entrega formal toca, recordar: deploy estable, doc cuentas St
 - [x] Resend: dominio + correo de prueba
 - [x] Cocina + sitio público HTTP 200
 - [ ] Limpiar `STRIPE_CONNECT_ACCOUNT_ID` genérico residual en Vercel (código ya bloquea eliminada)
+- [x] `CUSTOMER_SESSION_SECRET` + `OPS_HEALTH_SECRET` en Production (Vercel)
 - [ ] Activar n8n “pago exitoso” solo cuando el usuario lo pida (sigue inactivo)
 - [ ] Alerta email Sentry en Dashboard
-- [ ] Merge/deploy rama `chore/go-live-verify-harden` a Production
+- [ ] Merge/deploy rama `chore/blindaje-env-ops` a Production
 - [ ] RFC dueño (`tax_id_provided` aún false)
 - [ ] Prueba E2E cobro real (cuando el usuario lo autorice)
 - [ ] Punto 6 entrega formal

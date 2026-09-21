@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:routing": "npx tsx lib/iangel-routing.test.ts",
     "test:connect": "npx tsx lib/stripe-connect-destination.test.ts",
+    "env:audit": "npx tsx scripts/audit-env.ts",
     "stripe:organize-connect": "npx tsx scripts/organize-stripe-connect-roles.ts"
   },
   "dependencies": {
