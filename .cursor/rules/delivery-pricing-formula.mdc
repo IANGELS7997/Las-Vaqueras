@@ -8,9 +8,9 @@ alwaysApply: true
 - Comida = carta (`price_base`). No subir `price_base`. Sin markup 1.13 ni 4%.
 - Dueño = `0.85 × carta − Stripe/2`. Stripe MX ≈ `1.16 × (0.036 × total + 3)`; mitad dueño, mitad plataforma.
 - Recoger: comida = carta, envío $0.
-- IANGEL (**0–3000 m**, turno 12:00–21:00, rider activo): envío **$50**. Sin 3%. Sin Uber.
+- IANGEL (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50**. Sin 3%. Sin Uber.
 - Rider ocupado en ese radio: sigue **$50**. Aviso 35–45 min. **Sin Express / Uber Direct.**
-- Uber Direct **3001–4000 m** (quote × 0.97). Desde las **21:00**, también **0–3000 m** va por Uber. **Más de 4000 m:** sin domicilio.
+- Uber Direct **4001–4500 m** (quote × 0.97). Desde las **21:00**, también **0–4000 m** va por Uber. **Más de 4500 m:** sin domicilio.
 - Ticket: **Comida + Envío**. Sin mínimo de carrito ni combo obligatorio.
 - Combos en el modal: chico luego grande, arriba; ninguno preseleccionado; “Sin combo” al final.
 ---
