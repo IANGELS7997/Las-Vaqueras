@@ -20,3 +20,7 @@ export function fullCustomerName(firstName: string, lastName: string) {
 export function isValidCustomerPhone(value: string) {
   return normalizePhone(value).length === 10;
 }
+
+export function isValidCustomerEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
