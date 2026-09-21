@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    Sentry.captureException(error);
     if (error instanceof Stripe.errors.StripeError) {
       const alreadyRefunded =
         error.code === 'charge_already_refunded' ||

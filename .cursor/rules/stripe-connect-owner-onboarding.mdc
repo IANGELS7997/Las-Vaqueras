@@ -33,13 +33,18 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 - Plataforma: resto (≈15% comida + Stripe/2 + 100% envío) → saldo de `acct_1UBgeMPukuGTlRTl`.
 - Recoger: envío $0; misma regla 85/15 sobre comida.
 
+## Capacidad Connect (verificado 2026-09-21)
+
+- Dueño Express: `transfers` **active**, `charges_enabled` / `payouts_enabled` true. Banco MercadoLibre `…3921`.
+- `tax_id_provided: false` → **RFC del dueño sigue pendiente**.
+- Production Vercel: `pk_live_` + `sk_live_` + `STRIPE_CONNECT_ACCOUNT_ID_LIVE` (dueño).
+
 ## Pendiente (preguntar al usuario)
 
 1. **RFC y tipo** del dueño (PF vs empresa). Lo pasará después — **pedirlo** al hablar de Connect KYC o live.
 2. n8n de pago: seguir **inactivo**. Host `n8n.pureiangel.com` es solo infra.
-3. Limpiar en Vercel las vars viejas sin `_LIVE` que aún listan la cuenta eliminada (shared prod/preview/dev).
-4. Antes de cobros live reales: `pk_live_` + `sk_live_` en Production (había `pk_test_` en publishable).
-5. No dejar `STRIPE_SECRET_KEY_LIVE` en `.env` tras scripts.
+3. Limpiar en Vercel las vars viejas sin `_LIVE` (shared prod/preview/dev); el código ya bloquea `acct_1UDRDc…`.
+4. No dejar `STRIPE_SECRET_KEY_LIVE` / claves live en chat o `.env` commiteable — rotar si se expusieron.
 
 ## Rama / script
 
