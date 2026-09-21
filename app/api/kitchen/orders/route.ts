@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { advancePickupOrdersIfDue } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
@@ -21,7 +22,12 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const advanced = await advancePickupOrdersIfDue(
+    supabase,
+    (data || []) as DbOrderRow[]
+  );
+
   return NextResponse.json({
-    orders: (data || []).map((row) => mapDbOrder(row as DbOrderRow)),
+    orders: advanced.map((row) => mapDbOrder(row)),
   });
 }

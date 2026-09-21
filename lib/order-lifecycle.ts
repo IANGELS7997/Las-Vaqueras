@@ -58,6 +58,15 @@ const KITCHEN_LABEL: Record<OrderStatus, string> = {
   cancelled: 'Cancelado',
 };
 
+/** Etiqueta de cocina según fulfillment (pickup listo ≠ en camino). */
+export function kitchenStatusLabel(
+  status: OrderStatus,
+  fulfillment?: FulfillmentMode | string | null
+): string {
+  if (status === 'in_transit' && fulfillment === 'pickup') return 'Listo para recoger';
+  return KITCHEN_LABEL[status];
+}
+
 const RIDER_LABEL: Record<string, string> = {
   self_iangel: 'Por aceptar',
   cook_hold: 'En espera de cocina',
@@ -180,7 +189,7 @@ export function viewFromOrder(input: OrderSyncInput): OrderSyncView {
 
   return {
     kitchenStatus,
-    kitchenLabel: KITCHEN_LABEL[kitchenStatus],
+    kitchenLabel: kitchenStatusLabel(kitchenStatus, fulfillment),
     dispatchStatus: dispatch,
     riderLabel: RIDER_LABEL[dispatch] || 'IANGEL',
     customerPhase,

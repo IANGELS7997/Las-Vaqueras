@@ -14,6 +14,7 @@ import { fullCustomerName } from '@/lib/customer-identity';
 import { upsertCustomer } from '@/lib/customers';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidCoord } from '@/lib/delivery-address';
+import { paidOrderStatusFields } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
@@ -252,6 +253,13 @@ export async function POST(req: Request) {
         });
       }
 
+      const paidStatus = paidOrderStatusFields({
+        fulfillment,
+        deliveryProvider:
+          paymentIntent.metadata.delivery_provider ||
+          (row as { delivery_provider?: string }).delivery_provider,
+      });
+
       const updated = await supabase
         .from('orders')
         .update({
@@ -263,7 +271,8 @@ export async function POST(req: Request) {
           fulfillment_type: fulfillment,
           pickup_at: fulfillment === 'pickup' ? pickupAt : null,
           items: items || row.items || [],
-          status: 'pending',
+          status: paidStatus.status,
+          dispatch_status: paidStatus.dispatch_status,
           card_funding: cardFunding,
           card_fingerprint: cardFingerprint,
           ...(dropoff || {}),
@@ -298,6 +307,11 @@ export async function POST(req: Request) {
       });
     }
 
+    const paidStatus = paidOrderStatusFields({
+      fulfillment,
+      deliveryProvider: paymentIntent.metadata.delivery_provider || null,
+    });
+
     const insert = await supabase
       .from('orders')
       .insert({
@@ -315,13 +329,12 @@ export async function POST(req: Request) {
         delivery_fee: split.deliveryFee,
         fulfillment_type: fulfillment,
         pickup_at: fulfillment === 'pickup' ? pickupAt : null,
-        status: 'pending',
+        status: paidStatus.status,
         items: items || [],
         card_funding: cardFunding,
         card_fingerprint: cardFingerprint,
         delivery_provider: paymentIntent.metadata.delivery_provider || null,
-        dispatch_status:
-          paymentIntent.metadata.delivery_provider === 'uber' ? 'needs_n8n_uber' : null,
+        dispatch_status: paidStatus.dispatch_status,
         ...(dropoff || {}),
       })
       .select('*')

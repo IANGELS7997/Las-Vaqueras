@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { advancePickupOrderIfDue } from '@/lib/order-auto-advance';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -20,8 +21,10 @@ export async function GET(
     return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
   }
 
+  const advanced = await advancePickupOrderIfDue(supabase, data as DbOrderRow);
+
   return NextResponse.json(
-    { order: mapDbOrder(data as DbOrderRow) },
+    { order: mapDbOrder(advanced) },
     { headers: { 'Cache-Control': 'no-store, max-age=0' } }
   );
 }
