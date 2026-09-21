@@ -58,6 +58,32 @@ const STATUS_CONFIG: Record<
 
 const NEW_ORDER_STATUSES = new Set<OrderStatus>(['pending', 'preparing']);
 
+type StationView = {
+  online: boolean;
+  shiftActive: boolean;
+  autoPrint: boolean;
+  printerReady: boolean;
+  statusLabel: string;
+  printerLabel: string;
+  detail: string;
+  lastSeenAt: string | null;
+  lastPrintAt: string | null;
+};
+
+async function postStation(body: {
+  shiftActive: boolean;
+  autoPrint: boolean;
+  event?: 'heartbeat' | 'print' | 'close';
+}) {
+  await fetch('/api/kitchen/station', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    credentials: 'include',
+    keepalive: body.event === 'close',
+  }).catch(() => null);
+}
+
 export default function KitchenDashboardPage() {
   const { outOfStockIds, toggleOutOfStock } = useOrders();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -65,6 +91,7 @@ export default function KitchenDashboardPage() {
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
   const [shiftActive, setShiftActive] = useState(false);
   const [autoPrint, setAutoPrint] = useState(true);
+  const [station, setStation] = useState<StationView | null>(null);
   const knownIdsRef = useRef<Set<string>>(new Set());
   const printQueueRef = useRef<string[]>([]);
   const shiftActiveRef = useRef(false);
@@ -114,8 +141,74 @@ export default function KitchenDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (!shiftActive) {
+      setStation((prev) =>
+        prev
+          ? {
+              ...prev,
+              online: false,
+              shiftActive: false,
+              printerReady: false,
+              statusLabel: 'Cocina cerrada',
+              printerLabel: 'Impresora no lista (panel offline)',
+              detail: 'Inicia el turno para activar alertas e impresión.',
+            }
+          : prev
+      );
+      return;
+    }
+
+    let cancelled = false;
+    const beat = async () => {
+      await postStation({
+        shiftActive: true,
+        autoPrint: autoPrintRef.current,
+        event: 'heartbeat',
+      });
+      const status = await fetch('/api/kitchen/station', { cache: 'no-store', credentials: 'include' });
+      if (!status.ok || cancelled) return;
+      const payload = await status.json();
+      if (payload.station) setStation(payload.station as StationView);
+    };
+
+    void beat();
+    const interval = window.setInterval(beat, 15000);
+
+    const onLeave = () => {
+      void postStation({
+        shiftActive: false,
+        autoPrint: false,
+        event: 'close',
+      });
+    };
+    window.addEventListener('pagehide', onLeave);
+    window.addEventListener('beforeunload', onLeave);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('pagehide', onLeave);
+      window.removeEventListener('beforeunload', onLeave);
+    };
+  }, [shiftActive]);
+
+  useEffect(() => {
+    if (!shiftActive) return;
+    void postStation({
+      shiftActive: true,
+      autoPrint,
+      event: 'heartbeat',
+    });
+  }, [autoPrint, shiftActive]);
+
+  useEffect(() => {
     if (!printingOrderId) return;
     const onAfterPrint = () => {
+      void postStation({
+        shiftActive: shiftActiveRef.current,
+        autoPrint: autoPrintRef.current,
+        event: 'print',
+      });
       setPrintingOrderId(printQueueRef.current.shift() ?? null);
     };
     window.addEventListener('afterprint', onAfterPrint);
@@ -220,6 +313,32 @@ export default function KitchenDashboardPage() {
             <Switch checked={autoPrint} onCheckedChange={setAutoPrint} />
           </label>
         )}
+        <div
+          className={cn(
+            'mt-3 rounded-lg border px-3 py-3 text-sm',
+            station?.printerReady
+              ? 'border-emerald-700/50 bg-emerald-950/40 text-emerald-100'
+              : 'border-amber-700/50 bg-amber-950/40 text-amber-100'
+          )}
+        >
+          <p className="font-semibold">
+            {station?.statusLabel || (shiftActive ? 'Conectando estación…' : 'Cocina cerrada')}
+          </p>
+          <p className="mt-1 text-xs opacity-90">
+            {station?.printerLabel ||
+              (shiftActive
+                ? 'Esperando confirmación de impresión automática…'
+                : 'Inicia el turno para activar panel e impresión.')}
+          </p>
+          <p className="mt-1 text-xs opacity-80">
+            {station?.detail ||
+              'Si cierras esta pestaña, Angel y el dueño reciben un correo de alerta.'}
+          </p>
+          <p className="mt-2 text-[11px] opacity-70">
+            Nota: el navegador no puede ver si la térmica tiene papel; sí detecta si el panel y la
+            impresión automática están activos.
+          </p>
+        </div>
       </div>
 
       {/* Active orders */}

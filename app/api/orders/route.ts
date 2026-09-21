@@ -15,6 +15,7 @@ import { upsertCustomer } from '@/lib/customers';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidCoord } from '@/lib/delivery-address';
 import { paidOrderStatusFields } from '@/lib/order-auto-advance';
+import { alertIfKitchenOfflineForOrder } from '@/lib/kitchen-order-alert';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
@@ -98,6 +99,12 @@ async function orderResponseWithProfile(args: {
   if (!args.orderRow.customer_id || args.orderRow.customer_id !== profile.id) {
     await args.supabase.from('orders').update({ customer_id: profile.id }).eq('id', args.orderRow.id);
   }
+
+  void alertIfKitchenOfflineForOrder(args.supabase, {
+    id: args.orderRow.id,
+    short_code: args.orderRow.short_code,
+  });
+
   const kind = args.loyaltyKind;
   const alreadyClaimed = await args.supabase
     .from('loyalty_claims')
