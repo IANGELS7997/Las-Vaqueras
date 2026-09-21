@@ -1,6 +1,7 @@
 'use client';
 
 import { paymentCardLabel } from '@/lib/card-funding';
+import { loyaltyCajaTicketLines } from '@/lib/loyalty';
 import { formatMXN } from '@/lib/pricing';
 import { formatPickupAt } from '@/lib/pickup-slots';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
@@ -20,6 +21,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
     const d = new Date(iso);
     return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
+  const promoLines = loyaltyCajaTicketLines(order.loyaltyKind);
 
   return (
     <div
@@ -38,10 +40,11 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       </div>
       <div className="my-1 border-t border-dashed border-black" />
       <div>
-        <p>Orden: #{order.id.slice(0, 8)}</p>
+        <p>Orden: #{order.shortCode || order.id.slice(0, 8)}</p>
         <p>Fecha: {getDate(order.createdAt)}</p>
         <p>Hora: {getTime(order.createdAt)}</p>
         <p className="font-bold">PAGADO EN LINEA — NO COBRAR</p>
+        <p className="font-bold">EN POS: TARJETA (YA PAGADA)</p>
         {order.fulfillment === 'pickup' ? (
           <p className="font-bold">
             RECOGER EN TIENDA
@@ -51,6 +54,18 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
           <p className="font-bold">ENTREGA A DOMICILIO</p>
         )}
       </div>
+      {promoLines.length > 0 ? (
+        <>
+          <div className="my-1 border-t border-dashed border-black" />
+          <div className="text-center">
+            {promoLines.map((line) => (
+              <p key={line} className="font-bold">
+                {line}
+              </p>
+            ))}
+          </div>
+        </>
+      ) : null}
       <div className="my-1 border-t border-dashed border-black" />
       <div>
         <p className="font-bold">Cliente:</p>
@@ -94,31 +109,21 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       </div>
       <div className="my-1 border-t border-dashed border-black" />
       <div>
-        <div className="flex justify-between">
-          <span>Comida:</span>
+        <div className="flex justify-between font-bold">
+          <span>TOTAL COMIDA:</span>
           <span>{formatMXN(order.subtotal)}</span>
         </div>
-        {order.serviceFee > 0 && (
-          <div className="flex justify-between">
-            <span>Servicio:</span>
-            <span>{formatMXN(order.serviceFee)}</span>
-          </div>
-        )}
-        {order.fulfillment !== 'pickup' && (
-          <div className="flex justify-between">
-            <span>Envio:</span>
-            <span>{formatMXN(order.deliveryFee)}</span>
-          </div>
-        )}
-        <div className="flex justify-between font-bold">
-          <span>TOTAL:</span>
-          <span>{formatMXN(order.total)}</span>
-        </div>
+        {order.loyaltyKind === 'first_30' ? (
+          <p className="mt-1 font-bold">Total YA con 30% desc. primer pedido</p>
+        ) : null}
+        {order.loyaltyKind === 'fifth_20' ? (
+          <p className="mt-1 font-bold">Total YA con 20% desc. 5.o pedido</p>
+        ) : null}
       </div>
       <div className="my-1 border-t border-dashed border-black" />
       <div className="text-center">
+        <p>Solo comida · sin envio ni comisiones</p>
         <p>{paymentCardLabel(order.cardFunding)}</p>
-        <p className="mt-2">Gracias por tu compra!</p>
       </div>
     </div>
   );

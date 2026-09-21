@@ -120,4 +120,5 @@ export interface Order {
   leaveAtDoor?: boolean;
   incidentType?: string | null;
   etaMinutes?: number | null;
+  loyaltyKind?: string | null;
 }
