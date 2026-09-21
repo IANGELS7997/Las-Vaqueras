@@ -15,9 +15,15 @@ export async function PATCH(
   const denied = await requireKitchenSession();
   if (denied) return denied;
 
-  const { status } = await req.json();
-  if (!KITCHEN_ORDER_STATUSES.includes(status as OrderStatus)) {
+  const body = await req.json().catch(() => ({}));
+  const status = body.status as string | undefined;
+  const cookHold = typeof body.cookHold === 'boolean' ? body.cookHold : undefined;
+
+  if (status !== undefined && !KITCHEN_ORDER_STATUSES.includes(status as OrderStatus)) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
+  }
+  if (status === undefined && cookHold === undefined) {
+    return NextResponse.json({ error: 'sin cambios' }, { status: 400 });
   }
 
   const supabase = createAdminSupabase();
@@ -26,13 +32,33 @@ export async function PATCH(
     return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
   }
 
-  const patch = patchFromKitchenStatus(status as OrderStatus, {
-    status: current.data.status,
-    dispatchStatus: current.data.dispatch_status,
-    fulfillment: current.data.fulfillment_type,
-    cookHold: current.data.cook_hold,
-    leaveAtDoor: current.data.leave_at_door,
-  });
+  const patch: Record<string, unknown> = {};
+
+  if (cookHold !== undefined) {
+    patch.cook_hold = cookHold;
+    if (cookHold) {
+      patch.dispatch_status = 'cook_hold';
+    } else if (String(current.data.dispatch_status || '') === 'cook_hold') {
+      const fulfillment = current.data.fulfillment_type === 'pickup' ? 'pickup' : 'delivery';
+      patch.dispatch_status = fulfillment === 'pickup' ? null : 'self_iangel';
+    }
+  }
+
+  if (status) {
+    Object.assign(
+      patch,
+      patchFromKitchenStatus(status as OrderStatus, {
+        status: current.data.status,
+        dispatchStatus:
+          typeof patch.dispatch_status === 'string'
+            ? patch.dispatch_status
+            : current.data.dispatch_status,
+        fulfillment: current.data.fulfillment_type,
+        cookHold: cookHold ?? current.data.cook_hold,
+        leaveAtDoor: current.data.leave_at_door,
+      })
+    );
+  }
 
   const { data, error } = await supabase
     .from('orders')

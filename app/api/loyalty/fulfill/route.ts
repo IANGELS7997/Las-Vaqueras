@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       platform_fee: 0,
       customer_fee: 0,
       delivery_fee: 0,
-      status: 'pending',
+      status: 'preparing',
       items,
       fulfillment_type: 'pickup',
       pickup_at: pickupAt,

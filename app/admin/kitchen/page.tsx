@@ -13,6 +13,8 @@ import {
   MapPin,
   Package,
   Ban,
+  PauseCircle,
+  PlayCircle,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -34,32 +36,27 @@ import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { ThermalTicket } from '@/components/thermal-ticket';
 import { MenuProductImage } from '@/components/menu-product-image';
-import { viewFromOrder } from '@/lib/order-lifecycle';
+import { kitchenStatusLabel, viewFromOrder } from '@/lib/order-lifecycle';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
 const STATUS_CONFIG: Record<
   OrderStatus,
-  { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }
+  { icon: React.ComponentType<{ className?: string }>; color: string; bgColor: string }
 > = {
   awaiting_payment: {
-    label: 'Pago pendiente',
     icon: Clock,
     color: 'text-muted-foreground',
     bgColor: 'bg-muted/40',
   },
-  pending: { label: 'Recibido', icon: Receipt, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
-  preparing: { label: 'Preparando', icon: ChefHat, color: 'text-brand-400', bgColor: 'bg-brand-500/15' },
-  in_transit: { label: 'En camino', icon: Bike, color: 'text-yellow-400', bgColor: 'bg-yellow-500/15' },
-  delivered: { label: 'Entregado', icon: CheckCircle2, color: 'text-green-400', bgColor: 'bg-green-500/15' },
-  cancelled: { label: 'Cancelado', icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/15' },
+  pending: { icon: Receipt, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
+  preparing: { icon: ChefHat, color: 'text-brand-400', bgColor: 'bg-brand-500/15' },
+  in_transit: { icon: Bike, color: 'text-yellow-400', bgColor: 'bg-yellow-500/15' },
+  delivered: { icon: CheckCircle2, color: 'text-green-400', bgColor: 'bg-green-500/15' },
+  cancelled: { icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/15' },
 };
 
-const NEXT_STATUS: Record<string, OrderStatus> = {
-  pending: 'preparing',
-  preparing: 'in_transit',
-  in_transit: 'delivered',
-};
+const NEW_ORDER_STATUSES = new Set<OrderStatus>(['pending', 'preparing']);
 
 export default function KitchenDashboardPage() {
   const { outOfStockIds, toggleOutOfStock } = useOrders();
@@ -97,7 +94,7 @@ export default function KitchenDashboardPage() {
       const isFirstLoad = knownIdsRef.current.size === 0;
       if (!isFirstLoad) {
         nextOrders.forEach((order) => {
-          if (!knownIdsRef.current.has(order.id) && order.status === 'pending') {
+          if (!knownIdsRef.current.has(order.id) && NEW_ORDER_STATUSES.has(order.status)) {
             notifyKitchenNewOrder();
             if (shiftActiveRef.current && autoPrintRef.current) {
               enqueuePrint(order.id);
@@ -136,18 +133,29 @@ export default function KitchenDashboardPage() {
     setPrintingOrderId(orderId);
   };
 
-  const handleAdvanceStatus = async (order: Order) => {
-    const next = NEXT_STATUS[order.status];
-    if (!next) return;
+  const patchOrderLocal = (orderId: string, order: Order) => {
+    setOrders((prev) => prev.map((item) => (item.id === orderId ? order : item)));
+  };
+
+  const handleCookHold = async (order: Order, hold: boolean) => {
     const response = await fetch(`/api/orders/${order.id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: next }),
+      body: JSON.stringify({ cookHold: hold }),
     });
     const payload = await response.json().catch(() => ({}));
-    setOrders((prev) =>
-      prev.map((item) => (item.id === order.id ? (payload.order as Order) || { ...item, status: next } : item))
-    );
+    if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+  };
+
+  /** Emergencia: forzar listo (pickup) o entregado si el auto-avance falló. */
+  const handleEmergencyStatus = async (order: Order, status: OrderStatus) => {
+    const response = await fetch(`/api/orders/${order.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (payload.order) patchOrderLocal(order.id, payload.order as Order);
   };
 
   const handleCancelOrder = async () => {
@@ -186,8 +194,10 @@ export default function KitchenDashboardPage() {
       <div className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">Cocina / POS</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Gestión de pedidos y control de inventario</p>
+            <h1 className="text-2xl font-bold text-white">Cocina / emergencia</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Monitor opcional. El ticket sale solo; el pedido avanza con IANGEL o el timer de recoger.
+            </p>
           </div>
           <button
             type="button"
@@ -236,12 +246,14 @@ export default function KitchenDashboardPage() {
             {activeOrders.map((order) => {
               const statusCfg = STATUS_CONFIG[order.status];
               const StatusIcon = statusCfg.icon;
+              const statusLabel = kitchenStatusLabel(order.status, order.fulfillment);
               return (
                 <div
                   key={order.id}
                   className={cn(
                     'rounded-2xl border border-border/60 bg-card p-4 transition-all',
-                    order.status === 'pending' && 'border-blue-500/30'
+                    (order.status === 'pending' || order.status === 'preparing') && 'border-blue-500/30',
+                    order.cookHold && 'border-yellow-500/40'
                   )}
                 >
                   <div className="mb-3 flex items-center justify-between">
@@ -257,7 +269,7 @@ export default function KitchenDashboardPage() {
                       )}
                     >
                       <StatusIcon className="h-3.5 w-3.5" />
-                      {statusCfg.label}
+                      {order.cookHold ? 'En espera' : statusLabel}
                     </div>
                   </div>
 
@@ -338,17 +350,52 @@ export default function KitchenDashboardPage() {
                     <span className="font-bold text-brand-500">{formatMXN(order.total)}</span>
                   </div>
 
-                  <div className="flex gap-2">
-                    {NEXT_STATUS[order.status] && (
+                  <div className="flex flex-wrap gap-2">
+                    {order.status !== 'delivered' && order.status !== 'cancelled' ? (
                       <Button
-                        onClick={() => handleAdvanceStatus(order)}
+                        onClick={() => handleCookHold(order, !order.cookHold)}
                         size="sm"
-                        className="flex-1 bg-brand-500 text-white hover:bg-brand-600"
+                        variant="outline"
+                        className={cn(
+                          'border-border bg-card',
+                          order.cookHold && 'border-yellow-500/40 text-yellow-400'
+                        )}
+                      >
+                        {order.cookHold ? (
+                          <>
+                            <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
+                            Reanudar
+                          </>
+                        ) : (
+                          <>
+                            <PauseCircle className="mr-1.5 h-3.5 w-3.5" />
+                            Pausar
+                          </>
+                        )}
+                      </Button>
+                    ) : null}
+                    {order.fulfillment === 'pickup' && order.status === 'preparing' ? (
+                      <Button
+                        onClick={() => handleEmergencyStatus(order, 'in_transit')}
+                        size="sm"
+                        variant="outline"
+                        className="border-border bg-card"
                       >
                         <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                        Avanzar a {STATUS_CONFIG[NEXT_STATUS[order.status]].label}
+                        Listo ahora
                       </Button>
-                    )}
+                    ) : null}
+                    {order.fulfillment === 'pickup' && order.status === 'in_transit' ? (
+                      <Button
+                        onClick={() => handleEmergencyStatus(order, 'delivered')}
+                        size="sm"
+                        variant="outline"
+                        className="border-border bg-card"
+                      >
+                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                        Ya recogió
+                      </Button>
+                    ) : null}
                     <Button
                       onClick={() => handlePrint(order.id)}
                       variant="outline"
@@ -416,7 +463,9 @@ export default function KitchenDashboardPage() {
                 <div key={order.id} className="rounded-xl border border-border/60 bg-card p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-white">#{order.id}</span>
-                    <span className={cn('text-xs font-semibold', statusCfg.color)}>{statusCfg.label}</span>
+                    <span className={cn('text-xs font-semibold', statusCfg.color)}>
+                      {kitchenStatusLabel(order.status, order.fulfillment)}
+                    </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{order.customer.name}</p>
                   <p className="text-xs text-brand-500">{formatMXN(order.total)}</p>

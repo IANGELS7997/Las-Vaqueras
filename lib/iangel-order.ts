@@ -46,6 +46,9 @@ export function isActiveTrip(dispatchStatus: string | null) {
 }
 
 export async function runIangelOrderAction(order: Record<string, unknown>, action: string, pin?: string) {
+  if (Boolean(order.cook_hold) && (action === 'pickup' || action === 'en_route')) {
+    throw new Error('Cocina pidió espera. No inicies el viaje todavía.');
+  }
   return patchFromRiderAction(
     action,
     {
