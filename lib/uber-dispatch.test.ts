@@ -56,7 +56,7 @@ async function main() {
     customerName: 'Prueba',
     items: [],
   });
-  assert(tooFar?.dispatch_status === 'needs_n8n_uber', 'más de 4000 m no crea courier');
+  assert(tooFar?.dispatch_status === 'needs_n8n_uber', 'más de 4500 m no crea courier');
 
   console.log('uber-dispatch tests: ok');
 }

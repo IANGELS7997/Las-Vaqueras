@@ -71,10 +71,10 @@ function waitOption(): RoutingOption {
 }
 
 /**
- * IANGEL $50: 0–3000 m, turno 12:00–21:00, rider activo.
+ * IANGEL $50: 0–4000 m, turno 12:00–21:00, rider activo.
  * Ocupado en ese radio: $50 + aviso, sin Uber.
- * Uber (quote × 0.97): 3001–4000 m siempre; y 0–3000 m desde las 21:00 (fuera de turno).
- * Más de 4000 m: sin domicilio.
+ * Uber (quote × 0.97): 4001–4500 m siempre; y 0–4000 m desde las 21:00 (fuera de turno).
+ * Más de 4500 m: sin domicilio.
  */
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   const meters = Math.max(0, Math.round(input.meters));

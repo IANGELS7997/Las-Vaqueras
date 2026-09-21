@@ -1,8 +1,8 @@
 /** IANGEL / Las Vaqueras delivery routing. Pin: lib/restaurant.ts */
 
-export const SELF_MAX_M = 3000;
-export const UBER_MIN_M = 3001;
-export const UBER_MAX_M = 4000;
+export const SELF_MAX_M = 4000;
+export const UBER_MIN_M = 4001;
+export const UBER_MAX_M = 4500;
 export const SELF_FEE_MXN = 50;
 export const QUOTE_TTL_MS = 4 * 60 * 1000;
 export const HEARTBEAT_STALE_MS = 12 * 60 * 1000;
