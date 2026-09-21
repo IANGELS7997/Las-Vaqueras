@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import Stripe from 'stripe';
 import type { CartItem } from '@/types';
 import { calcCheckoutSplit } from '@/lib/checkout-split';
@@ -350,6 +351,7 @@ export async function POST(req: Request) {
       paymentIntentId,
     });
   } catch (error) {
+    Sentry.captureException(error);
     const message =
       error instanceof Stripe.errors.StripeError
         ? error.message

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { isValidCoord } from '@/lib/delivery-address';
 import { COPY } from '@/lib/iangel-copy';
 import { metersFromStore } from '@/lib/iangel-geo';
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
       expiresAt: quoteExpiresAt(),
     });
   } catch (error) {
+    Sentry.captureException(error);
     const message = error instanceof Error ? error.message : 'No se pudo cotizar el envío';
     return NextResponse.json({ error: message }, { status: 400 });
   }

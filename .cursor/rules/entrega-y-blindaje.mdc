@@ -1,0 +1,37 @@
+---
+description: Checklist entrega Las Vaqueras + blindar código al cerrar
+alwaysApply: true
+---
+
+# Entrega del proyecto + blindaje
+
+Recuérdalo al usuario si habla de **entrega**, **go-live**, **activar n8n**, cobros live o “ya está listo”.
+
+## Blindar el código (punto 5 — en curso con Sentry)
+
+1. Revisar vars/env: sin cuentas eliminadas como destination LIVE, sin `pk_test_` en Production, sin `UBER_USE_SANDBOX` en Production.
+2. Fallar en claro si falta destination Connect, claves live mezcladas con test — [`lib/runtime-env.ts`](lib/runtime-env.ts) + `sentry.server.config.ts`.
+3. **Sentry** proyecto `las-vaqueras` (org `angel-salinas-creador`): DSN en Vercel Production; capturas en checkout / orders / delivery-quote / refund / global-error.
+4. Alerta email en Sentry Dashboard (Issues → Alerts → “Notify me by email”) — configurar una vez en UI.
+5. Cocina solo en `cocina.lasvaqueras.com.mx`; `/admin` no expuesto en dominio público.
+6. No publicar scripts de prueba (Uber sandbox smoke, simulate-order) como flujo de Production.
+
+## Punto 6 — Entrega formal (RECORDATORIO — después)
+
+Cuando diga que la entrega formal toca, recordar: deploy estable, doc cuentas Stripe/n8n/dinero, capacitación dueño (cocina+Express), contacto `servicio@lasvaqueras.com.mx`. **No cerrar sin esto.**
+
+## Estado checklist (verificaciones sin cobro real)
+
+- [x] Claves Stripe Production `pk_live_` + `sk_live_` en Vercel
+- [x] Destination LIVE = dueño `acct_1UDqrILSkdFzTSOj` (`transfers` active)
+- [x] Wallets / dominios (Apple + Google Pay) verificados sin cobro
+- [x] Uber Direct quote smoke (sandbox, sin Create Delivery / sin courier)
+- [x] Resend: dominio + correo de prueba
+- [x] Cocina + sitio público HTTP 200
+- [ ] Limpiar `STRIPE_CONNECT_ACCOUNT_ID` genérico residual en Vercel (código ya bloquea eliminada)
+- [ ] Activar n8n “pago exitoso” solo cuando el usuario lo pida (sigue inactivo)
+- [ ] Alerta email Sentry en Dashboard
+- [ ] Merge/deploy rama `chore/go-live-verify-harden` a Production
+- [ ] RFC dueño (`tax_id_provided` aún false)
+- [ ] Prueba E2E cobro real (cuando el usuario lo autorice)
+- [ ] Punto 6 entrega formal
