@@ -101,6 +101,22 @@ export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boole
     })();
   };
 
+  const handleEndShift = () => {
+    const confirmed = window.confirm(
+      '¿Cerrar turno? Se apagan alertas e impresión automática. No se envía alerta de caída.'
+    );
+    if (!confirmed) return;
+
+    const alertAudio = audioRef.current;
+    if (alertAudio) {
+      alertAudio.pause();
+      alertAudio.onended = null;
+      audioRef.current = null;
+    }
+    setIsShiftActive(false);
+    onShiftChange?.(false);
+  };
+
   if (!isShiftActive) {
     return (
       <div className="mb-6 rounded-lg border border-amber-800 bg-amber-950 p-4 text-center">
@@ -124,13 +140,22 @@ export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boole
         <span className="h-3 w-3 shrink-0 animate-pulse rounded-full bg-emerald-400" />
         Turno activo — alerta de pedido e impresión al pagar
       </span>
-      <button
-        type="button"
-        onClick={playFullAlert}
-        className="min-h-11 rounded-md border border-emerald-700 px-4 py-2 text-sm text-emerald-50 transition-colors hover:bg-emerald-900"
-      >
-        Probar alerta
-      </button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          onClick={playFullAlert}
+          className="min-h-11 rounded-md border border-emerald-700 px-4 py-2 text-sm text-emerald-50 transition-colors hover:bg-emerald-900"
+        >
+          Probar alerta
+        </button>
+        <button
+          type="button"
+          onClick={handleEndShift}
+          className="min-h-11 rounded-md border border-red-700/70 bg-red-950/60 px-4 py-2 text-sm font-semibold text-red-100 transition-colors hover:bg-red-900/80"
+        >
+          Cerrar turno
+        </button>
+      </div>
     </div>
   );
 }

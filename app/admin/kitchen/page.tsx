@@ -73,14 +73,14 @@ type StationView = {
 async function postStation(body: {
   shiftActive: boolean;
   autoPrint: boolean;
-  event?: 'heartbeat' | 'print' | 'close';
+  event?: 'heartbeat' | 'print' | 'close' | 'end_shift';
 }) {
   await fetch('/api/kitchen/station', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     credentials: 'include',
-    keepalive: body.event === 'close',
+    keepalive: body.event === 'close' || body.event === 'end_shift',
   }).catch(() => null);
 }
 
@@ -103,6 +103,17 @@ export default function KitchenDashboardPage() {
 
   shiftActiveRef.current = shiftActive;
   autoPrintRef.current = autoPrint;
+
+  const handleShiftChange = (active: boolean) => {
+    if (!active && shiftActiveRef.current) {
+      void postStation({
+        shiftActive: false,
+        autoPrint: false,
+        event: 'end_shift',
+      });
+    }
+    setShiftActive(active);
+  };
 
   const enqueuePrint = (orderId: string) => {
     if (printQueueRef.current.includes(orderId)) return;
@@ -331,7 +342,7 @@ export default function KitchenDashboardPage() {
       </div>
 
       <div className="mb-6">
-        <KitchenShift onShiftChange={setShiftActive} />
+        <KitchenShift onShiftChange={handleShiftChange} />
         {shiftActive && (
           <label className="mt-3 flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2 text-sm text-white">
             <span>Imprimir comanda automáticamente al pagar</span>
