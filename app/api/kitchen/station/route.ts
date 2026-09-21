@@ -40,14 +40,15 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     shiftActive?: boolean;
     autoPrint?: boolean;
-    event?: 'heartbeat' | 'print' | 'close';
+    event?: 'heartbeat' | 'print' | 'close' | 'end_shift';
   };
 
   const supabase = createAdminSupabase();
   const now = new Date().toISOString();
   const event = body.event || 'heartbeat';
-  const shiftActive = event === 'close' ? false : Boolean(body.shiftActive);
-  const autoPrint = event === 'close' ? false : Boolean(body.autoPrint);
+  const endingShift = event === 'close' || event === 'end_shift';
+  const shiftActive = endingShift ? false : Boolean(body.shiftActive);
+  const autoPrint = endingShift ? false : Boolean(body.autoPrint);
 
   const patch: Record<string, unknown> = {
     shift_active: shiftActive,
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
     updated_at: now,
   };
 
-  if (event === 'close') {
+  if (endingShift) {
     patch.closed_at = now;
   } else {
     patch.last_seen_at = now;
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
 
   const row = saved.data as KitchenStationRow;
 
+  // close = pestaña/navegador (alerta). end_shift = botón "Cerrar turno" (sin alerta).
   if (event === 'close' && shouldSendOfflineAlert(row)) {
     const alert = await sendKitchenOfflineAlert({ reason: 'closed' });
     if (alert.sent) {
