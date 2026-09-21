@@ -97,7 +97,7 @@ const selfSplit = calcCheckoutSplit({
 });
 assert(selfSplit.deliveryFee === 50, 'self cobra $50 al cliente');
 assert(selfSplit.deliveryDiscount === 0, 'IANGEL sin 3%');
-assert(selfSplit.restaurantPayout < CARTA * 0.85, 'dueño 85% menos Stripe/2');
+assert(selfSplit.restaurantPayout < CARTA * 0.9, 'dueño 90% de carta menos Stripe/2');
 
 const uberSplit = calcCheckoutSplit({
   priceBaseTotal: CARTA,
@@ -112,7 +112,10 @@ const cartaSplit = calcCheckoutSplit({
   priceBaseTotal: 99,
   fulfillment: 'pickup',
 });
-assert(cartaSplit.subtotalWeb === 99 && cartaSplit.deliveryFee === 0, 'recoger: carta y envío 0');
+assert(
+  cartaSplit.subtotalWeb === 103.95 && cartaSplit.deliveryFee === 0,
+  `recoger: carta×1.05 y envío 0 (got ${cartaSplit.subtotalWeb})`
+);
 
 assert(
   !needsUberQuote({ meters: 4000, now: AT_15, riderActive: false, riderBusy: false, priceBaseTotal: CARTA }),

@@ -1,21 +1,28 @@
-/** Display and charge carta (`price_base`). No web markup. */
-export const WEB_MARKUP = 1;
+/**
+ * Carta económica = `price_base` (P).
+ * Cliente paga P′ = P × WEB_MARKUP.
+ * Dueño = 0.90 × P − Stripe/2.
+ * Plataforma = 0.15 × P + Stripe/2 + 100% envío.
+ */
+export const WEB_MARKUP = 1.05;
 export const SERVICE_FEE_RATE = 0;
-export const RESTAURANT_PAYOUT_RATE = 0.85;
-/** 3% of Uber Direct quote, taken from the platform 15%. Never applied to IANGEL $50. */
+/** Share of carta base P (not of the customer web price). */
+export const RESTAURANT_PAYOUT_RATE = 0.9;
+export const PLATFORM_SHARE_OF_BASE = 0.15;
+/** 3% of Uber Direct quote, taken from the platform share. Never applied to IANGEL $50. */
 export const UBER_QUOTE_DISCOUNT_RATE = 0.03;
 export const DELIVERY_FEE = 35;
 
-/** Menu / line price = carta. */
+/** Menu / line price shown and charged to the customer (P′). */
 export function calcWebPrice(priceBase: number): number {
-  return Math.round(priceBase * WEB_MARKUP);
+  return Math.round(priceBase * WEB_MARKUP * 100) / 100;
 }
 
 export function calcCustomerFee(mWeb: number): number {
   return Math.round(mWeb * SERVICE_FEE_RATE * 100) / 100;
 }
 
-/** Dueño = 85% of carta, rounded to cents. */
+/** Dueño gross = 90% of carta base P, rounded to cents (before Stripe/2). */
 export function calcRestaurantPayout(mBase: number): number {
   return Math.round(mBase * RESTAURANT_PAYOUT_RATE * 100) / 100;
 }

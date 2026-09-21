@@ -12,12 +12,12 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 | Rol | Cuenta | Quién |
 |-----|--------|--------|
 | **Plataforma (matriz)** | `acct_1UBgeMPukuGTlRTl` | Desarrollador — **AS EUNOIA**. Único admin. Claves, webhooks, cobro al cliente. |
-| **Dueño restaurante (Express)** | `acct_1UDqrILSkdFzTSOj` | Carlos Adrian Lopez Garcia. Solo su 85% de comida. Solo Express + cocina. |
+| **Dueño restaurante (Express)** | `acct_1UDqrILSkdFzTSOj` | Carlos Adrian Lopez Garcia. Solo su 90% de carta (P). Solo Express + cocina. |
 | **Express desarrollador** | `acct_1UDRDcLzV1Sjysxx` | **Eliminada** (2026-09-19). Bloqueada en código. |
 
 - Dashboard plataforma: **AS EUNOIA** (confirmado). Email: `iangels7997@gmail.com`.
 - Persona / RFC desarrollador: Angel Ivan Salinas Ortiz · `SAOA0009154F8`. Dirección: Mauricio Corredor #5116, Col. Panamericana, 31210.
-- Payout plataforma (15% + Stripe/2 + 100% envío): CLABE BBVA `012180015164387876`, titular **Angel Ivan Salinas Ortiz**.
+- Payout plataforma (15%·P + Stripe/2 + 100% envío; cliente paga P×1.05): CLABE BBVA `012180015164387876`, titular **Angel Ivan Salinas Ortiz**.
 - Dueño Express: email `servicio@lasvaqueras.com.mx`, tel `+52 614 413 6539`, URL `https://www.lasvaqueras.com.mx/`, local Rio de Janeiro 903, Panamericana, 31210. CLABE MercadoLibre `722969017600593921`, titular **Carlos Adrian Lopez Garcia**.
 - Descriptor al cliente: `LAS-VAQUERAS-WEB`.
 - **Pureiangel se elimina de todos lados** (Stripe branding/descriptores/perfiles). No reintroducir.
@@ -28,10 +28,10 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 
 ## Split live
 
-- Cliente: comida carta + envío (fee servicio hoy = 0%).
-- Dueño: `0.85 × comida − Stripe/2` → solo `acct_1UDqrILSkdFzTSOj`.
-- Plataforma: resto (≈15% comida + Stripe/2 + 100% envío) → saldo de `acct_1UBgeMPukuGTlRTl`.
-- Recoger: envío $0; misma regla 85/15 sobre comida.
+- Cliente: comida **P′ = P × 1.05** + envío (fee servicio hoy = 0%). `price_base` = P (carta).
+- Dueño: `0.90 × P − Stripe/2` → solo `acct_1UDqrILSkdFzTSOj`.
+- Plataforma: `0.15 × P + Stripe/2 + 100% envío` → saldo de `acct_1UBgeMPukuGTlRTl`.
+- Recoger: envío $0; misma regla 90/15 sobre P.
 
 ## Capacidad Connect (verificado 2026-09-21)
 
