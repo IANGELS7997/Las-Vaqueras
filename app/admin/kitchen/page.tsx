@@ -92,6 +92,10 @@ export default function KitchenDashboardPage() {
   const [shiftActive, setShiftActive] = useState(false);
   const [autoPrint, setAutoPrint] = useState(true);
   const [station, setStation] = useState<StationView | null>(null);
+  const [opsOk, setOpsOk] = useState<boolean | null>(null);
+  const [opsProblems, setOpsProblems] = useState<
+    { severity: string; label: string; detail: string }[]
+  >([]);
   const knownIdsRef = useRef<Set<string>>(new Set());
   const printQueueRef = useRef<string[]>([]);
   const shiftActiveRef = useRef(false);
@@ -200,6 +204,27 @@ export default function KitchenDashboardPage() {
       event: 'heartbeat',
     });
   }, [autoPrint, shiftActive]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadOps = async () => {
+      const response = await fetch('/api/kitchen/ops-status', {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      if (!response.ok || cancelled) return;
+      const payload = await response.json();
+      if (cancelled) return;
+      setOpsOk(Boolean(payload.ok));
+      setOpsProblems(Array.isArray(payload.problems) ? payload.problems : []);
+    };
+    void loadOps();
+    const interval = window.setInterval(loadOps, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (!printingOrderId) return;
@@ -339,6 +364,31 @@ export default function KitchenDashboardPage() {
             impresión automática están activos.
           </p>
         </div>
+        {opsOk !== null && (
+          <div
+            className={cn(
+              'mt-3 rounded-lg border px-3 py-2 text-xs',
+              opsOk && opsProblems.length === 0
+                ? 'border-emerald-700/40 bg-emerald-950/30 text-emerald-100'
+                : opsOk
+                  ? 'border-amber-700/40 bg-amber-950/30 text-amber-100'
+                  : 'border-red-700/40 bg-red-950/30 text-red-100'
+            )}
+          >
+            <p className="font-semibold">
+              {opsOk && opsProblems.length === 0
+                ? 'Sistema OK (pagos / DB / envío)'
+                : opsOk
+                  ? 'Sistema con avisos'
+                  : 'Sistema con fallo crítico'}
+            </p>
+            {opsProblems.slice(0, 4).map((p) => (
+              <p key={`${p.label}-${p.detail}`} className="mt-1 opacity-90">
+                [{p.severity}] {p.label}: {p.detail}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Active orders */}

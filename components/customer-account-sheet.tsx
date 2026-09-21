@@ -28,6 +28,7 @@ import {
   readStoredCustomerLogin,
   writeStoredCustomerLogin,
 } from '@/lib/customer-login-store';
+import { getOpenStatus } from '@/lib/restaurant';
 import type { Order } from '@/types';
 
 type CustomerProfile = {
@@ -71,6 +72,8 @@ export function CustomerAccountSheet() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [isOpen, setIsOpen] = useState(() => getOpenStatus().isOpen);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
     const loadMe = async () => {
@@ -110,6 +113,13 @@ export function CustomerAccountSheet() {
   }, []);
 
   useEffect(() => {
+    const tick = () => setIsOpen(getOpenStatus().isOpen);
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     void loadMe();
     const poll = window.setInterval(() => {
@@ -132,6 +142,28 @@ export function CustomerAccountSheet() {
       setError(payload.error || 'No se pudo entrar');
       return;
     }
+    await loadMe();
+  };
+
+  const handleRegisterClosed = async () => {
+    setLoading(true);
+    setError('');
+    const response = await fetch('/api/customer/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName, lastName, phone, email }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    setLoading(false);
+    if (!response.ok) {
+      setError(payload.error || 'No se pudo crear el perfil');
+      return;
+    }
+    writeStoredCustomerLogin({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim(),
+    });
     await loadMe();
   };
 
@@ -228,7 +260,9 @@ export function CustomerAccountSheet() {
               ? 'Usa Atrás para volver al perfil'
               : customer
                 ? 'Tus datos y pedidos de Las Vaqueras'
-                : 'Entra con el nombre, apellido y celular de tu compra'}
+                : isOpen
+                  ? 'Entra con el nombre, apellido y celular de tu compra'
+                  : 'Estamos cerrados: crea tu perfil con nombre, apellido, celular y correo'}
           </SheetDescription>
         </SheetHeader>
 
@@ -237,7 +271,8 @@ export function CustomerAccountSheet() {
             className="mt-6 space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
-              void handleLookup();
+              if (isOpen) void handleLookup();
+              else void handleRegisterClosed();
             }}
           >
             <div>
@@ -255,12 +290,51 @@ export function CustomerAccountSheet() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="614..."
+                inputMode="tel"
               />
             </div>
+            {!isOpen ? (
+              <div>
+                <Label>Correo</Label>
+                <Input
+                  className="mt-1.5"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@correo.com"
+                  autoComplete="email"
+                />
+              </div>
+            ) : null}
             {error ? <p className="text-sm text-red-400">{error}</p> : null}
-            <Button type="submit" className="w-full bg-brand-500 text-white hover:bg-brand-600" disabled={loading}>
-              {loading ? 'Buscando…' : 'Ver mi perfil'}
-            </Button>
+            {isOpen ? (
+              <Button type="submit" className="w-full bg-brand-500 text-white hover:bg-brand-600" disabled={loading}>
+                {loading ? 'Buscando…' : 'Ver mi perfil'}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  className="w-full bg-brand-500 text-white hover:bg-brand-600"
+                  disabled={loading}
+                  onClick={() => void handleRegisterClosed()}
+                >
+                  {loading ? 'Creando…' : 'Crear mi perfil'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-border"
+                  disabled={loading}
+                  onClick={() => void handleLookup()}
+                >
+                  Ya tengo perfil · entrar
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  El pedido se habilita cuando abramos. Crear perfil no inicia un pedido.
+                </p>
+              </>
+            )}
           </form>
         ) : showPromos ? (
           <PromotionsPanel
