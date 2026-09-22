@@ -249,10 +249,7 @@ export function patchFromRiderAction(
     patch.status = 'preparing';
     customerText = 'IANGEL aceptó tu pedido. Cocina lo está preparando.';
   } else if (action === 'pickup' || action === 'en_route') {
-    const expectedPin = String(current.pickupPin || '');
-    if (action === 'pickup' && expectedPin && expectedPin !== String(pin || '')) {
-      throw new Error('PIN de recojo incorrecto.');
-    }
+    // PIN de recojo desactivado: basta foto + deslizar en la PWA.
     patch.dispatch_status = action === 'pickup' ? 'picked_up' : 'en_route';
     patch.rider_status = patch.dispatch_status;
     patch.status = 'in_transit';

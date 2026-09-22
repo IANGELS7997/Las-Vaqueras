@@ -24,7 +24,10 @@ export async function GET(req: Request) {
     return iangelJson(req, { error: queued.error.message }, 500);
   }
 
-  const orders = ((queued.data || []) as Record<string, unknown>[]).map(mapIangelOrder);
+  // Excluye entregados/incidentes aunque el status kitchen haya quedado desfasado.
+  const orders = ((queued.data || []) as Record<string, unknown>[])
+    .map(mapIangelOrder)
+    .filter((order) => order.dispatchStatus !== 'delivered' && order.dispatchStatus !== 'incident');
   const active = orders.find((order) => isActiveTrip(order.dispatchStatus)) || null;
   return iangelJson(req, { inShift: true, riderActive: true, riderBusy: Boolean(active), active, queue: orders });
 }

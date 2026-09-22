@@ -510,11 +510,6 @@ export default function KitchenDashboardPage() {
                     ))}
                   </div>
 
-                  {order.pickupPin ? (
-                    <p className="mb-2 text-xs font-semibold tracking-widest text-brand-400">
-                      PIN recojo {order.pickupPin}
-                    </p>
-                  ) : null}
                   <p className="mb-2 text-xs text-yellow-400">
                     IANGEL: {viewFromOrder({
                       status: order.status,
