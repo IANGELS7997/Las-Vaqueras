@@ -19,6 +19,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   try {
     const { patch, customerText } = await runIangelOrderAction(row, String(body.action || ''), body.pin);
+    if (String(body.action || '') === 'deliver') {
+      patch.status = 'delivered';
+      patch.dispatch_status = 'delivered';
+      patch.rider_status = 'idle';
+    }
+    if (!row.short_code) {
+      patch.short_code = String(row.id).replace(/-/g, '').slice(0, 4).toUpperCase();
+    }
     const updated = await supabase.from('orders').update(patch).eq('id', params.id).select('*').single();
     if (updated.error) throw new Error(updated.error.message);
     if (customerText) {
