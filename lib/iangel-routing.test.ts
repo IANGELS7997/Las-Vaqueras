@@ -15,12 +15,13 @@ const AT_2105 = new Date('2026-09-15T21:05:00-06:00');
 const CARTA = 200;
 const UBER_QUOTE = 80;
 
-function kinds(now: Date, meters: number, riderActive: boolean, riderBusy: boolean) {
+function kinds(now: Date, meters: number, riderActive: boolean, riderBusy: boolean, uberDirectEnabled = true) {
   return resolveDeliveryRouting({
     meters,
     now,
     riderActive,
     riderBusy,
+    uberDirectEnabled,
     priceBaseTotal: CARTA,
     uberQuoteFee: UBER_QUOTE,
   });
@@ -118,27 +119,80 @@ assert(
 );
 
 assert(
-  !needsUberQuote({ meters: 4000, now: AT_15, riderActive: false, riderBusy: false, priceBaseTotal: CARTA }),
+  !needsUberQuote({
+    meters: 4000,
+    now: AT_15,
+    riderActive: false,
+    riderBusy: false,
+    uberDirectEnabled: true,
+    priceBaseTotal: CARTA,
+  }),
   '4000 m en turno no cotiza Uber'
 );
 assert(
-  !needsUberQuote({ meters: 2000, now: AT_15, riderActive: true, riderBusy: false, priceBaseTotal: CARTA }),
+  !needsUberQuote({
+    meters: 2000,
+    now: AT_15,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: true,
+    priceBaseTotal: CARTA,
+  }),
   '2 km en turno no cotiza Uber'
 );
 assert(
-  needsUberQuote({ meters: 2000, now: AT_2105, riderActive: true, riderBusy: false, priceBaseTotal: CARTA }),
+  needsUberQuote({
+    meters: 2000,
+    now: AT_2105,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: true,
+    priceBaseTotal: CARTA,
+  }),
   '2 km desde las 21:00 sí cotiza Uber'
 );
 assert(
-  needsUberQuote({ meters: 4001, now: AT_15, riderActive: true, riderBusy: false, priceBaseTotal: CARTA }),
+  !needsUberQuote({
+    meters: 4001,
+    now: AT_15,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: false,
+    priceBaseTotal: CARTA,
+  }),
+  'sin Uber Direct apagado no cotiza'
+);
+assert(
+  needsUberQuote({
+    meters: 4001,
+    now: AT_15,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: true,
+    priceBaseTotal: CARTA,
+  }),
   '4001 m sí cotiza Uber'
 );
 assert(
-  needsUberQuote({ meters: 4500, now: AT_15, riderActive: true, riderBusy: false, priceBaseTotal: CARTA }),
+  needsUberQuote({
+    meters: 4500,
+    now: AT_15,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: true,
+    priceBaseTotal: CARTA,
+  }),
   '4500 m sí cotiza Uber'
 );
 assert(
-  !needsUberQuote({ meters: 4501, now: AT_15, riderActive: true, riderBusy: false, priceBaseTotal: CARTA }),
+  !needsUberQuote({
+    meters: 4501,
+    now: AT_15,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: true,
+    priceBaseTotal: CARTA,
+  }),
   '4501 m no cotiza Uber'
 );
 

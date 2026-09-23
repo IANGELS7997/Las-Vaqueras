@@ -6,7 +6,9 @@ export type RiderRow = {
   slug: string;
   display_name: string;
   rider_active: boolean;
+  uber_direct_enabled: boolean;
   last_ping_at: string | null;
+  push_subscription?: unknown | null;
 };
 
 export async function getOrCreateRider() {
@@ -15,7 +17,12 @@ export async function getOrCreateRider() {
   if (existing.data) return existing.data as RiderRow;
   const inserted = await supabase
     .from('iangel_riders')
-    .insert({ slug: IANGEL_SLUG, display_name: 'IANGEL', rider_active: true })
+    .insert({
+      slug: IANGEL_SLUG,
+      display_name: 'IANGEL',
+      rider_active: false,
+      uber_direct_enabled: false,
+    })
     .select('*')
     .single();
   if (inserted.error) throw new Error(inserted.error.message);
@@ -39,13 +46,20 @@ export async function getRoutingRiderFlags() {
     const busy = await isRiderBusy();
     return {
       rider,
-      riderActive: rider.rider_active !== false,
+      riderActive: rider.rider_active === true,
+      uberDirectEnabled: rider.uber_direct_enabled === true,
       riderBusy: busy,
       pingStale:
-        rider.rider_active !== false &&
+        rider.rider_active === true &&
         (!rider.last_ping_at || Date.now() - new Date(rider.last_ping_at).getTime() > HEARTBEAT_STALE_MS),
     };
   } catch {
-    return { rider: null, riderActive: true, riderBusy: false, pingStale: false };
+    return {
+      rider: null,
+      riderActive: false,
+      uberDirectEnabled: false,
+      riderBusy: false,
+      pingStale: false,
+    };
   }
 }

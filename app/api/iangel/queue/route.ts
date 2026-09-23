@@ -1,5 +1,7 @@
 import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
 import { isActiveTrip, mapIangelOrder } from '@/lib/iangel-order';
+import { isIangelShift } from '@/lib/iangel-shift';
+import { getRoutingRiderFlags } from '@/lib/iangel-state';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -29,5 +31,13 @@ export async function GET(req: Request) {
     .map(mapIangelOrder)
     .filter((order) => order.dispatchStatus !== 'delivered' && order.dispatchStatus !== 'incident');
   const active = orders.find((order) => isActiveTrip(order.dispatchStatus)) || null;
-  return iangelJson(req, { inShift: true, riderActive: true, riderBusy: Boolean(active), active, queue: orders });
+  const flags = await getRoutingRiderFlags();
+  return iangelJson(req, {
+    inShift: isIangelShift(),
+    riderActive: flags.riderActive,
+    uberDirectEnabled: flags.uberDirectEnabled,
+    riderBusy: Boolean(active) || flags.riderBusy,
+    active,
+    queue: orders,
+  });
 }
