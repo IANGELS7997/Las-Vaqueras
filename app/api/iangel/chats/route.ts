@@ -41,9 +41,9 @@ export async function GET(req: Request) {
 
   const orders = await supabase
     .from('orders')
-    .select('id, short_code, customer_name, dispatch_status, status, updated_at, created_at')
+    .select('id, short_code, customer_name, dispatch_status, status, created_at')
     .in('delivery_provider', ['self', 'wait_self'])
-    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(40);
 
   if (orders.error) {
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
         code: order.short_code ? `#${String(order.short_code).replace(/^#/, '')}` : `#${String(order.id).slice(0, 6)}`,
         customer: order.customer_name || 'Cliente',
         preview: latest?.body || (live ? 'Pedido activo · toca para chatear' : 'Sin mensajes aún'),
-        updatedAt: latest?.created_at || order.updated_at || order.created_at,
+        updatedAt: latest?.created_at || order.created_at,
         live,
         actor: latest?.actor || 'system',
       };
