@@ -59,6 +59,11 @@ export async function notifyIangelRider(payload: PushPayload) {
 }
 
 export async function notifyIangelNewOrder(input: { code?: string | null; customer?: string | null }) {
+  const rider = await getOrCreateRider();
+  // Solo avisar si el rider está explícitamente en línea (no push a sesión OFF).
+  if (rider.rider_active !== true) {
+    return { ok: false, reason: 'rider_offline' as const };
+  }
   const code = input.code ? `#${String(input.code).replace(/^#/, '')}` : 'Nuevo';
   const who = input.customer?.trim() || 'Cliente';
   return notifyIangelRider({

@@ -35,8 +35,10 @@ export async function GET(req: Request) {
   return iangelJson(req, {
     inShift: isIangelShift(),
     riderActive: flags.riderActive,
+    riderFlaggedActive: flags.riderFlaggedActive,
     uberDirectEnabled: flags.uberDirectEnabled,
     riderBusy: Boolean(active) || flags.riderBusy,
+    pingStale: flags.pingStale,
     active,
     queue: orders,
   });

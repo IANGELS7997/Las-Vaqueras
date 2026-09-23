@@ -199,4 +199,28 @@ assert(
 const twoKm = metersFromStore(28.675575, -106.108617);
 assert(twoKm > 1900 && twoKm < 2100, `Haversine 2km norte, got ${twoKm}`);
 
+assert(
+  !needsUberQuote({
+    meters: 2000,
+    now: AT_2105,
+    riderActive: false,
+    riderBusy: false,
+    uberDirectEnabled: false,
+    priceBaseTotal: CARTA,
+  }),
+  'fuera de turno + Uber OFF: no cotiza'
+);
+
+const afterShiftUberOff = kinds(AT_2105, 2000, false, false, false);
+assert(afterShiftUberOff.blocked && !afterShiftUberOff.allowUber, '21:05 Uber OFF → sin domicilio');
+
+const inBandUberOff = kinds(AT_15, 4200, true, false, false);
+assert(inBandUberOff.blocked && !inBandUberOff.allowUber, '4001–4500 Uber OFF → bloqueado');
+
+const selfWhileUberOff = kinds(AT_15, 2000, true, false, false);
+assert(selfWhileUberOff.defaultKind === 'self', 'en turno online + Uber OFF → sigue IANGEL');
+
+const offlineNear = kinds(AT_15, 2000, false, false, true);
+assert(offlineNear.blocked && !offlineNear.allowSelf, 'offline en turno ≤4km → no IANGEL');
+
 console.log('iangel-routing tests: ok');

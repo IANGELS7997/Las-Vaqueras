@@ -44,8 +44,14 @@ export async function PATCH(req: Request) {
   };
   const rider = await getOrCreateRider();
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (typeof body.rider_active === 'boolean') patch.rider_active = body.rider_active;
-  if (typeof body.uber_direct_enabled === 'boolean') patch.uber_direct_enabled = body.uber_direct_enabled;
+  if (typeof body.rider_active === 'boolean') {
+    patch.rider_active = body.rider_active;
+    // Conectar: marca heartbeat ya. Desconectar: corta disponibilidad al instante.
+    if (body.rider_active) patch.last_ping_at = new Date().toISOString();
+  }
+  if (typeof body.uber_direct_enabled === 'boolean') {
+    patch.uber_direct_enabled = body.uber_direct_enabled;
+  }
   if (body.push_subscription !== undefined) {
     try {
       await saveRiderPushSubscription(body.push_subscription);
@@ -60,8 +66,15 @@ export async function PATCH(req: Request) {
     if (updated.error) {
       return iangelJson(req, { error: updated.error.message }, 500);
     }
+    const row = updated.data as typeof rider;
+    if (typeof body.rider_active === 'boolean' && row.rider_active !== body.rider_active) {
+      return iangelJson(req, { error: 'No se pudo confirmar conexión IANGEL' }, 500);
+    }
+    if (typeof body.uber_direct_enabled === 'boolean' && row.uber_direct_enabled !== body.uber_direct_enabled) {
+      return iangelJson(req, { error: 'No se pudo confirmar Uber Direct' }, 500);
+    }
     return iangelJson(req, {
-      rider: mapRider(updated.data as typeof rider),
+      rider: mapRider(row),
       inShift: isIangelShift(),
       shiftCopy: null,
     });

@@ -40,23 +40,37 @@ export async function isRiderBusy() {
   return Boolean(active.data && active.data.length > 0);
 }
 
+function isPingStale(lastPingAt: string | null | undefined) {
+  if (!lastPingAt) return true;
+  const at = new Date(lastPingAt).getTime();
+  if (!Number.isFinite(at)) return true;
+  return Date.now() - at > HEARTBEAT_STALE_MS;
+}
+
+/**
+ * Flags usados en cotización / ruteo.
+ * riderActive efectivo exige toggle ON + heartbeat fresco (evita “fantasma online” si la app murió).
+ * uberDirectEnabled es independiente: Vaqueras puede cotizar Uber aunque IANGEL esté offline.
+ */
 export async function getRoutingRiderFlags() {
   try {
     const rider = await getOrCreateRider();
     const busy = await isRiderBusy();
+    const flaggedActive = rider.rider_active === true;
+    const pingStale = isPingStale(rider.last_ping_at);
     return {
       rider,
-      riderActive: rider.rider_active === true,
+      riderActive: flaggedActive && !pingStale,
+      riderFlaggedActive: flaggedActive,
       uberDirectEnabled: rider.uber_direct_enabled === true,
       riderBusy: busy,
-      pingStale:
-        rider.rider_active === true &&
-        (!rider.last_ping_at || Date.now() - new Date(rider.last_ping_at).getTime() > HEARTBEAT_STALE_MS),
+      pingStale: flaggedActive && pingStale,
     };
   } catch {
     return {
       rider: null,
       riderActive: false,
+      riderFlaggedActive: false,
       uberDirectEnabled: false,
       riderBusy: false,
       pingStale: false,
