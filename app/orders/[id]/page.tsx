@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Clock, MapPin, Package, Phone } from 'lucide-react';
 import { MenuProductImage } from '@/components/menu-product-image';
+import { OrderRiderRating } from '@/components/order-rider-rating';
 import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
@@ -250,6 +251,8 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           {order.customer.name} · {order.customer.phone}
         </div>
       </div>
+
+      <OrderRiderRating orderId={order.id} delivered={status === 'delivered' || order.dispatchStatus === 'delivered'} />
 
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left">
         <h3 className="mb-3 text-sm font-bold">Detalle del pedido</h3>

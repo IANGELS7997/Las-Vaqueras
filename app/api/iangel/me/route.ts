@@ -1,4 +1,5 @@
 import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
+import { mapRiderProfile, RIDER_EMOJIS } from '@/lib/iangel-profile';
 import { saveRiderPushSubscription } from '@/lib/iangel-push';
 import { getOrCreateRider } from '@/lib/iangel-state';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -10,15 +11,14 @@ export async function OPTIONS(req: Request) {
   return iangelPreflight(req);
 }
 
-function mapRider(rider: {
-  display_name?: string | null;
-  rider_active?: boolean | null;
-  uber_direct_enabled?: boolean | null;
-}) {
+function mapRider(rider: Parameters<typeof mapRiderProfile>[0]) {
+  const profile = mapRiderProfile(rider);
   return {
-    active: rider.rider_active === true,
-    name: rider.display_name || 'Rider',
-    uberDirect: rider.uber_direct_enabled === true,
+    active: profile.active,
+    name: profile.name,
+    uberDirect: profile.uberDirect,
+    emoji: profile.emoji,
+    avatarUrl: profile.avatarUrl,
   };
 }
 
@@ -31,6 +31,7 @@ export async function GET(req: Request) {
     inShift: isIangelShift(),
     shiftCopy: null,
     vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null,
+    emojiOptions: RIDER_EMOJIS,
   });
 }
 
@@ -41,16 +42,27 @@ export async function PATCH(req: Request) {
     rider_active?: boolean;
     uber_direct_enabled?: boolean;
     push_subscription?: unknown;
+    display_name?: string;
+    emoji?: string;
   };
   const rider = await getOrCreateRider();
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof body.rider_active === 'boolean') {
     patch.rider_active = body.rider_active;
-    // Conectar: marca heartbeat ya. Desconectar: corta disponibilidad al instante.
     if (body.rider_active) patch.last_ping_at = new Date().toISOString();
   }
   if (typeof body.uber_direct_enabled === 'boolean') {
     patch.uber_direct_enabled = body.uber_direct_enabled;
+  }
+  if (typeof body.display_name === 'string') {
+    const name = body.display_name.trim().slice(0, 40);
+    if (name.length >= 2) patch.display_name = name;
+  }
+  if (typeof body.emoji === 'string') {
+    const emoji = body.emoji.trim().slice(0, 8);
+    if ((RIDER_EMOJIS as readonly string[]).includes(emoji) || emoji.length > 0) {
+      patch.emoji = emoji || '🛵';
+    }
   }
   if (body.push_subscription !== undefined) {
     try {

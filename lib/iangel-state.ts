@@ -9,6 +9,8 @@ export type RiderRow = {
   uber_direct_enabled: boolean;
   last_ping_at: string | null;
   push_subscription?: unknown | null;
+  avatar_path?: string | null;
+  emoji?: string | null;
 };
 
 export async function getOrCreateRider() {
