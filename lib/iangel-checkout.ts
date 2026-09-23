@@ -25,9 +25,9 @@ export async function resolvePaidDelivery(input: {
   const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
   const routingInput = {
     meters,
-    riderActive,
-    riderBusy,
-    uberDirectEnabled,
+    riderActive: riderActive === true,
+    riderBusy: riderBusy === true,
+    uberDirectEnabled: uberDirectEnabled === true,
     priceBaseTotal: input.priceBaseTotal,
   };
 

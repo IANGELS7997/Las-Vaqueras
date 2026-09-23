@@ -30,7 +30,14 @@ export async function POST(req: Request) {
 
     const meters = Math.round(metersFromStore(lat, lng));
     const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
-    const routingInput = { meters, riderActive, riderBusy, uberDirectEnabled, priceBaseTotal };
+    // uberDirectEnabled false ⇒ needsUberQuote=false ⇒ no llamada a Uber Direct.
+    const routingInput = {
+      meters,
+      riderActive: riderActive === true,
+      riderBusy: riderBusy === true,
+      uberDirectEnabled: uberDirectEnabled === true,
+      priceBaseTotal,
+    };
 
     let uberQuoteId: string | null = null;
     let uberQuoteFee: number | null = null;
