@@ -29,8 +29,8 @@ export async function POST(req: Request) {
     }
 
     const meters = Math.round(metersFromStore(lat, lng));
-    const { riderActive, riderBusy } = await getRoutingRiderFlags();
-    const routingInput = { meters, riderActive, riderBusy, priceBaseTotal };
+    const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
+    const routingInput = { meters, riderActive, riderBusy, uberDirectEnabled, priceBaseTotal };
 
     let uberQuoteId: string | null = null;
     let uberQuoteFee: number | null = null;

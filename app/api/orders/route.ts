@@ -25,8 +25,17 @@ import { grantJumboReward, redeemJumboReward } from '@/lib/loyalty-reward';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { dispatchUberDirectAfterPayment } from '@/lib/uber-dispatch';
+import { notifyIangelNewOrder } from '@/lib/iangel-push';
 
 export const runtime = 'nodejs';
+
+function maybeNotifyIangelOffer(row: DbOrderRow) {
+  if (String(row.dispatch_status || '') !== 'self_iangel') return;
+  void notifyIangelNewOrder({
+    code: row.short_code,
+    customer: row.customer_name,
+  }).catch(() => undefined);
+}
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -301,6 +310,8 @@ export async function POST(req: Request) {
           (updated.data as { delivery_provider?: string }).delivery_provider
       );
 
+      maybeNotifyIangelOffer(withUber);
+
       return orderResponseWithProfile({
         orderRow: withUber,
         firstName,
@@ -360,6 +371,8 @@ export async function POST(req: Request) {
       insert.data as DbOrderRow,
       paymentIntent.metadata.delivery_provider
     );
+
+    maybeNotifyIangelOffer(insertedUber);
 
     return orderResponseWithProfile({
       orderRow: insertedUber,

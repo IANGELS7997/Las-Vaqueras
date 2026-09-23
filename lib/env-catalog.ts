@@ -203,6 +203,27 @@ export const ENV_CATALOG: EnvCheck[] = [
     requiredInProduction: false,
     severity: 'info',
   },
+  {
+    key: 'NEXT_PUBLIC_VAPID_PUBLIC_KEY',
+    purpose: 'Web Push pública (IANGEL PWA)',
+    usedBy: ['lib/iangel-push.ts', 'app/api/iangel/me/route.ts'],
+    requiredInProduction: false,
+    severity: 'warn',
+  },
+  {
+    key: 'VAPID_PRIVATE_KEY',
+    purpose: 'Web Push privada (enviar avisos al rider)',
+    usedBy: ['lib/iangel-push.ts'],
+    requiredInProduction: false,
+    severity: 'warn',
+  },
+  {
+    key: 'VAPID_SUBJECT',
+    purpose: 'mailto: o URL del sujeto VAPID',
+    usedBy: ['lib/iangel-push.ts'],
+    requiredInProduction: false,
+    severity: 'info',
+  },
 ];
 
 /** Vars residuales: no deben ser destination LIVE. */
@@ -212,8 +233,4 @@ export const ENV_RESIDUAL_WARN = [
 ] as const;
 
 /** Presentes en Vercel pero sin uso en runtime actual. */
-export const ENV_ORPHAN = [
-  'NEXT_PUBLIC_VAPID_PUBLIC_KEY',
-  'VAPID_PRIVATE_KEY',
-  'VAPID_SUBJECT',
-] as const;
+export const ENV_ORPHAN = [] as const;

@@ -16,6 +16,8 @@ export type RoutingInput = {
   now?: Date;
   riderActive: boolean;
   riderBusy: boolean;
+  /** Rider deliberately enables Uber Direct for Las Vaqueras checkout. */
+  uberDirectEnabled?: boolean;
   priceBaseTotal: number;
   uberQuoteFee?: number | null;
 };
@@ -79,7 +81,8 @@ function waitOption(): RoutingOption {
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   const meters = Math.max(0, Math.round(input.meters));
   const inShift = isIangelShift(input.now);
-  const uber = uberOption(input.uberQuoteFee);
+  const uberAllowed = input.uberDirectEnabled === true;
+  const uber = uberAllowed ? uberOption(input.uberQuoteFee) : null;
   const inIangelBand = meters <= SELF_MAX_M;
   const inUberBand = meters >= UBER_MIN_M && meters <= UBER_MAX_M;
   const selfEligible = inShift && input.riderActive && inIangelBand;
@@ -177,6 +180,7 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
 }
 
 export function needsUberQuote(input: Omit<RoutingInput, 'uberQuoteFee'>): boolean {
+  if (input.uberDirectEnabled !== true) return false;
   const meters = Math.max(0, Math.round(input.meters));
   if (meters > UBER_MAX_M) return false;
   if (meters >= UBER_MIN_M) return true;

@@ -71,5 +71,15 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const prevDispatch = String(current.data.dispatch_status || '');
+  const nextDispatch = String((data as DbOrderRow).dispatch_status || '');
+  if (nextDispatch === 'self_iangel' && prevDispatch !== 'self_iangel') {
+    const { notifyIangelNewOrder } = await import('@/lib/iangel-push');
+    void notifyIangelNewOrder({
+      code: (data as DbOrderRow).short_code,
+      customer: (data as DbOrderRow).customer_name,
+    }).catch(() => undefined);
+  }
+
   return NextResponse.json({ order: mapDbOrder(data as DbOrderRow) });
 }
