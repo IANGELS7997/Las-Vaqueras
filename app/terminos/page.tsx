@@ -16,7 +16,7 @@ export default function TermsPage() {
     {
       title: '3. Precios y pagos',
       content:
-        'Los precios de comida corresponden a la carta. En recoger, el envío es $0. En domicilio de 0 a 4000 m y en turno IANGEL (12:00–21:00), el envío es $50. Si el rider está ocupado, el envío sigue en $50 con aviso de 35 a 45 min, sin Uber. De 4001 m a 4500 m el envío es la cotización de Uber Direct menos el 3% de esa cotización. Desde las 21:00, de 0 a 4500 m el envío es Uber Direct (mismo 3%). Más de 4500 m no hay domicilio; puede recoger en tienda. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista.',
+        'Los precios de comida corresponden a la carta. En recoger, el envío es $0. Con Uber Direct apagado, en domicilio de 0 a 4000 m y en turno IANGEL (12:00–21:00), el envío es $50. Si el rider está ocupado, el envío sigue en $50 con aviso de 35 a 45 min. Con Uber Direct activado, de 0 a 4500 m el envío es la cotización de Uber Direct menos el 3% de esa cotización, para que el domicilio siga disponible. Más de 4500 m no hay domicilio; puede recoger en tienda. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista.',
     },
     {
       title: '4. Pedidos confirmados',
