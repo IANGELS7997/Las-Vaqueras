@@ -19,6 +19,7 @@ export type IangelOrder = {
   items: { name: string; qty: number }[];
   customer: { name: string; phone: string; address: string; phoneAlt?: string };
   total: number;
+  createdAt: string | null;
 };
 
 function asItems(raw: unknown): { name: string; qty: number }[] {
@@ -77,6 +78,7 @@ export function mapIangelOrder(row: Record<string, unknown>): IangelOrder {
       phoneAlt: (row.customer_phone_alt as string | undefined) || undefined,
     },
     total: Number(row.total_charged || 0),
+    createdAt: typeof row.created_at === 'string' ? row.created_at : null,
   };
 }
 
