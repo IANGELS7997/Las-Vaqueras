@@ -15,7 +15,7 @@ const AT_2105 = new Date('2026-09-15T21:05:00-06:00');
 const CARTA = 200;
 const UBER_QUOTE = 80;
 
-function kinds(now: Date, meters: number, riderActive: boolean, riderBusy: boolean, uberDirectEnabled = true) {
+function kinds(now: Date, meters: number, riderActive: boolean, riderBusy: boolean, uberDirectEnabled = false) {
   return resolveDeliveryRouting({
     meters,
     now,
@@ -39,33 +39,35 @@ const at4000 = kinds(AT_15, 4000, true, false);
 assert(at4000.defaultKind === 'self', '4000 m inclusive → IANGEL $50');
 assert(!at4000.allowUber, '4000 m sin Uber');
 
-const at4001 = kinds(AT_15, 4001, true, false);
-assert(at4001.defaultKind === 'uber', '4001 m → Uber');
+const at4001 = kinds(AT_15, 4001, true, false, true);
+assert(at4001.defaultKind === 'uber', '4001 m + Uber ON → Uber');
 assert(!at4001.allowSelf, '4001 m sin IANGEL');
 
-const at4500 = kinds(AT_15, 4500, true, false);
-assert(at4500.defaultKind === 'uber', '4500 m inclusive → Uber');
+const at4500 = kinds(AT_15, 4500, true, false, true);
+assert(at4500.defaultKind === 'uber', '4500 m inclusive + Uber ON → Uber');
 assert(!at4500.blocked, '4500 m sí hay domicilio');
 
-const at4501 = kinds(AT_15, 4501, true, false);
+const at4501 = kinds(AT_15, 4501, true, false, true);
 assert(at4501.blocked && at4501.defaultKind === null, '4501 m sin domicilio');
 
-const inactive2km = kinds(AT_15, 2000, false, false);
-assert(inactive2km.blocked, '≤4000 m inactivo: sin Uber');
-assert(inactive2km.defaultKind === null, '≤4000 m inactivo no es Uber');
+const inactive2km = kinds(AT_15, 2000, false, false, true);
+assert(!inactive2km.blocked && inactive2km.defaultKind === 'uber', '≤4000 m inactivo + Uber ON → Uber');
 
-const afterShift = kinds(AT_2105, 2000, true, false);
-assert(afterShift.defaultKind === 'uber', '21:05 a 2 km → Uber');
+const coveredNear = kinds(AT_15, 30, true, false, true);
+assert(coveredNear.defaultKind === 'uber' && !coveredNear.allowSelf, 'Uber ON en turno a 30 m → Uber, no IANGEL');
+
+const afterShift = kinds(AT_2105, 2000, true, false, true);
+assert(afterShift.defaultKind === 'uber', '21:05 a 2 km + Uber ON → Uber');
 assert(!afterShift.allowSelf, 'desde las 21:00 no es IANGEL');
 
-const atNine = kinds(AT_210000, 30, true, false);
-assert(atNine.defaultKind === 'uber', '21:00 exacto a 30 m → Uber');
+const atNine = kinds(AT_210000, 30, true, false, true);
+assert(atNine.defaultKind === 'uber', '21:00 exacto a 30 m + Uber ON → Uber');
 
-const afterShiftUberBand = kinds(AT_2105, 4200, true, false);
-assert(afterShiftUberBand.defaultKind === 'uber', '4001–4500 m fuera de turno sigue Uber');
+const afterShiftUberBand = kinds(AT_2105, 4200, true, false, true);
+assert(afterShiftUberBand.defaultKind === 'uber', '4001–4500 m fuera de turno + Uber ON sigue Uber');
 
-const afterShiftNear = kinds(AT_2105, 3500, true, false);
-assert(afterShiftNear.defaultKind === 'uber', '0–4000 m fuera de turno → Uber');
+const afterShiftNear = kinds(AT_2105, 3500, true, false, true);
+assert(afterShiftNear.defaultKind === 'uber', '0–4000 m fuera de turno + Uber ON → Uber');
 
 const lateStill = kinds(AT_205959, 3500, true, false);
 assert(lateStill.defaultKind === 'self', '20:59:59 <=4000 activo+libre → $50');
@@ -74,8 +76,8 @@ const midSelf = kinds(AT_15, 3500, true, false);
 assert(midSelf.defaultKind === 'self', '3.5 km en turno → IANGEL $50');
 assert(!midSelf.allowUber, '3.5 km en turno sin Uber');
 
-const midUber = kinds(AT_15, 4200, true, false);
-assert(midUber.defaultKind === 'uber', '4.2 km en turno → Uber');
+const midUber = kinds(AT_15, 4200, true, false, true);
+assert(midUber.defaultKind === 'uber', '4.2 km en turno + Uber ON → Uber');
 assert(!midUber.allowSelf, 'más de 4 km sin $50');
 
 const mid = kinds(AT_15, 4600, true, false);
@@ -119,7 +121,7 @@ assert(
 );
 
 assert(
-  !needsUberQuote({
+  needsUberQuote({
     meters: 4000,
     now: AT_15,
     riderActive: false,
@@ -127,10 +129,10 @@ assert(
     uberDirectEnabled: true,
     priceBaseTotal: CARTA,
   }),
-  '4000 m en turno no cotiza Uber'
+  'Uber ON a 4000 m en turno sí cotiza'
 );
 assert(
-  !needsUberQuote({
+  needsUberQuote({
     meters: 2000,
     now: AT_15,
     riderActive: true,
@@ -138,7 +140,18 @@ assert(
     uberDirectEnabled: true,
     priceBaseTotal: CARTA,
   }),
-  '2 km en turno no cotiza Uber'
+  'Uber ON a 2 km en turno sí cotiza'
+);
+assert(
+  !needsUberQuote({
+    meters: 2000,
+    now: AT_15,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: false,
+    priceBaseTotal: CARTA,
+  }),
+  'Uber OFF a 2 km en turno no cotiza'
 );
 assert(
   needsUberQuote({
@@ -221,6 +234,9 @@ const selfWhileUberOff = kinds(AT_15, 2000, true, false, false);
 assert(selfWhileUberOff.defaultKind === 'self', 'en turno online + Uber OFF → sigue IANGEL');
 
 const offlineNear = kinds(AT_15, 2000, false, false, true);
-assert(offlineNear.blocked && !offlineNear.allowSelf, 'offline en turno ≤4km → no IANGEL');
+assert(offlineNear.defaultKind === 'uber' && !offlineNear.allowSelf, 'offline en turno ≤4km + Uber ON → Uber');
+
+const offlineUberOff = kinds(AT_15, 2000, false, false, false);
+assert(offlineUberOff.blocked && !offlineUberOff.allowUber, 'offline en turno + Uber OFF → sin domicilio');
 
 console.log('iangel-routing tests: ok');

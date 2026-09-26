@@ -73,9 +73,13 @@ function waitOption(): RoutingOption {
 }
 
 /**
- * IANGEL $50: 0–4000 m, turno 12:00–21:00, rider activo.
+ * Uber Direct apagado:
+ * IANGEL $50 en 0–4000 m, turno 12:00–21:00 y rider activo.
  * Ocupado en ese radio: $50 + aviso, sin Uber.
- * Uber (quote × 0.97): 4001–4500 m siempre; y 0–4000 m desde las 21:00 (fuera de turno).
+ * 4001–4500 m, o fuera de turno, no hay domicilio.
+ * Uber Direct activado:
+ * cualquier pedido nuevo de 0–4500 m sale por Uber, aunque el rider esté en turno.
+ * Así Las Vaqueras no se queda sin domicilio si el rider tiene un incidente.
  * Más de 4500 m: sin domicilio.
  */
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
@@ -111,17 +115,18 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
     };
   }
 
+  if (uber && meters <= UBER_MAX_M) {
+    return {
+      ...base,
+      defaultKind: 'uber',
+      options: [uber],
+      allowSelf: false,
+      allowUber: true,
+      allowWait: false,
+    };
+  }
+
   if (inUberBand) {
-    if (uber) {
-      return {
-        ...base,
-        defaultKind: 'uber',
-        options: [uber],
-        allowSelf: false,
-        allowUber: true,
-        allowWait: false,
-      };
-    }
     return {
       ...base,
       blocked: true,
@@ -156,17 +161,6 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
     };
   }
 
-  if (!inShift && uber) {
-    return {
-      ...base,
-      defaultKind: 'uber',
-      options: [uber],
-      allowSelf: false,
-      allowUber: true,
-      allowWait: false,
-    };
-  }
-
   return {
     ...base,
     blocked: true,
@@ -182,9 +176,7 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
 export function needsUberQuote(input: Omit<RoutingInput, 'uberQuoteFee'>): boolean {
   if (input.uberDirectEnabled !== true) return false;
   const meters = Math.max(0, Math.round(input.meters));
-  if (meters > UBER_MAX_M) return false;
-  if (meters >= UBER_MIN_M) return true;
-  return !isIangelShift(input.now);
+  return meters <= UBER_MAX_M;
 }
 
 export function assertProviderAllowed(routing: RoutingResult, kind: DeliveryProvider): boolean {
