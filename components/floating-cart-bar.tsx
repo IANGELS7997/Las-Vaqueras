@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { ShoppingCart } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { readGiftRedeem } from '@/lib/gift-checkout';
-import { resolveGiftCart } from '@/lib/gift-cart';
-import { calcWebPrice, formatMXN } from '@/lib/pricing';
+import { chargedFoodWeb, resolveGiftCart } from '@/lib/gift-cart';
+import { formatMXN } from '@/lib/pricing';
 import { useFulfillment } from '@/lib/fulfillment-context';
 
 export function FloatingCartBar() {
@@ -19,7 +19,7 @@ export function FloatingCartBar() {
     items,
     fulfillment: mode,
   });
-  const total = calcWebPrice(gift.chargedBase);
+  const total = chargedFoodWeb(items, gift.active ? gift.giftLineUid : '');
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-in-bottom px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4">

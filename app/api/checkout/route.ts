@@ -19,7 +19,7 @@ import {
   readRedeemCookie,
   reserveJumboReward,
 } from '@/lib/loyalty-reward';
-import { resolveGiftCart } from '@/lib/gift-cart';
+import { chargedFoodWeb, resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
@@ -207,6 +207,8 @@ export async function POST(req: Request) {
     const waiveFood = gift.variant === 'shipping_only';
     const chargeBase = foodBase > 0 ? foodBase : waiveFood ? 0 : 0.01;
     const platilloCount = countDeliveryPlatillos(cartItems);
+    const foodWebTotal =
+      cartItems.length > 0 ? chargedFoodWeb(cartItems, gift.active ? gift.giftLineUid : '') : undefined;
     const split = calcCheckoutSplit({
       priceBaseTotal: serverBase,
       fulfillment,
@@ -214,6 +216,7 @@ export async function POST(req: Request) {
       provider: deliveryProvider,
       uberFee,
       giftFoodCredit: canGiftJumbo ? giftBase : 0,
+      foodWebTotal,
     });
 
     if (split.totalChargedCentavos < 1) {

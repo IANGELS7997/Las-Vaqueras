@@ -18,8 +18,8 @@ export const RESTAURANT_INFO = {
   hours: [
     { day: 'Lunes', hours: '12:15pm - 9:15pm' },
     { day: 'Martes', hours: '12:15pm - 9:15pm' },
-    { day: 'Miércoles', hours: '12:05pm - 12:30am' },
-    { day: 'Jueves', hours: '9:30am - 1:00am' },
+    { day: 'Miércoles', hours: '12:15pm - 9:15pm' },
+    { day: 'Jueves', hours: '12:15pm - 9:15pm' },
     { day: 'Viernes', hours: '12:15pm - 9:15pm' },
     { day: 'Sábado', hours: '12:15pm - 9:15pm' },
     { day: 'Domingo', hours: '12:15pm - 9:15pm' },
@@ -37,8 +37,8 @@ interface DaySchedule {
 const SCHEDULE: Record<number, DaySchedule> = {
   1: { openHour: 12, openMinute: 15, closeHour: 21, closeMinute: 15, crossesMidnight: false },
   2: { openHour: 12, openMinute: 15, closeHour: 21, closeMinute: 15, crossesMidnight: false },
-  3: { openHour: 12, openMinute: 5, closeHour: 0, closeMinute: 30, crossesMidnight: true },
-  4: { openHour: 9, openMinute: 30, closeHour: 1, closeMinute: 0, crossesMidnight: true },
+  3: { openHour: 12, openMinute: 15, closeHour: 21, closeMinute: 15, crossesMidnight: false },
+  4: { openHour: 12, openMinute: 15, closeHour: 21, closeMinute: 15, crossesMidnight: false },
   5: { openHour: 12, openMinute: 15, closeHour: 21, closeMinute: 15, crossesMidnight: false },
   6: { openHour: 12, openMinute: 15, closeHour: 21, closeMinute: 15, crossesMidnight: false },
   0: { openHour: 12, openMinute: 15, closeHour: 21, closeMinute: 15, crossesMidnight: false },

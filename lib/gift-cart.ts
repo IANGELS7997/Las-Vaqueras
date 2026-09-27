@@ -57,6 +57,21 @@ export function giftUnitsInCart(items: { menuItemId: string; quantity: number }[
   }, 0);
 }
 
+/** Comida que ve el cliente: cada precio redondeado, menos una unidad del cupón si aplica. */
+export function chargedFoodWeb(
+  items: {
+    uid: string;
+    menuItemId: string;
+    price_base: number;
+    quantity: number;
+    comboUpgrade?: { price_base: number };
+    extras?: { price_base: number }[];
+  }[],
+  giftUid = ''
+) {
+  return items.reduce((sum, item) => sum + lineWebAfterGift(item, giftUid), 0);
+}
+
 export function lineWebAfterGift(
   item: {
     uid: string;

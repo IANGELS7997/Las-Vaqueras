@@ -17,7 +17,7 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 
 - Dashboard plataforma: **AS EUNOIA** (confirmado). Email: `iangels7997@gmail.com`.
 - Persona / RFC desarrollador: Angel Ivan Salinas Ortiz · `SAOA0009154F8`. Dirección: Mauricio Corredor #5116, Col. Panamericana, 31210.
-- Payout plataforma (15%·P + Stripe/2 + 100% envío; cliente paga P×1.05): CLABE BBVA `012180015164387876`, titular **Angel Ivan Salinas Ortiz**.
+- Payout plataforma (lo que el cliente pagó menos el 90% de la carta; cliente paga redondeo al peso de P×1.10): CLABE BBVA `012180015164387876`, titular **Angel Ivan Salinas Ortiz**.
 - Dueño Express: email `servicio@lasvaqueras.com.mx`, tel `+52 614 413 6539`, URL `https://www.lasvaqueras.com.mx/`, local Rio de Janeiro 903, Panamericana, 31210. CLABE MercadoLibre `722969017600593921`, titular **Carlos Adrian Lopez Garcia**.
 - Descriptor al cliente: `LAS-VAQUERAS-WEB`.
 - **Pureiangel se elimina de todos lados** (Stripe branding/descriptores/perfiles). No reintroducir.
@@ -28,9 +28,9 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 
 ## Split live
 
-- Cliente: comida **P′ = P × 1.05** + envío (fee servicio hoy = 0%). `price_base` = P (carta).
+- Cliente: comida **P′ = redondeo al peso de P × 1.10** + envío (fee servicio hoy = 0%). `price_base` = P (carta).
 - Dueño: `0.90 × P − Stripe/2` → solo `acct_1UDqrILSkdFzTSOj`.
-- Plataforma: `0.15 × P + Stripe/2 + 100% envío` → saldo de `acct_1UBgeMPukuGTlRTl`.
+- Plataforma: lo que el cliente pagó menos el pago del dueño (el 15% de P, el extra del markup, Stripe/2 y el 100% del envío) → saldo de `acct_1UBgeMPukuGTlRTl`.
 - Recoger: envío $0; misma regla 90/15 sobre P.
 
 ## Capacidad Connect (verificado 2026-09-21)
@@ -42,7 +42,7 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 ## Pendiente (preguntar al usuario)
 
 1. **RFC y tipo** del dueño (PF vs empresa). Lo pasará después — **pedirlo** al hablar de Connect KYC o live.
-2. n8n de pago: seguir **inactivo**. Host `n8n.pureiangel.com` es solo infra.
+2. n8n de pago: **publicado** desde 2026-09-26 hasta que el usuario pida apagarlo. El nodo que pide Uber Direct sigue apagado. Host `n8n.pureiangel.com` es solo infra.
 3. Limpiar en Vercel las vars viejas sin `_LIVE` (shared prod/preview/dev); el código ya bloquea `acct_1UDRDc…`.
 4. No dejar `STRIPE_SECRET_KEY_LIVE` / claves live en chat o `.env` commiteable — rotar si se expusieron.
 

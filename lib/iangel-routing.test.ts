@@ -2,6 +2,8 @@ import { metersFromStore } from './iangel-geo';
 import { isIangelShift } from './iangel-shift';
 import { resolveDeliveryRouting, needsUberQuote } from './iangel-routing';
 import { calcCheckoutSplit } from './checkout-split';
+import { calcWebPrice } from './pricing';
+import { chargedFoodWeb } from './gift-cart';
 import { SELF_FEE_MXN } from './iangel-constants';
 
 function assert(cond: unknown, message: string) {
@@ -115,9 +117,19 @@ const cartaSplit = calcCheckoutSplit({
   priceBaseTotal: 99,
   fulfillment: 'pickup',
 });
+assert(calcWebPrice(99) === 109, `tradicional $99 → $109, got ${calcWebPrice(99)}`);
+assert(calcWebPrice(100) === 110, `carta $100 → $110, got ${calcWebPrice(100)}`);
 assert(
-  cartaSplit.subtotalWeb === 103.95 && cartaSplit.deliveryFee === 0,
-  `recoger: carta×1.05 y envío 0 (got ${cartaSplit.subtotalWeb})`
+  cartaSplit.subtotalWeb === 109 && cartaSplit.deliveryFee === 0,
+  `recoger: carta×1.10 al peso y envío 0 (got ${cartaSplit.subtotalWeb})`
+);
+const lineFood = chargedFoodWeb([
+  { uid: 'a', menuItemId: 'x', price_base: 4, quantity: 3 },
+]);
+assert(lineFood === 12, `tres precios de $4 se redondean por línea a $12, got ${lineFood}`);
+assert(
+  calcCheckoutSplit({ priceBaseTotal: 12, fulfillment: 'pickup', foodWebTotal: lineFood }).subtotalWeb === 12,
+  'el cobro usa la suma de líneas, no el redondeo del total'
 );
 
 assert(
