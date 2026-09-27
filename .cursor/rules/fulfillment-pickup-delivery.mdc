@@ -12,4 +12,4 @@ alwaysApply: true
 - Pago en línea primero. Sin pago no hay orden.
 - Cerrado: en `/` las cajas no inician pedido (A). **Ver menú** abre `/menu` en gris, sin agregar ni pagar (B).
 - Un ticket web, el de caja/POS. La cajera pasa la orden al POS; la web no imprime cocina.
-- n8n de pago está publicado; el nodo que pide Uber Direct sigue apagado, así que recoger no pide courier. Promoción por definir.
+- n8n de pago está publicado y el nodo de Uber Direct está activo: pide courier solo si el pedido ya va por Uber y aún no tiene uno. Recoger no pide Uber. Promoción por definir.

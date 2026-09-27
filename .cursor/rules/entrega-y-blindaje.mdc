@@ -15,7 +15,7 @@ Recuérdalo al usuario si habla de **entrega**, **go-live**, **activar n8n**, co
 4. Local: `npm run env:audit` (no imprime secretos).
 5. **Sentry** proyecto `las-vaqueras`: alerta email en Dashboard (Issues → Alerts) — una vez en UI.
 6. Cocina solo `cocina.lasvaqueras.com.mx`. Sin scripts de prueba como flujo Production.
-7. n8n “pago exitoso” está **publicado** desde 2026-09-26. No apagarlo salvo que el usuario lo pida. El nodo de Uber Direct sigue apagado.
+7. n8n “pago exitoso” está **publicado**. El nodo de Uber Direct está **activo** desde 2026-09-27 y solo pide courier si el pedido ya va por Uber y aún no tiene uno. No apagarlos salvo que el usuario lo pida.
 
 ### Ops sin PC en casa (celular)
 
@@ -39,7 +39,7 @@ Cuando diga que la entrega formal toca, recordar: deploy estable, doc cuentas St
 - [x] Cocina + sitio público HTTP 200
 - [ ] Limpiar `STRIPE_CONNECT_ACCOUNT_ID` genérico residual en Vercel (código ya bloquea eliminada)
 - [x] `CUSTOMER_SESSION_SECRET` + `OPS_HEALTH_SECRET` en Production (Vercel)
-- [x] n8n “pago exitoso” publicado (2026-09-26). Uber Direct dentro de n8n sigue apagado. No despublicar salvo que el usuario lo pida.
+- [x] n8n “pago exitoso” publicado. Nodo Uber Direct activo desde 2026-09-27 (solo pedidos Uber sin courier). No despublicar ni apagar el nodo salvo que el usuario lo pida.
 - [ ] Alerta email Sentry en Dashboard
 - [ ] Merge/deploy rama `chore/blindaje-env-ops` a Production
 - [ ] RFC dueño (`tax_id_provided` aún false)
