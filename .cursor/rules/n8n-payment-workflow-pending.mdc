@@ -9,10 +9,10 @@ El usuario pidió el 2026-09-26 dejar el workflow **publicado** hasta que él di
 
 - Workflow: [Las Vaqueras: pago exitoso](https://n8n.pureiangel.com/workflow/SKVvYOhKSnPj1ggY) (`SKVvYOhKSnPj1ggY`)
 - Stripe live ya tiene el webhook `payment_intent.succeeded` hacia `https://n8n.pureiangel.com/webhook/lv-pago-exitoso`. Cada pago confirmado dispara el ticket y la alerta interna.
-- Credenciales Stripe/Supabase/Uber/Resend enganchadas. Nodo **Create Uber Direct Delivery desactivado**. No activarlo. Pickup: Rio de Janeiro 903, Panamericana, 31210 Chihuahua; tel `+52 614 413 6539`.
+- Credenciales Stripe/Supabase/Uber/Resend enganchadas. Nodo **Create Uber Direct Delivery activo** desde 2026-09-27, hasta que el usuario pida apagarlo. Solo corre si el pedido es domicilio Uber (`delivery_provider` = uber) y todavía no tiene courier. Recoger e IANGEL no piden Uber. Pickup: Rio de Janeiro 903, Panamericana, 31210 Chihuahua; tel `+52 614 413 6539`.
 - Remitente transaccional (n8n/Resend): `Las Vaqueras <noreply@lasvaqueras.com.mx>`. Contacto del negocio en la web: `servicio@lasvaqueras.com.mx`.
 - Dominio Resend `lasvaqueras.com.mx` verificado (`c6d3c473-7f71-42af-80ec-82bbe7d63d17`). El panel n8n sigue en n8n.pureiangel.com (infra de la plataforma, no el sitio del restaurante).
 - Pedido se inserta al crear el PaymentIntent (`awaiting_payment`); tras el pago pasa a `pending`. Facturapi/CFDI no reintroducir salvo que lo pidan.
 - **Sin 2x1.** Lealtad 1/5/10 (30% / 20% / Papas Jumbo) se calcula en el checkout, no en n8n. El correo es ticket + enlace `Ver mi pedido` con `?s=` para abrir el perfil. Twilio/SMS no está.
 
-Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct o Resend, recuérdale que el workflow está publicado y que Uber Direct dentro de n8n sigue apagado **antes** de otra tarea.
+Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct o Resend, recuérdale que el workflow está publicado y que el nodo de Uber Direct está activo solo para pedidos que ya van por Uber y aún no tienen courier **antes** de otra tarea.
