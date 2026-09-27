@@ -19,6 +19,8 @@ export type CheckoutSplitInput = {
   deliveryFee?: number;
   giftFoodCredit?: number;
   waiveFood?: boolean;
+  /** Suma de precios ya redondeados que ve el cliente. Si falta, se marca la carta junta. */
+  foodWebTotal?: number;
 };
 
 export type CheckoutSplit = {
@@ -47,12 +49,16 @@ export function calcCheckoutSplit({
   deliveryFee: legacyDeliveryFee,
   giftFoodCredit = 0,
   waiveFood = false,
+  foodWebTotal,
 }: CheckoutSplitInput): CheckoutSplit {
   const credit = waiveFood
     ? priceBaseTotal
     : Math.min(Math.max(0, priceBaseTotal), Math.max(0, giftFoodCredit));
   const chargedBase = Math.round((priceBaseTotal - credit) * 100) / 100;
-  const subtotalWeb = calcWebPrice(chargedBase);
+  const subtotalWeb =
+    typeof foodWebTotal === 'number' && Number.isFinite(foodWebTotal)
+      ? Math.max(0, Math.round(foodWebTotal))
+      : calcWebPrice(chargedBase);
   const customerFee = calcCustomerFee(subtotalWeb);
   const restaurantGross = calcRestaurantPayout(chargedBase);
   const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'uber';

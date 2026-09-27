@@ -20,6 +20,7 @@ import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
 import { addressKey, clientIp, normalizeEmail, normalizePhone, type LoyaltyKind } from '@/lib/loyalty';
+import { chargedFoodWeb } from '@/lib/gift-cart';
 import { sendGiftOrderEmail } from '@/lib/gift-order-email';
 import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
 import { grantJumboReward, redeemJumboReward } from '@/lib/loyalty-reward';
@@ -238,11 +239,14 @@ export async function POST(req: Request) {
         0
     );
     const pickupAt = paymentIntent.metadata.pickup_at || null;
+    const foodWebTotal =
+      Array.isArray(items) && items.length > 0 ? chargedFoodWeb(items) : undefined;
     const split = calcCheckoutSplit({
       priceBaseTotal,
       fulfillment,
       platilloCount,
       uberFee,
+      foodWebTotal,
     });
     const email = customer.email.trim().toLowerCase();
     const address =

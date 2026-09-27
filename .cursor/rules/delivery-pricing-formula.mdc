@@ -1,12 +1,12 @@
 ---
-description: Fórmula justa web — carta×1.05, dueño 90%·P, plataforma 15%·P, IANGEL $50
+description: Fórmula justa web — carta×1.10 al peso, dueño 90%·P, plataforma el resto, IANGEL $50
 alwaysApply: true
 ---
 
 # Envío y precios web (fórmula justa)
 
-- Carta económica = `price_base` (P). Cliente paga **P′ = P × 1.05** (`WEB_MARKUP`). No markup 1.13 ni 4%.
-- Dueño = `0.90 × P − Stripe/2`. Plataforma comida = `0.15 × P + Stripe/2`. Envío **100% plataforma**.
+- Carta económica = `price_base` (P). Cliente paga **P′ = redondeo al peso de P × 1.10** (`WEB_MARKUP`). El cobro es la suma de esos precios, no el redondeo del total.
+- Dueño = `0.90 × P − Stripe/2`. Plataforma = lo que el cliente pagó menos el pago del dueño (el 15% de P, el extra del markup, Stripe/2 y el 100% del envío).
 - Stripe MX ≈ `1.16 × (0.036 × total + 3)`; mitad dueño, mitad plataforma.
 - Recoger: comida = P′, envío $0; misma regla 90/15 sobre P.
 - IANGEL (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50**. Sin 3%. Sin Uber.

@@ -1,3 +1,4 @@
+import { sendArrivalEmail, shouldSendArrivalEmail } from '@/lib/arrival-email';
 import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -29,6 +30,26 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
     const updated = await supabase.from('orders').update(patch).eq('id', params.id).select('*').single();
     if (updated.error) throw new Error(updated.error.message);
+    if (
+      shouldSendArrivalEmail({
+        action: String(body.action || ''),
+        previousDispatch: typeof row.dispatch_status === 'string' ? row.dispatch_status : null,
+        fulfillment: typeof row.fulfillment_type === 'string' ? row.fulfillment_type : null,
+        email: typeof row.customer_email === 'string' ? row.customer_email : null,
+      })
+    ) {
+      try {
+        await sendArrivalEmail({
+          to: String(row.customer_email || ''),
+          customerName: String(row.customer_name || ''),
+          orderId: params.id,
+          token: typeof row.profile_login_token === 'string' ? row.profile_login_token : null,
+          leaveAtDoor: Boolean(row.leave_at_door),
+        });
+      } catch {
+        // La llegada ya quedó guardada. El correo no debe frenar al rider.
+      }
+    }
     if (customerText) {
       await supabase.from('order_messages').insert({
         order_id: params.id,

@@ -1,18 +1,18 @@
 ---
-description: Pending n8n post-payment workflow — do not forget to finish later
+description: n8n pago exitoso publicado — no apagarlo salvo que el usuario lo pida
 alwaysApply: true
 ---
 
-# n8n: pago exitoso (pendiente)
+# n8n: pago exitoso (activo)
 
-Dejar el workflow **completo e inactivo**. No publicar ni ejecutar en producción hasta que el usuario lo pida.
+El usuario pidió el 2026-09-26 dejar el workflow **publicado** hasta que él diga que se apague. No despublicar.
 
 - Workflow: [Las Vaqueras: pago exitoso](https://n8n.pureiangel.com/workflow/SKVvYOhKSnPj1ggY) (`SKVvYOhKSnPj1ggY`)
-- Inactivo a propósito: Stripe no registra webhook de producción. Publicar = el trigger corre solo en cada `payment_intent.succeeded`.
-- Credenciales Stripe/Supabase/Uber/Resend enganchadas. Nodo **Create Uber Direct Delivery desactivado** (no pedir courier en pruebas). Pickup: Rio de Janeiro 903, Panamericana, 31210 Chihuahua; tel `+52 614 413 6539`.
+- Stripe live ya tiene el webhook `payment_intent.succeeded` hacia `https://n8n.pureiangel.com/webhook/lv-pago-exitoso`. Cada pago confirmado dispara el ticket y la alerta interna.
+- Credenciales Stripe/Supabase/Uber/Resend enganchadas. Nodo **Create Uber Direct Delivery desactivado**. No activarlo. Pickup: Rio de Janeiro 903, Panamericana, 31210 Chihuahua; tel `+52 614 413 6539`.
 - Remitente transaccional (n8n/Resend): `Las Vaqueras <noreply@lasvaqueras.com.mx>`. Contacto del negocio en la web: `servicio@lasvaqueras.com.mx`.
 - Dominio Resend `lasvaqueras.com.mx` verificado (`c6d3c473-7f71-42af-80ec-82bbe7d63d17`). El panel n8n sigue en n8n.pureiangel.com (infra de la plataforma, no el sitio del restaurante).
 - Pedido se inserta al crear el PaymentIntent (`awaiting_payment`); tras el pago pasa a `pending`. Facturapi/CFDI no reintroducir salvo que lo pidan.
 - **Sin 2x1.** Lealtad 1/5/10 (30% / 20% / Papas Jumbo) se calcula en el checkout, no en n8n. El correo es ticket + enlace `Ver mi pedido` con `?s=` para abrir el perfil. Twilio/SMS no está.
 
-Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct o Resend, recuérdale que el workflow sigue inactivo **antes** de otra tarea.
+Cuando el usuario vuelva a pagos, Stripe Connect, Uber Direct o Resend, recuérdale que el workflow está publicado y que Uber Direct dentro de n8n sigue apagado **antes** de otra tarea.

@@ -1,10 +1,11 @@
 /**
  * Carta económica = `price_base` (P).
- * Cliente paga P′ = P × WEB_MARKUP.
+ * Cliente paga P′ = redondeo al peso de P × WEB_MARKUP.
  * Dueño = 0.90 × P − Stripe/2.
- * Plataforma = 0.15 × P + Stripe/2 + 100% envío.
+ * Plataforma = lo que el cliente pagó menos el pago del dueño
+ * (el 15% de P, el extra del markup, Stripe/2 y el 100% del envío).
  */
-export const WEB_MARKUP = 1.05;
+export const WEB_MARKUP = 1.1;
 export const SERVICE_FEE_RATE = 0;
 /** Share of carta base P (not of the customer web price). */
 export const RESTAURANT_PAYOUT_RATE = 0.9;
@@ -13,9 +14,13 @@ export const PLATFORM_SHARE_OF_BASE = 0.15;
 export const UBER_QUOTE_DISCOUNT_RATE = 0.03;
 export const DELIVERY_FEE = 35;
 
-/** Menu / line price shown and charged to the customer (P′). */
+/** Precio que ve y paga el cliente: 10% sobre la carta, al peso más cercano. */
 export function calcWebPrice(priceBase: number): number {
-  return Math.round(priceBase * WEB_MARKUP * 100) / 100;
+  if (!Number.isFinite(priceBase) || priceBase <= 0) return 0;
+  const baseCents = Math.round(priceBase * 100);
+  const markupHundredths = Math.round(WEB_MARKUP * 100);
+  const webCents = Math.round((baseCents * markupHundredths) / 100);
+  return Math.round(webCents / 100);
 }
 
 export function calcCustomerFee(mWeb: number): number {

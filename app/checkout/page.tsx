@@ -38,7 +38,7 @@ import {
   GIFT_FULFILLMENT_COPY,
   readGiftRedeem,
 } from '@/lib/gift-checkout';
-import { lineWebAfterGift, resolveGiftCart } from '@/lib/gift-cart';
+import { chargedFoodWeb, lineWebAfterGift, resolveGiftCart } from '@/lib/gift-cart';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
 import { FINAL_SALE_CONSENT } from '@/lib/final-sale';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
@@ -96,6 +96,7 @@ export default function CheckoutPage() {
   const isGiftCheckout = gift.active;
   const isFreeGift = gift.variant === 'free_pickup';
   const giftLineUid = gift.giftLineUid;
+  const foodWebTotal = chargedFoodWeb(items, gift.active ? gift.giftLineUid : '');
   const split = calcCheckoutSplit({
     priceBaseTotal,
     fulfillment: mode ?? 'delivery',
@@ -103,6 +104,7 @@ export default function CheckoutPage() {
     provider: isPickup ? 'pickup' : quotedKind || undefined,
     uberFee: isPickup ? 0 : quotedKind === 'uber' ? quotedUberRaw : 0,
     giftFoodCredit: gift.creditBase,
+    foodWebTotal,
   });
   const displaySplit = paySplit ?? split;
 
@@ -544,7 +546,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-right text-sm font-semibold text-white">
-                      {item.uid === giftLineUid ? (
+                      {gift.active && item.uid === giftLineUid ? (
                         <>
                           <span className="block text-xs font-medium text-brand-400">Cupón</span>
                           {item.quantity > 1 ? (
