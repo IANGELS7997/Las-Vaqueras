@@ -60,9 +60,9 @@ function bucket(map: Map<string, Bucket>, key: string, now: number) {
 
 function prune(map: Map<string, Bucket>, now: number) {
   if (map.size < 4000) return;
-  for (const [key, value] of map) {
+  map.forEach((value, key) => {
     if (now - value.start >= HOUR_MS) map.delete(key);
-  }
+  });
 }
 
 function sourceOf(value: unknown) {
@@ -141,9 +141,9 @@ export function decideDevSignal(
   if (errorKey) {
     recentErrors.set(errorKey, now);
     if (recentErrors.size > 2000) {
-      for (const [key, at] of recentErrors) {
+      recentErrors.forEach((at, key) => {
         if (now - at >= ERROR_REPEAT_MS) recentErrors.delete(key);
-      }
+      });
     }
   }
   return { forward: true, reason: 'ok', payload };
