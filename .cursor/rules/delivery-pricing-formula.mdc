@@ -1,15 +1,15 @@
 ---
-description: Fórmula justa web — carta×1.10 al peso, dueño 90%·P, plataforma el resto, IANGEL $50
+description: Fórmula web — carta×1.10, desarrollador 15% de P en IANGEL, Uber 90% de P
 alwaysApply: true
 ---
 
 # Envío y precios web (fórmula justa)
 
 - Carta económica = `price_base` (P). Cliente paga **P′ = redondeo al peso de P × 1.10** (`WEB_MARKUP`). El cobro es la suma de esos precios, no el redondeo del total.
-- Dueño = `0.90 × P − Stripe/2`. Plataforma = lo que el cliente pagó menos el pago del dueño (el 15% de P, el extra del markup, Stripe/2 y el 100% del envío).
-- Stripe MX ≈ `1.16 × (0.036 × total + 3)`; mitad dueño, mitad plataforma.
-- Recoger: comida = P′, envío $0; misma regla 90/15 sobre P.
-- IANGEL (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50**. Sin 3%. Sin Uber.
+- Recoger e IANGEL: desarrollador = **15% de P**. Dueño = **P′ − ese 15%** (el resto de la carta más el aumento web). Stripe ≈ `1.16 × (0.036 × total + 3)` se reparte entre los dos según esa comida. El centavo sobrante se queda con el dueño. El envío no paga Stripe.
+- Uber Direct: dueño = `0.90 × P − Stripe/2`. Plataforma = lo que el cliente pagó menos el pago del dueño. Stripe se parte a la mitad.
+- Recoger: comida = P′, envío $0; misma regla 15% que IANGEL.
+- IANGEL (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50** íntegros para el rider. Sin 3%. Sin Uber.
 - Rider ocupado en ese radio: sigue **$50**. Aviso 35–45 min. **Sin Express / Uber Direct.**
 - Uber Direct **4001–5500 m** (quote × 0.97), aunque el rider no lo encienda. Si lo enciende, también **0–4000 m**. **4501–5500 m:** mismo cobro y aviso de hasta 1 hora. **Más de 5500 m:** sin domicilio. Checkout: hasta 45 min en el resto de pedidos.
 - Ticket: **Comida + Envío**. Sin mínimo de carrito ni combo obligatorio.
