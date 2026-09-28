@@ -5,7 +5,7 @@ import {
   paidOrderOrdinal,
   quoteFoodDiscount,
 } from './loyalty';
-import { calcRestaurantPayout, calcWebPrice } from './pricing';
+import { calcDeveloperFood, calcWebPrice } from './pricing';
 
 function assert(cond: unknown, message: string) {
   if (!cond) throw new Error(message);
@@ -54,12 +54,11 @@ assert(
   `PaymentIntent en centavos ${promo.totalChargedCentavos}`
 );
 
-const expectedOwner = Number(
-  Math.max(0, calcRestaurantPayout(200) - promo.stripeShare - thirty.discountPesos).toFixed(2)
-);
+const ownerDrop = Number((plain.restaurantPayout - promo.restaurantPayout).toFixed(2));
+const stripeDrop = Number((plain.stripeShare - promo.stripeShare).toFixed(2));
 assert(
-  promo.restaurantPayout === expectedOwner,
-  `el dueño absorbe el descuento: ${promo.restaurantPayout} vs ${expectedOwner}`
+  ownerDrop === Number((thirty.discountPesos - stripeDrop).toFixed(2)),
+  `el dueño absorbe el descuento: baja ${ownerDrop}, descuento ${thirty.discountPesos}`
 );
 
 const foodMargin = (split: { platformFee: number; stripeShare: number; deliveryFee: number }) =>
@@ -68,6 +67,7 @@ assert(
   foodMargin(plain) === foodMargin(promo),
   `el margen de la carta se mantiene: ${foodMargin(plain)} vs ${foodMargin(promo)}`
 );
+assert(foodMargin(plain) === calcDeveloperFood(200), 'el 15% sale de la carta completa');
 
 const fifth = quoteFoodDiscount([{ uid: 'b', price_base: 99, quantity: 1 }], 0.2);
 assert(fifth.fullWeb === 109, 'comida 109');

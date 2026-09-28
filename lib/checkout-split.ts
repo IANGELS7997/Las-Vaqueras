@@ -1,7 +1,9 @@
 import { calcCustomerDeliveryFee } from '@/lib/delivery-tarifa';
 import { SELF_FEE_MXN, type DeliveryProvider } from '@/lib/iangel-constants';
 import {
+  allocateFoodStripe,
   calcCustomerFee,
+  calcDeveloperFood,
   calcRestaurantPayout,
   calcStripeFee,
   calcStripeShare,
@@ -75,8 +77,9 @@ export function calcCheckoutSplit({
       ? Math.max(0, Math.round(foodWebTotal))
       : calcWebPrice(chargedBase);
   const customerFee = calcCustomerFee(subtotalWeb);
-  const restaurantGross = calcRestaurantPayout(ownerAbsorbsDiscount ? priceBaseTotal : chargedBase);
+  const shareBase = ownerAbsorbsDiscount ? priceBaseTotal : chargedBase;
   const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'uber';
+  const foodShare = kind === 'pickup' || kind === 'self' || kind === 'wait_self';
   const rawUber = uberFee ?? legacyDeliveryFee ?? 0;
 
   let delivery = { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 };
@@ -89,10 +92,21 @@ export function calcCheckoutSplit({
 
   const totalCharged = Number((subtotalWeb + customerFee + delivery.deliveryFee).toFixed(2));
   const stripeFee = calcStripeFee(totalCharged);
-  const stripeShare = calcStripeShare(totalCharged);
-  const restaurantPayout = Number(
-    Math.max(0, restaurantGross - stripeShare - (ownerAbsorbsDiscount ? discount : 0)).toFixed(2)
-  );
+  let stripeShare: number;
+  let restaurantPayout: number;
+  if (foodShare) {
+    const developerGross = Math.min(calcDeveloperFood(shareBase), subtotalWeb);
+    const ownerFood = Number(Math.max(0, subtotalWeb - developerGross).toFixed(2));
+    const allocated = allocateFoodStripe(stripeFee, developerGross, ownerFood);
+    stripeShare = allocated.ownerStripe;
+    restaurantPayout = Number(Math.max(0, ownerFood - allocated.ownerStripe).toFixed(2));
+  } else {
+    const restaurantGross = calcRestaurantPayout(shareBase);
+    stripeShare = calcStripeShare(totalCharged);
+    restaurantPayout = Number(
+      Math.max(0, restaurantGross - stripeShare - (ownerAbsorbsDiscount ? discount : 0)).toFixed(2)
+    );
+  }
   const platformFee = Number((totalCharged - restaurantPayout).toFixed(2));
   const totalChargedCentavos = Math.round(totalCharged * 100);
   const restaurantPayoutCentavos = Math.round(restaurantPayout * 100);
