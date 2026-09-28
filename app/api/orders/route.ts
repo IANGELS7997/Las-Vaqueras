@@ -27,6 +27,7 @@ import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { dispatchUberDirectAfterPayment } from '@/lib/uber-dispatch';
 import { notifyIangelNewOrder } from '@/lib/iangel-push';
+import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 
 export const runtime = 'nodejs';
 
@@ -36,6 +37,7 @@ function maybeNotifyIangelOffer(row: DbOrderRow) {
     code: row.short_code,
     customer: row.customer_name,
   }).catch(() => undefined);
+  void notifyIangelOpsOrder(row as DbOrderRow & IangelOpsRow).catch(() => undefined);
 }
 
 function isValidEmail(value: string): boolean {

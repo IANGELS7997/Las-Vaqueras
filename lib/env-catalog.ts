@@ -238,6 +238,20 @@ export const ENV_CATALOG: EnvCheck[] = [
     requiredInProduction: false,
     severity: 'info',
   },
+  {
+    key: 'IANGEL_OPS_URL',
+    purpose: 'Edge Function iangel-ops. Si falta, se usa la URL del proyecto IANGEL.',
+    usedBy: ['lib/iangel-ops.ts'],
+    requiredInProduction: false,
+    severity: 'info',
+  },
+  {
+    key: 'IANGEL_OPS_WEBHOOK_SECRET',
+    purpose: 'Secreto del negocio Las Vaqueras en Admin. Sin él la ruta sigue en orden de llegada.',
+    usedBy: ['lib/iangel-ops.ts', 'app/api/iangel/route/route.ts'],
+    requiredInProduction: false,
+    severity: 'warn',
+  },
 ];
 
 /** Vars residuales: no deben ser destination LIVE. */

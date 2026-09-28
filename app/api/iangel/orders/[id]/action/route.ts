@@ -1,5 +1,6 @@
 import { sendArrivalEmail, shouldSendArrivalEmail } from '@/lib/arrival-email';
 import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
+import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -57,6 +58,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         kind: 'system',
         body: customerText,
       });
+    }
+    if (String(body.action || '') === 'deliver') {
+      void closeIangelOpsOrder(updated.data as IangelOpsRow, 'delivered').catch(() => undefined);
     }
     return iangelJson(req, { ok: true, order: mapIangelOrder(updated.data as Record<string, unknown>) });
   } catch (error) {

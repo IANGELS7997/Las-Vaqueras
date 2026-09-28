@@ -4,6 +4,7 @@ import { patchFromKitchenStatus } from '@/lib/order-lifecycle';
 import type { OrderStatus } from '@/types';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
+import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,11 @@ export async function PATCH(
       code: (data as DbOrderRow).short_code,
       customer: (data as DbOrderRow).customer_name,
     }).catch(() => undefined);
+  }
+
+  const nextStatus = String((data as DbOrderRow).status || '');
+  if (nextStatus === 'delivered' || nextStatus === 'cancelled') {
+    void closeIangelOpsOrder(data as DbOrderRow & IangelOpsRow, nextStatus).catch(() => undefined);
   }
 
   return NextResponse.json({ order: mapDbOrder(data as DbOrderRow) });
