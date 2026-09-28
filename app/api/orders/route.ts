@@ -26,18 +26,24 @@ import { grantJumboReward, redeemJumboReward } from '@/lib/loyalty-reward';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { dispatchUberDirectAfterPayment } from '@/lib/uber-dispatch';
+import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
 import { notifyIangelNewOrder } from '@/lib/iangel-push';
 import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 
 export const runtime = 'nodejs';
 
-function maybeNotifyIangelOffer(row: DbOrderRow) {
+function reportNoticeFailure(err: unknown) {
+  Sentry.captureException(err);
+}
+
+function maybeNotifyPaidOrder(row: DbOrderRow) {
+  void sendDeveloperPurchaseNotice(row).catch(reportNoticeFailure);
   if (String(row.dispatch_status || '') !== 'self_iangel') return;
   void notifyIangelNewOrder({
     code: row.short_code,
     customer: row.customer_name,
-  }).catch(() => undefined);
-  void notifyIangelOpsOrder(row as DbOrderRow & IangelOpsRow).catch(() => undefined);
+  }).catch(reportNoticeFailure);
+  void notifyIangelOpsOrder(row as DbOrderRow & IangelOpsRow).catch(reportNoticeFailure);
 }
 
 function isValidEmail(value: string): boolean {
@@ -324,7 +330,7 @@ export async function POST(req: Request) {
           (updated.data as { delivery_provider?: string }).delivery_provider
       );
 
-      maybeNotifyIangelOffer(withUber);
+      maybeNotifyPaidOrder(withUber);
 
       return orderResponseWithProfile({
         orderRow: withUber,
@@ -386,7 +392,7 @@ export async function POST(req: Request) {
       paymentIntent.metadata.delivery_provider
     );
 
-    maybeNotifyIangelOffer(insertedUber);
+    maybeNotifyPaidOrder(insertedUber);
 
     return orderResponseWithProfile({
       orderRow: insertedUber,
