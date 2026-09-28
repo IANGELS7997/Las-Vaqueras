@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
-import { clientIp, loyaltyLabel, paidOrderOrdinal } from '@/lib/loyalty';
+import { clientIp, loyaltyCycleLabel, loyaltyLabel, paidOrderOrdinal } from '@/lib/loyalty';
 import { countPaidOrders, findCustomerIdByPhone, resolveLoyaltyKind } from '@/lib/loyalty-guard';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -33,15 +33,12 @@ export async function POST(req: Request) {
     paidOrders: paid,
     nextOrdinal: ordinal,
     kind,
-    label:
-      kind === 'tenth_jumbo'
-        ? `${loyaltyLabel(kind)}. Agrega Papas Jumbo: van de regalo.`
-        : loyaltyLabel(kind),
-    cycleLabel: `Pedido ${ordinal} de 10`,
+    label: loyaltyLabel(kind),
+    cycleLabel: loyaltyCycleLabel(paid, ordinal),
     upcoming: [
       { at: 1, text: '30% en comida' },
       { at: 5, text: '20% en comida' },
-      { at: 10, text: 'Papas Jumbo de regalo' },
+      { at: 10, text: 'Cupón de Papas Jumbo al pagar, 30 días' },
     ].map((item) => ({ ...item, done: paid >= item.at, current: ordinal === item.at })),
   });
 }

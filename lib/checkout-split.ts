@@ -21,6 +21,11 @@ export type CheckoutSplitInput = {
   waiveFood?: boolean;
   /** Suma de precios ya redondeados que ve el cliente. Si falta, se marca la carta junta. */
   foodWebTotal?: number;
+  /**
+   * Pesos de comida que el cliente no paga (30%, 20% o Jumbo).
+   * Salen del pago del dueño. El envío no entra aquí.
+   */
+  foodDiscountPesos?: number;
 };
 
 export type CheckoutSplit = {
@@ -39,6 +44,8 @@ export type CheckoutSplit = {
   restaurantPayoutCentavos: number;
   applicationFeeCentavos: number;
   deliveryFee: number;
+  foodFullWeb: number;
+  foodDiscountPesos: number;
 };
 
 export function calcCheckoutSplit({
@@ -50,17 +57,25 @@ export function calcCheckoutSplit({
   giftFoodCredit = 0,
   waiveFood = false,
   foodWebTotal,
+  foodDiscountPesos = 0,
 }: CheckoutSplitInput): CheckoutSplit {
-  const credit = waiveFood
-    ? priceBaseTotal
-    : Math.min(Math.max(0, priceBaseTotal), Math.max(0, giftFoodCredit));
+  const discount =
+    Number.isFinite(foodDiscountPesos) && foodDiscountPesos > 0
+      ? Math.round(foodDiscountPesos * 100) / 100
+      : 0;
+  const ownerAbsorbsDiscount = discount > 0;
+  const credit = ownerAbsorbsDiscount
+    ? 0
+    : waiveFood
+      ? priceBaseTotal
+      : Math.min(Math.max(0, priceBaseTotal), Math.max(0, giftFoodCredit));
   const chargedBase = Math.round((priceBaseTotal - credit) * 100) / 100;
   const subtotalWeb =
     typeof foodWebTotal === 'number' && Number.isFinite(foodWebTotal)
       ? Math.max(0, Math.round(foodWebTotal))
       : calcWebPrice(chargedBase);
   const customerFee = calcCustomerFee(subtotalWeb);
-  const restaurantGross = calcRestaurantPayout(chargedBase);
+  const restaurantGross = calcRestaurantPayout(ownerAbsorbsDiscount ? priceBaseTotal : chargedBase);
   const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'uber';
   const rawUber = uberFee ?? legacyDeliveryFee ?? 0;
 
@@ -75,7 +90,9 @@ export function calcCheckoutSplit({
   const totalCharged = Number((subtotalWeb + customerFee + delivery.deliveryFee).toFixed(2));
   const stripeFee = calcStripeFee(totalCharged);
   const stripeShare = calcStripeShare(totalCharged);
-  const restaurantPayout = Number(Math.max(0, restaurantGross - stripeShare).toFixed(2));
+  const restaurantPayout = Number(
+    Math.max(0, restaurantGross - stripeShare - (ownerAbsorbsDiscount ? discount : 0)).toFixed(2)
+  );
   const platformFee = Number((totalCharged - restaurantPayout).toFixed(2));
   const totalChargedCentavos = Math.round(totalCharged * 100);
   const restaurantPayoutCentavos = Math.round(restaurantPayout * 100);
@@ -96,5 +113,7 @@ export function calcCheckoutSplit({
     restaurantPayoutCentavos,
     applicationFeeCentavos: totalChargedCentavos - restaurantPayoutCentavos,
     deliveryFee: delivery.deliveryFee,
+    foodFullWeb: Number((subtotalWeb + discount).toFixed(2)),
+    foodDiscountPesos: discount,
   };
 }

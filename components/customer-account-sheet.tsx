@@ -528,12 +528,13 @@ function PromotionsPanel({
   const sauces = jumbo?.optionGroups?.[1]?.choices || [];
   const hasGift = Boolean(loyalty?.jumboGift?.available);
   const redeemedOrderId = loyalty?.jumboGift?.redeemedOrderId || '';
-  const filled = hasGift ? 10 : loyalty?.paidOrders ? loyalty.paidOrders % 10 : 0;
+  const paidOrders = loyalty?.paidOrders ?? 0;
+  const filled = hasGift ? 10 : Math.min(paidOrders, 10);
   const cycleOrders = orders
     .filter((order) => order.status !== 'cancelled' && order.status !== 'awaiting_payment')
     .slice()
     .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
-    .slice(filled > 0 ? -filled : 0);
+    .slice(0, filled);
 
   const orderIdForStep = (step: number) => {
     if (step === 10 && redeemedOrderId) return redeemedOrderId;
@@ -547,7 +548,11 @@ function PromotionsPanel({
       </button>
       <h3 className="text-sm font-bold text-white">Mis promociones</h3>
       <p className="text-sm text-muted-foreground">
-        {hasGift ? 'Completaste el ciclo de 10. Canjea tu Jumbo.' : loyalty?.cycleLabel || 'Pedido 1 de 10'}
+        {hasGift
+          ? 'Tu cupón de Papas Jumbo está listo. Tienes 30 días para canjearlo.'
+          : paidOrders >= 10
+            ? 'Ya usaste las promos del pedido 1, 5 y 10.'
+            : loyalty?.cycleLabel || 'Pedido 1'}
       </p>
       <div className="space-y-4">
         {[
@@ -659,7 +664,7 @@ function PromotionsPanel({
 const STEP_PROMOS: Record<number, { title: string; text: string }> = {
   1: { title: 'Pedido 1', text: '30% de descuento en la comida de este pedido.' },
   5: { title: 'Pedido 5', text: '20% de descuento en la comida de este pedido.' },
-  10: { title: 'Pedido 10', text: 'Papas Jumbo de regalo' },
+  10: { title: 'Pedido 10', text: 'Al pagar este pedido recibes un cupón de Papas Jumbo. Tienes 30 días para canjearlo.' },
 };
 
 function StepPeekDialog({
