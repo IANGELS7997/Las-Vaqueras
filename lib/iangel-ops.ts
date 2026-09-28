@@ -111,3 +111,37 @@ export async function sequenceIangelOps(here: { lat: number; lng: number }, rows
   }
   return { orderIds, etaMinutes };
 }
+
+export async function identifyRiderAccessToken(accessToken: string) {
+  const token = accessToken.trim();
+  if (!token) return null;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const response = await fetch(opsUrl(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action: 'whoami' }),
+      signal: ctrl.signal,
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      ok?: boolean;
+      id?: string;
+      displayName?: string;
+    } | null;
+    const id = String(payload?.id || '').trim();
+    if (!response.ok || !payload || payload.ok === false || !id) return null;
+    return { id, displayName: String(payload.displayName || 'Rider') };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function locateIangelRider(riderKey: string, lat: number, lng: number) {
+  await postOps({ action: 'locate', riderKey, lat, lng });
+}

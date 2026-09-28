@@ -1,5 +1,6 @@
 import { SELF_FEE_MXN } from '@/lib/iangel-constants';
-import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
+import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
+import { orderVisibleToRider } from '@/lib/iangel-presence';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -98,6 +99,7 @@ export async function OPTIONS(req: Request) {
 export async function GET(req: Request) {
   const denied = await requireIangel(req);
   if (denied) return denied;
+  const riderKey = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
 
   const url = new URL(req.url);
   const weekOffset = Math.max(-52, Math.min(0, Number(url.searchParams.get('weekOffset') || 0) || 0));
@@ -113,7 +115,7 @@ export async function GET(req: Request) {
   const found = await supabase
     .from('orders')
     .select(
-      'id, short_code, self_fee, delivery_fee, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items'
+      'id, short_code, self_fee, delivery_fee, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items, iangel_rider_key'
     )
     .in('delivery_provider', ['self', 'wait_self'])
     .or('status.eq.delivered,dispatch_status.eq.delivered')
@@ -126,7 +128,11 @@ export async function GET(req: Request) {
     return iangelJson(req, { error: found.error.message }, 500);
   }
 
-  const rows = (found.data || []) as DeliveredRow[];
+  const rows = ((found.data || []) as (DeliveredRow & { iangel_rider_key?: string | null })[]).filter((row) => {
+    const owner = String(row.iangel_rider_key || '').trim();
+    if (!owner) return riderKey === ANGEL_RIDER_KEY;
+    return orderVisibleToRider(row, riderKey);
+  });
   const todayYmd = chihuahuaYmd();
   const todayStart = new Date(Date.UTC(todayYmd.y, todayYmd.m - 1, todayYmd.day, 6, 0, 0)).getTime();
   const isCurrentWeek = weekOffset === 0;

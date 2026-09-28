@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/nextjs';
 import { sendArrivalEmail, shouldSendArrivalEmail } from '@/lib/arrival-email';
 import { notifyNextDoorEnroute } from '@/lib/enroute-email';
-import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
+import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -15,6 +15,7 @@ export async function OPTIONS(req: Request) {
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const denied = await requireIangel(req);
   if (denied) return denied;
+  const riderKey = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
   const body = (await req.json().catch(() => ({}))) as { action?: string; pin?: string };
   const supabase = createAdminSupabase();
   const found = await supabase.from('orders').select('*').eq('id', params.id).maybeSingle();
@@ -22,7 +23,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const row = found.data as Record<string, unknown>;
 
   try {
+    const owner = String(row.iangel_rider_key || '').trim();
+    if (owner && owner !== riderKey) {
+      return iangelJson(req, { error: 'Este pedido lo lleva el otro rider' }, 409);
+    }
     const { patch, customerText } = await runIangelOrderAction(row, String(body.action || ''), body.pin);
+    if (!owner) patch.iangel_rider_key = riderKey;
     if (String(body.action || '') === 'deliver') {
       patch.status = 'delivered';
       patch.dispatch_status = 'delivered';
