@@ -197,6 +197,20 @@ export const ENV_CATALOG: EnvCheck[] = [
     severity: 'warn',
   },
   {
+    key: 'N8N_DEV_SIGNAL_URL',
+    purpose: 'Webhook n8n de visitas, carrito, fallos y avisos del rider',
+    usedBy: ['lib/dev-signal.ts'],
+    requiredInProduction: false,
+    severity: 'warn',
+  },
+  {
+    key: 'N8N_DEV_SIGNAL_SECRET',
+    purpose: 'Secreto de servidor para el webhook de avisos. No va al navegador.',
+    usedBy: ['lib/dev-signal.ts'],
+    requiredInProduction: false,
+    severity: 'warn',
+  },
+  {
     key: 'CRON_SECRET',
     purpose: 'Auth del watchdog cocina (Hobby: cron desactivado)',
     usedBy: ['app/api/cron/kitchen-watchdog/route.ts'],

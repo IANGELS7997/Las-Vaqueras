@@ -22,7 +22,6 @@ import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '
 import { addressKey, clientIp, normalizeEmail, normalizePhone, type LoyaltyKind } from '@/lib/loyalty';
 import { chargedFoodWeb } from '@/lib/gift-cart';
 import { sendGiftOrderEmail } from '@/lib/gift-order-email';
-import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
 import { grantJumboReward, redeemJumboReward } from '@/lib/loyalty-reward';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -37,12 +36,6 @@ function maybeNotifyIangelOffer(row: DbOrderRow) {
     code: row.short_code,
     customer: row.customer_name,
   }).catch(() => undefined);
-}
-
-function maybeNotifyDeveloperPurchase(row: DbOrderRow) {
-  void sendDeveloperPurchaseNotice(row).catch((err) => {
-    Sentry.captureException(err);
-  });
 }
 
 function isValidEmail(value: string): boolean {
@@ -330,7 +323,6 @@ export async function POST(req: Request) {
       );
 
       maybeNotifyIangelOffer(withUber);
-      maybeNotifyDeveloperPurchase(withUber);
 
       return orderResponseWithProfile({
         orderRow: withUber,
@@ -393,7 +385,6 @@ export async function POST(req: Request) {
     );
 
     maybeNotifyIangelOffer(insertedUber);
-    maybeNotifyDeveloperPurchase(insertedUber);
 
     return orderResponseWithProfile({
       orderRow: insertedUber,

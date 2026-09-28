@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { clearCheckoutDraft } from '@/lib/checkout-draft';
+import { reportPaymentFailed } from '@/lib/dev-signal-client';
 import type { CartItem, Order, OrderCustomer } from '@/types';
 import { Suspense } from 'react';
 
@@ -49,7 +50,10 @@ function CompleteCheckout() {
         clearCart();
         router.replace(`/orders/${order.id}`);
       })
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => {
+        setError(err.message);
+        reportPaymentFailed(err.message, pending.items);
+      });
   }, [clearCart, router, searchParams, setLastOrder]);
 
   if (error) {

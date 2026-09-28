@@ -5,6 +5,7 @@ import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getStripeJs } from '@/lib/stripe-js';
+import { reportPaymentFailed } from '@/lib/dev-signal-client';
 import type { CartItem, Order, OrderCustomer } from '@/types';
 
 const appearance = {
@@ -60,13 +61,17 @@ function PaymentForm({
     });
 
     if (confirmError) {
-      setError(confirmError.message || 'No se pudo completar el pago');
+      const message = confirmError.message || 'No se pudo completar el pago';
+      setError(message);
+      reportPaymentFailed(message, pending.items);
       setSubmitting(false);
       return;
     }
 
     if (paymentIntent?.status !== 'succeeded') {
-      setError('El pago no se completó. Intenta de nuevo.');
+      const message = 'El pago no se completó. Intenta de nuevo.';
+      setError(message);
+      reportPaymentFailed(message, pending.items);
       setSubmitting(false);
       return;
     }
@@ -82,7 +87,9 @@ function PaymentForm({
     });
     const payload = await response.json();
     if (!response.ok) {
-      setError(payload.error || 'Pago hecho, pero no se guardó el pedido');
+      const message = payload.error || 'Pago hecho, pero no se guardó el pedido';
+      setError(message);
+      reportPaymentFailed(message, pending.items);
       setSubmitting(false);
       return;
     }

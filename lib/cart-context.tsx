@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { CartItem, Order } from '@/types';
+import { cancelCartSignal, scheduleCartSignal } from '@/lib/dev-signal-client';
 
 interface CartContextValue {
   items: CartItem[];
@@ -20,6 +21,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [lastOrder, setLastOrderState] = useState<Order | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const armCartSignal = useRef(false);
 
   useEffect(() => {
     try {
@@ -39,19 +41,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items, hydrated]);
 
+  useEffect(() => {
+    if (!hydrated || !armCartSignal.current) return;
+    armCartSignal.current = false;
+    scheduleCartSignal(items);
+  }, [items, hydrated]);
+
   const addItem = useCallback((item: CartItem) => {
+    armCartSignal.current = true;
     setItems((prev) => [...prev, item]);
   }, []);
 
   const updateItem = useCallback((uid: string, updates: Partial<CartItem>) => {
+    armCartSignal.current = true;
     setItems((prev) => prev.map((item) => (item.uid === uid ? { ...item, ...updates } : item)));
   }, []);
 
   const removeItem = useCallback((uid: string) => {
+    armCartSignal.current = true;
     setItems((prev) => prev.filter((item) => item.uid !== uid));
   }, []);
 
   const clearCart = useCallback(() => {
+    armCartSignal.current = false;
+    cancelCartSignal();
     setItems([]);
   }, []);
 
