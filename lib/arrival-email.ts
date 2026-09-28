@@ -12,6 +12,11 @@ function esc(value: unknown) {
     .join('&quot;');
 }
 
+export function arrivalCustomerLine(leaveAtDoor?: boolean) {
+  if (leaveAtDoor) return 'Tu repartidor ha llegado a tu domicilio. Dejará el pedido en la puerta.';
+  return 'Tu repartidor ha llegado a tu domicilio. Por favor, recoge tu pedido dentro de 10 minutos.';
+}
+
 export function shouldSendArrivalEmail(input: {
   action: string;
   previousDispatch?: string | null;
@@ -39,14 +44,12 @@ export async function sendArrivalEmail(input: {
     `${SITE}/orders/${input.orderId}` +
     (input.token ? `?s=${encodeURIComponent(input.token)}` : '');
   const first = esc(input.customerName.trim().split(' ')[0] || '');
-  const detail = input.leaveAtDoor
-    ? 'Dejará el pedido en la puerta.'
-    : 'Tienes 10 minutos para salir.';
+  const line = arrivalCustomerLine(input.leaveAtDoor);
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
 <img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
 <h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu repartidor llegó</h1>
 <p>Hola ${first},</p>
-<p>Tu repartidor ya está en tu domicilio. ${detail}</p>
+<p>${esc(line)}</p>
 <div style="text-align:center;margin:20px 0;">
 <a href="${esc(track)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Ver mi pedido</a>
 </div>
@@ -63,7 +66,7 @@ export async function sendArrivalEmail(input: {
       to: [to],
       subject: 'Tu repartidor llegó · Las Vaqueras',
       html,
-      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. Tu repartidor ya está en tu domicilio. ${detail} Ver mi pedido: ${track}`,
+      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${line} Ver mi pedido: ${track}`,
     }),
   });
   return { ok: response.ok };

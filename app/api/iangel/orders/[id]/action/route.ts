@@ -1,4 +1,6 @@
+import * as Sentry from '@sentry/nextjs';
 import { sendArrivalEmail, shouldSendArrivalEmail } from '@/lib/arrival-email';
+import { notifyNextDoorEnroute } from '@/lib/enroute-email';
 import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
@@ -47,9 +49,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           token: typeof row.profile_login_token === 'string' ? row.profile_login_token : null,
           leaveAtDoor: Boolean(row.leave_at_door),
         });
-      } catch {
-        // La llegada ya quedó guardada. El correo no debe frenar al rider.
+      } catch (err) {
+        Sentry.captureException(err);
       }
+    }
+    const action = String(body.action || '');
+    if (action === 'pickup' || action === 'en_route' || action === 'deliver') {
+      await notifyNextDoorEnroute(supabase);
     }
     if (customerText) {
       await supabase.from('order_messages').insert({
