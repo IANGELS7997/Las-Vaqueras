@@ -10,7 +10,7 @@ import { isValidPickupAt } from '@/lib/pickup-slots';
 import { formatDeliveryReferences, isValidCoord } from '@/lib/delivery-address';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
 import { cookies } from 'next/headers';
-import { clientIp, discountedFoodBase, loyaltyLabel, normalizePhone } from '@/lib/loyalty';
+import { clientIp, foodDiscountPercentLabel, foodDiscountRate, loyaltyLabel, normalizePhone, quoteFoodDiscount } from '@/lib/loyalty';
 import { findCustomerIdByPhone, resolveLoyaltyKind } from '@/lib/loyalty-guard';
 import {
   getAvailableJumboReward,
@@ -19,7 +19,7 @@ import {
   readRedeemCookie,
   reserveJumboReward,
 } from '@/lib/loyalty-reward';
-import { chargedFoodWeb, resolveGiftCart } from '@/lib/gift-cart';
+import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
@@ -171,7 +171,6 @@ export async function POST(req: Request) {
       isPickup,
       cookieCustomerId,
     });
-    let foodBase = discountedFoodBase(serverBase, loyaltyKind);
     const jumboReward = existingCustomerId
       ? await getAvailableJumboReward(supabase, existingCustomerId)
       : null;
@@ -187,12 +186,6 @@ export async function POST(req: Request) {
     const canGiftJumbo = Boolean(
       jumboReward && phoneMatchesOwner && giftBase > 0 && (!redeemCookieId || redeemCookieId === jumboReward.id)
     );
-    if (canGiftJumbo) {
-      foodBase = Math.round(Math.max(0, serverBase - giftBase) * 100) / 100;
-    }
-    if (!isPositiveNumber(foodBase) && !(canGiftJumbo && giftBase > 0)) {
-      return NextResponse.json({ error: 'El carrito no tiene un subtotal válido' }, { status: 400 });
-    }
     const gift = resolveGiftCart({
       flagged: canGiftJumbo,
       items: cartItems,
@@ -204,19 +197,30 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const rate = foodDiscountRate(loyaltyKind);
+    const foodQuote =
+      cartItems.length > 0
+        ? quoteFoodDiscount(cartItems, rate, gift.active ? gift.giftLineUid : '')
+        : quoteFoodDiscount(
+            [{ uid: 'base', price_base: serverBase, quantity: 1 }],
+            rate
+          );
+    if (foodQuote.fullWeb <= 0) {
+      return NextResponse.json({ error: 'El carrito no tiene un subtotal válido' }, { status: 400 });
+    }
+    if (foodQuote.chargedWeb <= 0 && gift.variant !== 'shipping_only') {
+      return NextResponse.json({ error: 'El carrito no tiene un subtotal válido' }, { status: 400 });
+    }
     const waiveFood = gift.variant === 'shipping_only';
-    const chargeBase = foodBase > 0 ? foodBase : waiveFood ? 0 : 0.01;
     const platilloCount = countDeliveryPlatillos(cartItems);
-    const foodWebTotal =
-      cartItems.length > 0 ? chargedFoodWeb(cartItems, gift.active ? gift.giftLineUid : '') : undefined;
     const split = calcCheckoutSplit({
       priceBaseTotal: serverBase,
       fulfillment,
       platilloCount,
       provider: deliveryProvider,
       uberFee,
-      giftFoodCredit: canGiftJumbo ? giftBase : 0,
-      foodWebTotal,
+      foodWebTotal: foodQuote.chargedWeb,
+      foodDiscountPesos: foodQuote.discountPesos,
     });
 
     if (split.totalChargedCentavos < 1) {
@@ -224,6 +228,7 @@ export async function POST(req: Request) {
     }
     if (
       !waiveFood &&
+      split.restaurantPayoutCentavos > 0 &&
       (split.applicationFeeCentavos <= 0 || split.applicationFeeCentavos >= split.totalChargedCentavos)
     ) {
       return NextResponse.json(
@@ -232,13 +237,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const skipTransfer = waiveFood || split.restaurantPayoutCentavos <= 0;
+
     const stripe = getStripe();
     const paymentIntent = await stripe.paymentIntents.create({
       amount: split.totalChargedCentavos,
       currency: 'mxn',
       automatic_payment_methods: { enabled: true },
       receipt_email: email,
-      ...(waiveFood
+      ...(skipTransfer
         ? {}
         : {
             transfer_data: { destination },
@@ -262,7 +269,9 @@ export async function POST(req: Request) {
         pickup_at: isPickup ? pickupAtIso : '',
         loyalty_kind: canGiftJumbo ? 'jumbo_credit' : loyaltyKind || '',
         food_base_original: String(serverBase),
-        food_base_charged: String(chargeBase),
+        food_web_full: String(foodQuote.fullWeb),
+        food_web_charged: String(foodQuote.chargedWeb),
+        food_discount_pesos: String(foodQuote.discountPesos),
         jumbo_reward_id: canGiftJumbo && jumboReward ? jumboReward.id : '',
         gift_shipping_only: waiveFood ? '1' : '',
         dropoff_lat: isPickup ? '' : String(lat),
@@ -326,13 +335,19 @@ export async function POST(req: Request) {
         totalCharged: split.totalCharged,
         restaurantPayout: split.restaurantPayout,
         platformFee: split.platformFee,
+        foodFullWeb: split.foodFullWeb,
+        foodDiscountPesos: split.foodDiscountPesos,
       },
-      loyalty: loyaltyKind || canGiftJumbo
+      loyalty: loyaltyKind || canGiftJumbo || foodQuote.discountPesos > 0
         ? {
-            kind: loyaltyKind || 'tenth_jumbo',
+            kind: loyaltyKind || (canGiftJumbo ? 'jumbo_credit' : null),
             label: canGiftJumbo ? 'Papas Jumbo de regalo aplicadas' : loyaltyLabel(loyaltyKind),
-            foodOriginal: serverBase,
-            foodCharged: chargeBase,
+            percentLabel: foodDiscountPercentLabel(loyaltyKind),
+            foodFullWeb: foodQuote.fullWeb,
+            foodCharged: foodQuote.chargedWeb,
+            percentPesos: foodQuote.percentPesos,
+            giftPesos: foodQuote.giftPesos,
+            discountPesos: foodQuote.discountPesos,
           }
         : null,
     });

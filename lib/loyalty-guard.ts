@@ -10,9 +10,6 @@ import {
 
 type Client = ReturnType<typeof createAdminSupabase>;
 
-const FIRST_IP_WINDOW_HOURS = 24;
-const FIRST_IP_MAX = 2;
-
 export async function countPaidOrders(supabase: Client, customerId: string): Promise<number> {
   const result = await supabase
     .from('orders')
@@ -63,17 +60,6 @@ export async function first30AlreadyClaimed(
       .or(orParts.join(','))
       .limit(1);
     if ((claimed.data || []).length > 0) return true;
-  }
-
-  if (keys.ip && keys.ip !== 'unknown') {
-    const since = new Date(Date.now() - FIRST_IP_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-    const ipHits = await supabase
-      .from('loyalty_claims')
-      .select('id', { count: 'exact', head: true })
-      .eq('kind', 'first_30')
-      .eq('ip', keys.ip)
-      .gte('created_at', since);
-    if ((ipHits.count ?? 0) >= FIRST_IP_MAX) return true;
   }
 
   return false;

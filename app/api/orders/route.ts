@@ -239,14 +239,22 @@ export async function POST(req: Request) {
         0
     );
     const pickupAt = paymentIntent.metadata.pickup_at || null;
+    const foodDiscountPesos = Number(paymentIntent.metadata.food_discount_pesos || 0);
+    const chargedRaw = paymentIntent.metadata.food_web_charged;
+    const chargedMeta = Number(chargedRaw);
     const foodWebTotal =
-      Array.isArray(items) && items.length > 0 ? chargedFoodWeb(items) : undefined;
+      typeof chargedRaw === 'string' && chargedRaw !== '' && Number.isFinite(chargedMeta)
+        ? chargedMeta
+        : Array.isArray(items) && items.length > 0
+          ? chargedFoodWeb(items)
+          : undefined;
     const split = calcCheckoutSplit({
       priceBaseTotal,
       fulfillment,
       platilloCount,
       uberFee,
       foodWebTotal,
+      foodDiscountPesos: Number.isFinite(foodDiscountPesos) ? foodDiscountPesos : 0,
     });
     const email = customer.email.trim().toLowerCase();
     const address =

@@ -6,7 +6,7 @@ import {
   readCustomerIdFromRequest,
 } from '@/lib/customer-auth';
 import { avatarPublicUrl } from '@/lib/customers';
-import { loyaltyKindForOrdinal, loyaltyLabel, paidOrderOrdinal } from '@/lib/loyalty';
+import { loyaltyCycleLabel, loyaltyKindForOrdinal, loyaltyLabel, paidOrderOrdinal } from '@/lib/loyalty';
 import { countPaidOrders } from '@/lib/loyalty-guard';
 import { getAvailableJumboReward, getLatestRedeemedJumboReward } from '@/lib/loyalty-reward';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
@@ -63,7 +63,7 @@ export async function GET() {
       paidOrders: paid,
       nextOrdinal,
       nextLabel: loyaltyLabel(nextKind),
-      cycleLabel: `Pedido ${nextOrdinal} de 10`,
+      cycleLabel: loyaltyCycleLabel(paid, nextOrdinal),
       jumboGift: jumboReward
         ? {
             available: jumboAvailable,

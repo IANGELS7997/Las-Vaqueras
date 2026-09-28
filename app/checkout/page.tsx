@@ -38,7 +38,13 @@ import {
   GIFT_FULFILLMENT_COPY,
   readGiftRedeem,
 } from '@/lib/gift-checkout';
-import { chargedFoodWeb, lineWebAfterGift, resolveGiftCart } from '@/lib/gift-cart';
+import { lineWebAfterGift, resolveGiftCart } from '@/lib/gift-cart';
+import {
+  foodDiscountPercentLabel,
+  foodDiscountRate,
+  quoteFoodDiscount,
+  type LoyaltyKind,
+} from '@/lib/loyalty';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
 import { FINAL_SALE_CONSENT } from '@/lib/final-sale';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
@@ -47,6 +53,11 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const PENDING_KEY = 'lv_pending_checkout';
+const EMAIL_READY = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function checkoutPhoneDigits(value: string) {
+  return value.replace(/\D/g, '');
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -83,10 +94,16 @@ export default function CheckoutPage() {
   const [acceptFinalSale, setAcceptFinalSale] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const [loyaltyNote, setLoyaltyNote] = useState('');
+  const [loyaltyKind, setLoyaltyKind] = useState<LoyaltyKind | null>(null);
+  const [loyaltyReadyKey, setLoyaltyReadyKey] = useState('');
   const [paySplit, setPaySplit] = useState<{
     subtotalWeb: number;
     deliveryFee: number;
     totalCharged: number;
+    foodFullWeb: number;
+    percentPesos: number;
+    giftPesos: number;
+    percentLabel: string;
   } | null>(null);
   const [giftMode, setGiftMode] = useState(() => readGiftRedeem() === 'jumbo');
 
@@ -96,17 +113,25 @@ export default function CheckoutPage() {
   const isGiftCheckout = gift.active;
   const isFreeGift = gift.variant === 'free_pickup';
   const giftLineUid = gift.giftLineUid;
-  const foodWebTotal = chargedFoodWeb(items, gift.active ? gift.giftLineUid : '');
+  const foodQuote = quoteFoodDiscount(
+    items,
+    foodDiscountRate(loyaltyKind),
+    gift.active ? gift.giftLineUid : ''
+  );
   const split = calcCheckoutSplit({
     priceBaseTotal,
     fulfillment: mode ?? 'delivery',
     platilloCount,
     provider: isPickup ? 'pickup' : quotedKind || undefined,
     uberFee: isPickup ? 0 : quotedKind === 'uber' ? quotedUberRaw : 0,
-    giftFoodCredit: gift.creditBase,
-    foodWebTotal,
+    foodWebTotal: foodQuote.chargedWeb,
+    foodDiscountPesos: foodQuote.discountPesos,
   });
   const displaySplit = paySplit ?? split;
+  const shownFull = paySplit?.foodFullWeb ?? foodQuote.fullWeb;
+  const shownPercent = paySplit?.percentPesos ?? foodQuote.percentPesos;
+  const shownGift = paySplit?.giftPesos ?? foodQuote.giftPesos;
+  const shownPercentLabel = paySplit?.percentLabel || foodDiscountPercentLabel(loyaltyKind);
 
   useEffect(() => {
     const update = () => {
@@ -190,15 +215,22 @@ export default function CheckoutPage() {
     pickupAt,
   ]);
 
+  const phoneDigits = checkoutPhoneDigits(phone);
+  const contactReady = phoneDigits.length >= 10 && EMAIL_READY.test(email.trim());
+  const loyaltyLookupKey = contactReady
+    ? `${phoneDigits.slice(-10)}|${email.trim().toLowerCase()}|${mode ?? ''}|${street.trim()}`
+    : '';
+
   useEffect(() => {
-    if (!phone.trim() || !email.trim()) {
-      setLoyaltyNote('');
+    if (!loyaltyLookupKey) {
+      setLoyaltyKind(null);
+      setLoyaltyReadyKey('');
+      setLoyaltyNote(gift.active ? 'Papas Jumbo cubiertas por el cupón. El resto a precio de carta.' : '');
       return;
     }
-    if (gift.active) {
-      setLoyaltyNote('Papas Jumbo cubiertas por el cupón. El resto a precio de carta.');
-      return;
-    }
+    setLoyaltyKind(null);
+    setLoyaltyReadyKey('');
+    let cancelled = false;
     const timer = window.setTimeout(() => {
       void fetch('/api/loyalty/preview', {
         method: 'POST',
@@ -211,11 +243,37 @@ export default function CheckoutPage() {
         }),
       })
         .then((response) => response.json())
-        .then((payload) => setLoyaltyNote(payload.label || ''))
-        .catch(() => setLoyaltyNote(''));
+        .then((payload) => {
+          if (cancelled) return;
+          const kind =
+            payload.kind === 'first_30' || payload.kind === 'fifth_20' || payload.kind === 'tenth_jumbo'
+              ? payload.kind
+              : null;
+          setLoyaltyKind(kind);
+          setLoyaltyReadyKey(loyaltyLookupKey);
+          const promo = typeof payload.label === 'string' ? payload.label : '';
+          if (gift.active) {
+            setLoyaltyNote(
+              promo && kind && kind !== 'tenth_jumbo'
+                ? `Papas Jumbo cubiertas por el cupón. ${promo}`
+                : 'Papas Jumbo cubiertas por el cupón. El resto a precio de carta.'
+            );
+            return;
+          }
+          setLoyaltyNote(promo);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setLoyaltyKind(null);
+          setLoyaltyReadyKey(loyaltyLookupKey);
+          setLoyaltyNote(gift.active ? 'Papas Jumbo cubiertas por el cupón. El resto a precio de carta.' : '');
+        });
     }, 400);
-    return () => window.clearTimeout(timer);
-  }, [phone, email, mode, street, gift.active]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [loyaltyLookupKey, phone, email, mode, street, gift.active]);
 
   useEffect(() => {
     if (giftMode && !gift.active) {
@@ -318,10 +376,9 @@ export default function CheckoutPage() {
     const e: Record<string, string> = {};
     if (!firstName.trim()) e.firstName = 'El nombre es obligatorio';
     if (!lastName.trim()) e.lastName = 'El apellido es obligatorio';
-    if (!phone.trim()) e.phone = 'El teléfono es obligatorio';
-    else if (phone.replace(/\D/g, '').length < 10) e.phone = 'Teléfono inválido (mín. 10 dígitos)';
+    if (!phoneDigits || phoneDigits.length < 10) e.phone = phoneDigits ? 'Teléfono inválido (mín. 10 dígitos)' : 'El teléfono es obligatorio';
     if (!email.trim()) e.email = 'El correo es obligatorio para tu ticket';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Correo inválido';
+    else if (!EMAIL_READY.test(email.trim())) e.email = 'Correo inválido';
     if (isPickup) {
       if (!pickupAt) e.pickupAt = `Elige una hora (mínimo ${PICKUP_LEAD_MINUTES} min)`;
     } else {
@@ -341,8 +398,30 @@ export default function CheckoutPage() {
     return Object.keys(e).length === 0;
   };
 
+  const addressReady = Boolean(
+    street.trim() &&
+      extNumber.trim() &&
+      colonia.trim() &&
+      isValidPostalCode(postalCode) &&
+      dropoffLat != null &&
+      dropoffLng != null &&
+      isValidCoord(dropoffLat, dropoffLng)
+  );
+  const detailsReady = Boolean(
+    firstName.trim() && lastName.trim() && contactReady && (isPickup ? pickupAt : addressReady)
+  );
+  const loyaltySettled = loyaltyReadyKey === loyaltyLookupKey;
+  const deliveryReady = isFreeGift || isPickup || (quotedFee != null && !quoting);
+  const canStartPayment = Boolean(
+    detailsReady &&
+      acceptFinalSale &&
+      deliveryReady &&
+      loyaltySettled &&
+      !(isPickup && pickupSlots.length === 0)
+  );
+
   const startPayment = async () => {
-    if (items.length === 0 || !mode) return;
+    if (items.length === 0 || !mode || !canStartPayment) return;
     if (!validate()) return;
     if (!acceptFinalSale) {
       setErrors((prev) => ({
@@ -429,10 +508,15 @@ export default function CheckoutPage() {
     setPaymentIntentId(payload.id);
     setClientSecret(payload.clientSecret);
     if (payload.split) {
+      const loyalty = payload.loyalty || {};
       setPaySplit({
         subtotalWeb: Number(payload.split.subtotalWeb),
         deliveryFee: Number(payload.split.deliveryFee),
         totalCharged: Number(payload.split.totalCharged),
+        foodFullWeb: Number(loyalty.foodFullWeb ?? payload.split.foodFullWeb ?? 0),
+        percentPesos: Number(loyalty.percentPesos || 0),
+        giftPesos: Number(loyalty.giftPesos || 0),
+        percentLabel: typeof loyalty.percentLabel === 'string' ? loyalty.percentLabel : '',
       });
     }
     if (payload.loyalty?.label) setLoyaltyNote(payload.loyalty.label);
@@ -865,12 +949,7 @@ export default function CheckoutPage() {
                 )}
                 <Button
                   onClick={startPayment}
-                  disabled={
-                    creatingIntent ||
-                    !acceptFinalSale ||
-                    (isPickup && pickupSlots.length === 0) ||
-                    (!isFreeGift && !isPickup && (quoting || quotedFee == null))
-                  }
+                  disabled={creatingIntent || !canStartPayment}
                   className="w-full bg-brand-500 text-white hover:bg-brand-600"
                   size="lg"
                 >
@@ -889,6 +968,11 @@ export default function CheckoutPage() {
                     'Pagar'
                   )}
                 </Button>
+                {!detailsReady ? (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">Completa tus datos para pagar.</p>
+                ) : !loyaltySettled ? (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">Revisando tu promoción…</p>
+                ) : null}
               </div>
             )}
           </div>
@@ -900,8 +984,20 @@ export default function CheckoutPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-muted-foreground">
                 <span>Comida</span>
-                <span className="text-white">{formatMXN(displaySplit.subtotalWeb)}</span>
+                <span className="text-white">{formatMXN(shownFull)}</span>
               </div>
+              {shownPercent > 0 ? (
+                <div className="flex justify-between font-semibold text-brand-400">
+                  <span>Descuento {shownPercentLabel}</span>
+                  <span>−{formatMXN(shownPercent)}</span>
+                </div>
+              ) : null}
+              {shownGift > 0 ? (
+                <div className="flex justify-between font-semibold text-brand-400">
+                  <span>Papas Jumbo</span>
+                  <span>−{formatMXN(shownGift)}</span>
+                </div>
+              ) : null}
               {loyaltyNote ? <p className="text-xs text-brand-400">{loyaltyNote}</p> : null}
               {isPickup ? (
                 <div className="flex justify-between text-muted-foreground">
