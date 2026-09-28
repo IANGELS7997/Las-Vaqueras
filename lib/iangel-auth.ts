@@ -2,6 +2,8 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 
 const TOKEN_PREFIX = 'iangel.v1.';
+const TOKEN_V2 = 'iangel.v2.';
+export const ANGEL_RIDER_KEY = 'angel';
 
 export function iangelAllowedOrigins() {
   const extra = (process.env.IANGEL_APP_ORIGIN || '')
@@ -64,36 +66,68 @@ function safeEqual(a: string, b: string) {
   return timingSafeEqual(left, right);
 }
 
-export function issueIangelToken() {
+export function issueIangelToken(riderKey = ANGEL_RIDER_KEY) {
   const secret = tokenSecret();
   const exp = Date.now() + 30 * 24 * 60 * 60 * 1000;
-  const body = String(exp);
+  const sub = riderKey.trim() || ANGEL_RIDER_KEY;
+  const body = `${exp}.${sub}`;
   const sig = createHmac('sha256', secret).update(body).digest('hex');
-  return `${TOKEN_PREFIX}${body}.${sig}`;
+  return `${TOKEN_V2}${body}.${sig}`;
+}
+
+function signatureMatches(body: string, sig: string) {
+  const secret = tokenSecret();
+  if (!secret || !sig) return false;
+  const expected = createHmac('sha256', secret).update(body).digest('hex');
+  return safeEqual(expected, sig);
 }
 
 export function verifyIangelToken(token: string) {
-  const secret = tokenSecret();
-  if (!secret || !token.startsWith(TOKEN_PREFIX)) return false;
-  const rest = token.slice(TOKEN_PREFIX.length);
-  const dot = rest.lastIndexOf('.');
-  if (dot < 0) return false;
-  const body = rest.slice(0, dot);
-  const sig = rest.slice(dot + 1);
-  const expected = createHmac('sha256', secret).update(body).digest('hex');
-  if (!safeEqual(expected, sig)) return false;
-  const exp = Number(body);
-  return Number.isFinite(exp) && Date.now() < exp;
+  return readIangelRiderKey(token) != null;
+}
+
+/** Quién es este celular. La contraseña compartida sigue siendo la de Angel. */
+export function readIangelRiderKey(token: string) {
+  if (!token) return null;
+  if (token.startsWith(TOKEN_V2)) {
+    const rest = token.slice(TOKEN_V2.length);
+    const dot = rest.lastIndexOf('.');
+    if (dot < 0) return null;
+    const body = rest.slice(0, dot);
+    const sig = rest.slice(dot + 1);
+    if (!signatureMatches(body, sig)) return null;
+    const split = body.indexOf('.');
+    if (split < 0) return null;
+    const exp = Number(body.slice(0, split));
+    const sub = body.slice(split + 1).trim();
+    if (!Number.isFinite(exp) || Date.now() >= exp || !sub) return null;
+    return sub;
+  }
+  if (token.startsWith(TOKEN_PREFIX)) {
+    const rest = token.slice(TOKEN_PREFIX.length);
+    const dot = rest.lastIndexOf('.');
+    if (dot < 0) return null;
+    const body = rest.slice(0, dot);
+    const sig = rest.slice(dot + 1);
+    if (!signatureMatches(body, sig)) return null;
+    const exp = Number(body);
+    if (!Number.isFinite(exp) || Date.now() >= exp) return null;
+    return ANGEL_RIDER_KEY;
+  }
+  const password = process.env.IANGEL_RIDER_PASSWORD || '';
+  if (password && safeEqual(token, password)) return ANGEL_RIDER_KEY;
+  return null;
+}
+
+export function riderKeyFromRequest(req: Request) {
+  const secret = process.env.IANGEL_API_SECRET || '';
+  const headerKey = req.headers.get('x-iangel-key') || '';
+  if (secret && headerKey === secret) return ANGEL_RIDER_KEY;
+  return readIangelRiderKey(readIangelBearer(req));
 }
 
 export async function requireIangel(req: Request) {
   if (req.method === 'OPTIONS') return iangelPreflight(req);
-  const secret = process.env.IANGEL_API_SECRET || '';
-  const headerKey = req.headers.get('x-iangel-key') || '';
-  if (secret && headerKey === secret) return null;
-  const bearer = readIangelBearer(req);
-  if (verifyIangelToken(bearer)) return null;
-  const password = process.env.IANGEL_RIDER_PASSWORD || '';
-  if (password && bearer && safeEqual(bearer, password)) return null;
+  if (riderKeyFromRequest(req)) return null;
   return iangelJson(req, { error: 'No autorizado' }, 401);
 }
