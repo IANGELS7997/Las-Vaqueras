@@ -7,7 +7,7 @@ alwaysApply: true
 
 - `/` = solo las dos cajas (logo + mismo look). `/menu` = menú. Cocina (`cocina.lasvaqueras.com.mx`), login, términos, privacidad y rastreo no pasan por las cajas.
 - Elección en `sessionStorage` (`lv_fulfillment`): dura mientras no cierre la pestaña.
-- El carrito se queda al cambiar de modo. Recoger: envío `$0`. Domicilio: IANGEL $50 (**0–4000 m**, turno 12:00–21:00). Uber quote × 0.97 en **4001–4500 m**, y en **0–4000 m desde las 21:00**. Más de 4500 m no hay domicilio.
+- El carrito se queda al cambiar de modo. Recoger: envío `$0`. Domicilio: IANGEL $50 (**0–4000 m**, turno 12:00–21:00). De **4001–5500 m** el envío es Uber (quote × 0.97) aunque el rider no lo encienda. Si el rider enciende Uber Direct, **0–5500 m** sale por Uber. **4501–5500 m**: aviso de hasta 1 hora. Más de 5500 m no hay domicilio. Checkout: hasta 45 min, salvo esa zona lejana.
 - Recoger: sin dirección, hora con margen de 30 min (intervalos 15 min), ticket **RECOGER EN TIENDA · hora**.
 - Pago en línea primero. Sin pago no hay orden.
 - Cerrado: en `/` las cajas no inician pedido (A). **Ver menú** abre `/menu` en gris, sin agregar ni pagar (B).

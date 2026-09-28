@@ -1,5 +1,5 @@
 import type { CartItem } from '@/types';
-import { UBER_MAX_M } from '@/lib/iangel-constants';
+import { SERVICE_MAX_M } from '@/lib/iangel-constants';
 import { metersFromStore } from '@/lib/iangel-geo';
 import { createDelivery, createDeliveryQuote, isUberQuoteConfigured } from '@/lib/uber-direct';
 
@@ -62,7 +62,7 @@ export async function dispatchUberDirectAfterPayment(input: {
     return { dispatch_status: UBER_NEEDS_RETRY };
   }
   const meters = Math.round(metersFromStore(input.lat, input.lng));
-  if (meters > UBER_MAX_M) {
+  if (meters > SERVICE_MAX_M) {
     return { dispatch_status: UBER_NEEDS_RETRY };
   }
 

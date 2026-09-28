@@ -2,7 +2,9 @@
 
 export const SELF_MAX_M = 4000;
 export const UBER_MIN_M = 4001;
-export const UBER_MAX_M = 4500;
+/** Aviso de hasta 1 hora. Hasta 4500 m el checkout dice 45 minutos. */
+export const FAR_NOTICE_MIN_M = 4501;
+export const SERVICE_MAX_M = 5500;
 export const SELF_FEE_MXN = 50;
 export const QUOTE_TTL_MS = 4 * 60 * 1000;
 export const HEARTBEAT_STALE_MS = 12 * 60 * 1000;
