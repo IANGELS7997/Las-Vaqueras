@@ -28,7 +28,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return iangelJson(req, { error: 'Este pedido lo lleva el otro rider' }, 409);
     }
     const { patch, customerText } = await runIangelOrderAction(row, String(body.action || ''), body.pin);
-    if (!owner) patch.iangel_rider_key = riderKey;
+    const claim = !owner;
+    if (claim) patch.iangel_rider_key = riderKey;
     if (String(body.action || '') === 'deliver') {
       patch.status = 'delivered';
       patch.dispatch_status = 'delivered';
@@ -37,8 +38,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!row.short_code) {
       patch.short_code = String(row.id).replace(/-/g, '').slice(0, 4).toUpperCase();
     }
-    const updated = await supabase.from('orders').update(patch).eq('id', params.id).select('*').single();
+    let update = supabase.from('orders').update(patch).eq('id', params.id);
+    if (claim) update = update.is('iangel_rider_key', null);
+    const updated = await update.select('*').maybeSingle();
     if (updated.error) throw new Error(updated.error.message);
+    if (!updated.data) {
+      return iangelJson(req, { error: 'Este pedido lo lleva el otro rider' }, 409);
+    }
     if (
       shouldSendArrivalEmail({
         action: String(body.action || ''),
