@@ -48,9 +48,16 @@ assert(!at4001.allowSelf, '4001 m sin IANGEL');
 const at4500 = kinds(AT_15, 4500, true, false, true);
 assert(at4500.defaultKind === 'uber', '4500 m inclusive + Uber ON → Uber');
 assert(!at4500.blocked, '4500 m sí hay domicilio');
+assert(!at4500.farZone, '4500 m sigue en el aviso de 45 min');
+
+const at4500Off = kinds(AT_15, 4500, true, false, false);
+assert(at4500Off.defaultKind === 'uber' && !at4500Off.blocked, '4500 m con Uber apagado sigue Uber');
 
 const at4501 = kinds(AT_15, 4501, true, false, true);
-assert(at4501.blocked && at4501.defaultKind === null, '4501 m sin domicilio');
+assert(at4501.defaultKind === 'uber' && at4501.farZone, '4501 m + Uber ON → Uber y aviso de 1 hora');
+
+const at4501Off = kinds(AT_15, 4501, true, false, false);
+assert(at4501Off.defaultKind === 'uber' && at4501Off.farZone, '4501 m con Uber apagado → Uber y 1 hora');
 
 const inactive2km = kinds(AT_15, 2000, false, false, true);
 assert(!inactive2km.blocked && inactive2km.defaultKind === 'uber', '≤4000 m inactivo + Uber ON → Uber');
@@ -83,12 +90,14 @@ assert(midUber.defaultKind === 'uber', '4.2 km en turno + Uber ON → Uber');
 assert(!midUber.allowSelf, 'más de 4 km sin $50');
 
 const mid = kinds(AT_15, 4600, true, false);
-assert(mid.blocked, '4.6 km bloqueado');
-assert(mid.defaultKind === null, '4.6 km sin Uber');
+assert(mid.defaultKind === 'uber' && mid.farZone, '4.6 km con Uber apagado → Uber y 1 hora');
 
-const far = kinds(AT_15, 6000, true, false);
-assert(far.blocked, 'más de 4.5 km se bloquea');
-assert(far.defaultKind === null, 'más de 4.5 km sin Uber');
+const at5500 = kinds(AT_15, 5500, true, false, false);
+assert(at5500.defaultKind === 'uber' && at5500.farZone, '5500 m inclusive → Uber');
+
+const far = kinds(AT_15, 5501, true, false, true);
+assert(far.blocked, 'más de 5.5 km se bloquea');
+assert(far.defaultKind === null && !far.farZone, 'más de 5.5 km sin Uber');
 
 const busy = kinds(AT_15, 3500, true, true);
 assert(busy.allowWait && busy.options.some((o) => o.kind === 'wait_self'), 'ocupado: espera $50');
@@ -177,7 +186,7 @@ assert(
   '2 km desde las 21:00 sí cotiza Uber'
 );
 assert(
-  !needsUberQuote({
+  needsUberQuote({
     meters: 4001,
     now: AT_15,
     riderActive: true,
@@ -185,7 +194,7 @@ assert(
     uberDirectEnabled: false,
     priceBaseTotal: CARTA,
   }),
-  'sin Uber Direct apagado no cotiza'
+  '4001 m cotiza Uber aunque el rider no lo encienda'
 );
 assert(
   needsUberQuote({
@@ -210,15 +219,37 @@ assert(
   '4500 m sí cotiza Uber'
 );
 assert(
-  !needsUberQuote({
+  needsUberQuote({
     meters: 4501,
+    now: AT_15,
+    riderActive: true,
+    riderBusy: false,
+    uberDirectEnabled: false,
+    priceBaseTotal: CARTA,
+  }),
+  '4501 m cotiza Uber'
+);
+assert(
+  needsUberQuote({
+    meters: 5500,
+    now: AT_15,
+    riderActive: false,
+    riderBusy: false,
+    uberDirectEnabled: false,
+    priceBaseTotal: CARTA,
+  }),
+  '5500 m cotiza Uber'
+);
+assert(
+  !needsUberQuote({
+    meters: 5501,
     now: AT_15,
     riderActive: true,
     riderBusy: false,
     uberDirectEnabled: true,
     priceBaseTotal: CARTA,
   }),
-  '4501 m no cotiza Uber'
+  '5501 m no cotiza Uber'
 );
 
 const twoKm = metersFromStore(28.675575, -106.108617);
@@ -240,7 +271,7 @@ const afterShiftUberOff = kinds(AT_2105, 2000, false, false, false);
 assert(afterShiftUberOff.blocked && !afterShiftUberOff.allowUber, '21:05 Uber OFF → sin domicilio');
 
 const inBandUberOff = kinds(AT_15, 4200, true, false, false);
-assert(inBandUberOff.blocked && !inBandUberOff.allowUber, '4001–4500 Uber OFF → bloqueado');
+assert(inBandUberOff.defaultKind === 'uber' && !inBandUberOff.farZone, '4001–4500 Uber OFF → Uber, aviso de 45 min');
 
 const selfWhileUberOff = kinds(AT_15, 2000, true, false, false);
 assert(selfWhileUberOff.defaultKind === 'self', 'en turno online + Uber OFF → sigue IANGEL');

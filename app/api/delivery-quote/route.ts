@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     const meters = Math.round(metersFromStore(lat, lng));
     const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
-    // uberDirectEnabled false ⇒ needsUberQuote=false ⇒ no llamada a Uber Direct.
+    // 4001–5500 m cotiza Uber aunque el rider no lo encienda. 0–4000 m solo si hay emergencia.
     const routingInput = {
       meters,
       riderActive: riderActive === true,
@@ -93,6 +93,7 @@ export async function POST(req: Request) {
       uberFee: option.uberFee,
       meters,
       waitNotice: routing.allowWait ? COPY.waitBody : null,
+      farZone: routing.farZone,
       routing,
       token,
       expiresAt: quoteExpiresAt(),

@@ -23,6 +23,7 @@ import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
 import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
+import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { resolvePaidDelivery } from '@/lib/iangel-checkout';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -135,6 +136,12 @@ export async function POST(req: Request) {
       dispatchStatus = paid.dispatchStatus;
       uberFee = paid.uberFee;
       uberQuoteId = paid.uberQuoteId;
+      if (iangelCarries(paid.kind) && !bagFits(cartItems)) {
+        return NextResponse.json(
+          { error: `${BAG_LIMIT_TITLE}. ${BAG_LIMIT_BODY}` },
+          { status: 400 }
+        );
+      }
     }
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: 'El correo no es válido' }, { status: 400 });

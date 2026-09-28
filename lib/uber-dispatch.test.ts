@@ -1,3 +1,5 @@
+import { metersFromStore } from './iangel-geo';
+import { SERVICE_MAX_M } from './iangel-constants';
 import { dispatchUberDirectAfterPayment } from './uber-dispatch';
 
 function assert(cond: unknown, message: string) {
@@ -45,18 +47,21 @@ async function main() {
   });
   assert(already === null, 'si ya hay delivery_id no se duplica');
 
+  const farLat = 28.72;
+  const farLng = -106.108617;
+  assert(metersFromStore(farLat, farLng) > SERVICE_MAX_M, 'el punto de prueba queda a más de 5.5 km');
   const tooFar = await dispatchUberDirectAfterPayment({
     orderId: '00000000-0000-0000-0000-000000000004',
     fulfillment: 'delivery',
     provider: 'uber',
-    address: 'C. Escuadron 201 712, 31000',
-    lat: 28.634801,
-    lng: -106.067276,
+    address: 'Calle lejana 1, 31210',
+    lat: farLat,
+    lng: farLng,
     phone: '6141812108',
     customerName: 'Prueba',
     items: [],
   });
-  assert(tooFar?.dispatch_status === 'needs_n8n_uber', 'más de 4500 m no crea courier');
+  assert(tooFar?.dispatch_status === 'needs_n8n_uber', 'más de 5500 m no crea courier');
 
   console.log('uber-dispatch tests: ok');
 }

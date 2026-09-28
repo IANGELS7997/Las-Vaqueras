@@ -11,12 +11,12 @@ export default function TermsPage() {
     {
       title: '2. Servicio de entrega',
       content:
-        'Los tiempos de entrega estimados son aproximados y pueden variar según el volumen de pedidos, tráfico y condiciones climáticas. El área de entrega está limitada a la ciudad de Chihuahua y zonas aledañas.',
+        'El tiempo estimado de todo pedido es de hasta 45 minutos. Te pedimos realizarlo con anticipación. En domicilio de 4.5 a 5.5 km el tiempo estimado es de hasta 1 hora y el costo de envío es mayor. Los tiempos pueden variar según el volumen de pedidos, el tráfico y el clima.',
     },
     {
       title: '3. Precios y pagos',
       content:
-        'En recoger, el envío es $0. Con Uber Direct apagado, en domicilio de 0 a 4000 m y en turno IANGEL (12:00–21:00), el envío es $50. Si el rider está ocupado, el envío sigue en $50 con aviso de 35 a 45 min. Con Uber Direct activado, de 0 a 4500 m el envío es la cotización de Uber Direct menos el 3% de esa cotización, para que el domicilio siga disponible. Más de 4500 m no hay domicilio; puede recoger en tienda. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista.',
+        'En recoger, el envío es $0. Con Uber Direct apagado, en domicilio de 0 a 4000 m y en turno IANGEL (12:00–21:00), el envío es $50. Si el rider está ocupado, el envío sigue en $50 con aviso de 35 a 45 min. De 4001 a 5500 m el envío es la cotización de Uber Direct menos el 3%, aunque el rider no tenga Uber Direct encendido. Si el rider lo enciende, de 0 a 5500 m el envío también es esa cotización. Más de 5500 m no hay domicilio; puede recoger en tienda. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista.',
     },
     {
       title: '4. Pedidos confirmados',

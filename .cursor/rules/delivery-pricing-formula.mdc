@@ -11,7 +11,7 @@ alwaysApply: true
 - Recoger: comida = P′, envío $0; misma regla 90/15 sobre P.
 - IANGEL (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50**. Sin 3%. Sin Uber.
 - Rider ocupado en ese radio: sigue **$50**. Aviso 35–45 min. **Sin Express / Uber Direct.**
-- Uber Direct **4001–4500 m** (quote × 0.97). Desde las **21:00**, también **0–4000 m** va por Uber. **Más de 4500 m:** sin domicilio.
+- Uber Direct **4001–5500 m** (quote × 0.97), aunque el rider no lo encienda. Si lo enciende, también **0–4000 m**. **4501–5500 m:** mismo cobro y aviso de hasta 1 hora. **Más de 5500 m:** sin domicilio. Checkout: hasta 45 min en el resto de pedidos.
 - Ticket: **Comida + Envío**. Sin mínimo de carrito ni combo obligatorio.
 - Combos en el modal: chico luego grande, arriba; ninguno preseleccionado; “Sin combo” al final.
 ---

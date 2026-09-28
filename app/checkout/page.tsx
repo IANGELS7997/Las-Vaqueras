@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
+import { COPY } from '@/lib/iangel-copy';
 import {
   calcCartBaseTotal,
   calcCartLineWeb,
@@ -88,6 +90,7 @@ export default function CheckoutPage() {
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
   const [quotedKind, setQuotedKind] = useState<'self' | 'wait_self' | 'uber' | null>(null);
   const [quotedUberRaw, setQuotedUberRaw] = useState(0);
+  const [farZone, setFarZone] = useState(false);
   const [waitNotice, setWaitNotice] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState('');
   const [quoting, setQuoting] = useState(false);
@@ -314,6 +317,7 @@ export default function CheckoutPage() {
       setQuotedFee(0);
       setQuotedKind(null);
       setQuotedUberRaw(0);
+      setFarZone(false);
       setWaitNotice(null);
       setQuoteError('');
       setQuoting(false);
@@ -330,6 +334,7 @@ export default function CheckoutPage() {
       setQuotedFee(null);
       setQuotedKind(null);
       setQuotedUberRaw(0);
+      setFarZone(false);
       setWaitNotice(null);
       setQuoteError('');
       return;
@@ -357,12 +362,14 @@ export default function CheckoutPage() {
           setQuotedFee(payload.customerFee ?? payload.fee);
           setQuotedKind(payload.kind === 'self' || payload.kind === 'wait_self' || payload.kind === 'uber' ? payload.kind : 'uber');
           setQuotedUberRaw(Number(payload.uberFee) || 0);
+          setFarZone(payload.farZone === true);
           setWaitNotice(typeof payload.waitNotice === 'string' ? payload.waitNotice : null);
         })
         .catch((error: Error) => {
           setQuotedFee(null);
           setQuotedKind(null);
           setQuotedUberRaw(0);
+          setFarZone(false);
           setWaitNotice(null);
           setQuoteError(error.message);
         })
@@ -412,11 +419,13 @@ export default function CheckoutPage() {
   );
   const loyaltySettled = loyaltyReadyKey === loyaltyLookupKey;
   const deliveryReady = isFreeGift || isPickup || (quotedFee != null && !quoting);
+  const bagBlocked = !isPickup && iangelCarries(quotedKind) && !bagFits(items);
   const canStartPayment = Boolean(
     detailsReady &&
       acceptFinalSale &&
       deliveryReady &&
       loyaltySettled &&
+      !bagBlocked &&
       !(isPickup && pickupSlots.length === 0)
   );
 
@@ -886,6 +895,9 @@ export default function CheckoutPage() {
                 )}
               </div>
             ) : null}
+            <p className="mb-4 rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-sm leading-relaxed text-muted-foreground">
+              {farZone ? COPY.etaFar : COPY.eta45}
+            </p>
             {clientSecret ? (
               <CheckoutPayment
                 clientSecret={clientSecret}
@@ -919,6 +931,12 @@ export default function CheckoutPage() {
               />
             ) : (
               <div>
+                {bagBlocked ? (
+                  <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+                    <p className="text-sm font-semibold text-amber-200">{BAG_LIMIT_TITLE}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-amber-100/90">{BAG_LIMIT_BODY}</p>
+                  </div>
+                ) : null}
                 {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
                 <label className="mb-4 flex items-start gap-3 text-sm text-muted-foreground">
                   <Checkbox
