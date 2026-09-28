@@ -72,6 +72,11 @@ export function activeRiderKeys(rows: RiderPresence[]) {
   return rows.filter((row) => row.rider_active === true && isFresh(row.last_ping_at)).map((row) => row.rider_key);
 }
 
+/** Quién dejó Activo. Sigue en servicio aunque cierre la app y el GPS se duerma. */
+export function dutyRiderKeys(rows: Array<{ rider_key: string; rider_active: boolean }>) {
+  return rows.filter((row) => row.rider_active === true).map((row) => row.rider_key);
+}
+
 export async function mirrorServiceActive(anyoneActive: boolean) {
   const supabase = createAdminSupabase();
   await supabase

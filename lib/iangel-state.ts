@@ -1,5 +1,5 @@
 import { DISPATCH_ACTIVE_TRIP, HEARTBEAT_STALE_MS, IANGEL_SLUG } from '@/lib/iangel-constants';
-import { activeRiderKeys, listRiderPresence, serviceIsBusy } from '@/lib/iangel-presence';
+import { activeRiderKeys, dutyRiderKeys, listRiderPresence, serviceIsBusy } from '@/lib/iangel-presence';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export type RiderRow = {
@@ -52,7 +52,7 @@ function isPingStale(lastPingAt: string | null | undefined) {
 
 /**
  * Flags usados en cotización / ruteo.
- * riderActive efectivo exige toggle ON + heartbeat fresco (evita “fantasma online” si la app murió).
+ * Activo permanece aunque el celular cierre la app. El GPS fresco solo dice si el pin está vivo.
  * uberDirectEnabled es independiente: Vaqueras puede cotizar Uber aunque IANGEL esté offline.
  */
 export async function getRoutingRiderFlags() {
@@ -60,10 +60,11 @@ export async function getRoutingRiderFlags() {
     const rider = await getOrCreateRider();
     const presence = await listRiderPresence();
     const liveKeys = activeRiderKeys(presence);
-    const flaggedActive = presence.some((row) => row.rider_active === true) || rider.rider_active === true;
+    const dutyKeys = dutyRiderKeys(presence);
+    const flaggedActive = dutyKeys.length > 0 || rider.rider_active === true;
     const pingStale = flaggedActive && liveKeys.length === 0 && isPingStale(rider.last_ping_at);
-    const legacyLive = rider.rider_active === true && !isPingStale(rider.last_ping_at);
-    const riderActive = liveKeys.length > 0 || (liveKeys.length === 0 && legacyLive);
+    const legacyLive = presence.length === 0 && rider.rider_active === true && !isPingStale(rider.last_ping_at);
+    const riderActive = dutyKeys.length > 0 || legacyLive;
     const open = await createAdminSupabase()
       .from('orders')
       .select('iangel_rider_key, dispatch_status, status')
@@ -72,7 +73,7 @@ export async function getRoutingRiderFlags() {
     const openKeys = ((open.data || []) as { iangel_rider_key?: string | null; dispatch_status?: string | null; status?: string | null }[])
       .filter((row) => row.status !== 'delivered' && row.dispatch_status && ['assigned', 'picked_up', 'en_route', 'arrived', 'waiting_customer'].includes(row.dispatch_status))
       .map((row) => row.iangel_rider_key || null);
-    const busy = liveKeys.length > 0 ? serviceIsBusy(liveKeys, openKeys) : await isRiderBusy();
+    const busy = dutyKeys.length > 0 ? serviceIsBusy(dutyKeys, openKeys) : await isRiderBusy();
     return {
       rider,
       riderActive,
