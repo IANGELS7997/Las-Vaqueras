@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
+import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
 
@@ -9,10 +10,18 @@ export const runtime = 'nodejs';
 
 async function markOrderCancelled(paymentIntentId: string) {
   const supabase = createAdminSupabase();
+  const found = await supabase
+    .from('orders')
+    .select('id, delivery_provider, fulfillment_type, dropoff_lat, dropoff_lng')
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .maybeSingle();
   await supabase
     .from('orders')
     .update({ status: 'cancelled' })
     .eq('stripe_payment_intent_id', paymentIntentId);
+  if (found.data) {
+    void closeIangelOpsOrder(found.data as IangelOpsRow, 'cancelled').catch(() => undefined);
+  }
 }
 
 export async function POST(req: Request) {
