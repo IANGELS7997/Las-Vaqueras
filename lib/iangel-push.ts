@@ -32,7 +32,8 @@ async function sendOne(riderKey: string, sub: webpush.PushSubscription, payload:
         body: payload.body,
         url: payload.url || '/',
         tag: payload.tag || 'iangel',
-      })
+      }),
+      { TTL: 12 * 60 * 60, urgency: 'high' }
     );
     return true;
   } catch (err) {
@@ -56,7 +57,7 @@ export async function notifyIangelRider(payload: PushPayload) {
     }
     const supabase = createAdminSupabase();
     try {
-      await webpush.sendNotification(sub, JSON.stringify(payload));
+      await webpush.sendNotification(sub, JSON.stringify(payload), { TTL: 12 * 60 * 60, urgency: 'high' });
       return { ok: true as const };
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
