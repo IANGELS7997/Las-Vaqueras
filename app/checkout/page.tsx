@@ -15,6 +15,8 @@ import { Separator } from '@/components/ui/separator';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import { COPY } from '@/lib/iangel-copy';
+import { CASH_FOOD_CAP_MXN } from '@/lib/iangel-cash';
+import { SELF_FEE_MXN } from '@/lib/iangel-constants';
 import {
   calcCartBaseTotal,
   calcCartLineWeb,
@@ -108,6 +110,7 @@ export default function CheckoutPage() {
     giftPesos: number;
     percentLabel: string;
   } | null>(null);
+  const [payChoice, setPayChoice] = useState<'card' | 'cash'>('card');
   const [giftMode, setGiftMode] = useState(() => readGiftRedeem() === 'jumbo');
 
   const priceBaseTotal = calcCartBaseTotal(items);
@@ -420,6 +423,11 @@ export default function CheckoutPage() {
   const loyaltySettled = loyaltyReadyKey === loyaltyLookupKey;
   const deliveryReady = isFreeGift || isPickup || (quotedFee != null && !quoting);
   const bagBlocked = !isPickup && iangelCarries(quotedKind) && !bagFits(items);
+  const iangelDelivery = !isPickup && (quotedKind === 'self' || quotedKind === 'wait_self');
+  const cashOffered = iangelDelivery && split.subtotalWeb > 0 && split.subtotalWeb <= CASH_FOOD_CAP_MXN;
+  useEffect(() => {
+    if (!cashOffered && payChoice === 'cash') setPayChoice('card');
+  }, [cashOffered, payChoice]);
   const canStartPayment = Boolean(
     detailsReady &&
       acceptFinalSale &&
@@ -498,6 +506,7 @@ export default function CheckoutPage() {
         customer,
         items,
         acceptFinalSale: true,
+        payMethod: cashOffered && payChoice === 'cash' ? 'cash' : 'card',
       }),
     });
     const payload = await response.json();
@@ -505,6 +514,11 @@ export default function CheckoutPage() {
 
     if (!response.ok) {
       setPayError(payload.error || 'No se pudo iniciar el pago');
+      return;
+    }
+
+    if (payload.cash && payload.order) {
+      handlePaid(payload.order as Order);
       return;
     }
 
@@ -938,6 +952,49 @@ export default function CheckoutPage() {
                   </div>
                 ) : null}
                 {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
+                {iangelDelivery ? (
+                  <div className="mb-4 space-y-2">
+                    <p className="text-sm font-semibold text-white">Cómo pagas</p>
+                    {cashOffered ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPayChoice('card')}
+                          className={cn(
+                            'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
+                            payChoice === 'card'
+                              ? 'border-brand-500 bg-brand-500 text-white'
+                              : 'border-border bg-card text-muted-foreground'
+                          )}
+                        >
+                          Tarjeta
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPayChoice('cash')}
+                          className={cn(
+                            'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
+                            payChoice === 'cash'
+                              ? 'border-brand-500 bg-brand-500 text-white'
+                              : 'border-border bg-card text-muted-foreground'
+                          )}
+                        >
+                          Efectivo
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        La comida pasa de {formatMXN(CASH_FOOD_CAP_MXN)}. Solo tarjeta.
+                      </p>
+                    )}
+                    {cashOffered && payChoice === 'cash' ? (
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        En la tienda el rider deja {formatMXN(split.subtotalWeb)}. En la puerta cobra la comida más{' '}
+                        {formatMXN(SELF_FEE_MXN)}.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <label className="mb-4 flex items-start gap-3 text-sm text-muted-foreground">
                   <Checkbox
                     checked={acceptFinalSale}
@@ -982,6 +1039,8 @@ export default function CheckoutPage() {
                     'Canjear · pagar'
                   ) : gift.active ? (
                     'Canjear · pagar envío'
+                  ) : payChoice === 'cash' && cashOffered ? (
+                    'Confirmar efectivo'
                   ) : (
                     'Pagar'
                   )}
