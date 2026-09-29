@@ -266,6 +266,19 @@ export default function KitchenDashboardPage() {
     setOrders((prev) => prev.map((item) => (item.id === orderId ? order : item)));
   };
 
+  const handleCashMark = async (
+    order: Order,
+    patch: { riderPaidCash?: boolean; kitchenReceivedCash?: boolean }
+  ) => {
+    const response = await fetch(`/api/orders/${order.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+  };
+
   const handleCookHold = async (order: Order, hold: boolean) => {
     const response = await fetch(`/api/orders/${order.id}/status`, {
       method: 'PATCH',
@@ -521,9 +534,56 @@ export default function KitchenDashboardPage() {
                     }).riderLabel}
                   </p>
                   <div className="mb-3 flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-bold text-brand-500">{formatMXN(order.total)}</span>
+                    <span className="text-muted-foreground">
+                      {order.payMethod === 'cash' ? 'Comida en efectivo' : 'Total'}
+                    </span>
+                    <span className="font-bold text-brand-500">
+                      {formatMXN(order.payMethod === 'cash' ? Number(order.cashFoodDue || 0) : order.total)}
+                    </span>
                   </div>
+                  {order.payMethod === 'cash' ? (
+                    <div className="mb-3 space-y-2 rounded-lg border border-brand-500/30 bg-brand-500/10 p-3">
+                      <p className="text-xs text-brand-100">
+                        {order.riderPaidCash
+                          ? 'El rider ya marcó que dejó la comida.'
+                          : 'El rider todavía no marca que dejó la comida.'}
+                      </p>
+                      <p className="text-xs text-brand-100">
+                        {order.kitchenReceivedCash
+                          ? 'Cocina ya recibió el efectivo.'
+                          : 'Sin las dos marcas, cocina no suelta el pedido.'}
+                      </p>
+                      {order.dispatchStatus === 'assigned' && order.riderPaidCash ? (
+                        <Button
+                          onClick={() => handleCashMark(order, { riderPaidCash: false })}
+                          size="sm"
+                          variant="outline"
+                          className="border-border bg-card"
+                        >
+                          Corregir marca del rider
+                        </Button>
+                      ) : null}
+                      {!order.kitchenReceivedCash && order.dispatchStatus === 'assigned' ? (
+                        <Button
+                          onClick={() => handleCashMark(order, { kitchenReceivedCash: true })}
+                          size="sm"
+                          className="bg-brand-500 text-white hover:bg-brand-600"
+                        >
+                          Recibí la comida en efectivo
+                        </Button>
+                      ) : null}
+                      {order.kitchenReceivedCash && order.dispatchStatus === 'assigned' ? (
+                        <Button
+                          onClick={() => handleCashMark(order, { kitchenReceivedCash: false })}
+                          size="sm"
+                          variant="outline"
+                          className="border-border bg-card"
+                        >
+                          Corregir recepción
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-wrap gap-2">
                     {order.status !== 'delivered' && order.status !== 'cancelled' ? (
@@ -598,7 +658,9 @@ export default function KitchenDashboardPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle className="text-white">¿Cancelar pedido #{order.id}?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Se hará un reembolso Stripe (reverse_transfer + application fee) y el pedido quedará cancelado.
+                            {order.payMethod === 'cash' || !order.stripePaymentIntentId
+                              ? 'El pedido queda cancelado. Este cobro no pasó por tarjeta.'
+                              : 'Se hará un reembolso Stripe (reverse_transfer + application fee) y el pedido quedará cancelado.'}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -643,7 +705,9 @@ export default function KitchenDashboardPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{order.customer.name}</p>
-                  <p className="text-xs text-brand-500">{formatMXN(order.total)}</p>
+                  <p className="text-xs text-brand-500">
+                    {formatMXN(order.payMethod === 'cash' ? Number(order.cashFoodDue || 0) : order.total)}
+                  </p>
                 </div>
               );
             })}

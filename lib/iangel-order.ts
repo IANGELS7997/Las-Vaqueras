@@ -1,3 +1,4 @@
+import { assertCashPickup, cashViewFromRow, paidCashPatch } from '@/lib/iangel-cash';
 import { patchFromRiderAction } from '@/lib/order-lifecycle';
 
 export type IangelOrder = {
@@ -6,6 +7,10 @@ export type IangelOrder = {
   pickupPin: string | null;
   status: string;
   dispatchStatus: string | null;
+  payMethod?: 'card' | 'cash';
+  cashFoodDue: number | null;
+  riderPaidCash: boolean;
+  kitchenReceivedCash: boolean;
   cookHold: boolean;
   cookHoldReleasedAt: string | null;
   leaveAtDoor: boolean;
@@ -54,12 +59,18 @@ export function mapIangelOrder(row: Record<string, unknown>): IangelOrder {
   const short =
     (row.short_code as string | null) ||
     id.replace(/-/g, '').slice(0, 4).toUpperCase();
+  const payMethod = row.pay_method === 'cash' ? 'cash' : row.pay_method === 'card' ? 'card' : undefined;
+  const due = row.cash_food_due;
   return {
     id,
     shortCode: short,
     pickupPin: null,
     status: String(row.status || 'pending'),
     dispatchStatus: (row.dispatch_status as string | null) || null,
+    ...(payMethod ? { payMethod } : {}),
+    cashFoodDue: payMethod === 'cash' && due != null && due !== '' ? Number(due) : null,
+    riderPaidCash: row.rider_paid_cash === true,
+    kitchenReceivedCash: row.kitchen_received_cash === true,
     cookHold: Boolean(row.cook_hold),
     cookHoldReleasedAt: (row.cook_hold_released_at as string | null) || null,
     leaveAtDoor: Boolean(row.leave_at_door),
@@ -88,7 +99,19 @@ export function isActiveTrip(dispatchStatus: string | null) {
   return Boolean(dispatchStatus && ACTIVE_TRIP.has(dispatchStatus));
 }
 
-export async function runIangelOrderAction(order: Record<string, unknown>, action: string, _pin?: string) {
+export async function runIangelOrderAction(
+  order: Record<string, unknown>,
+  action: string,
+  _pin?: string,
+  riderKey?: string
+): Promise<{ patch: Record<string, unknown>; customerText: string }> {
+  const cash = cashViewFromRow(order);
+  if (action === 'paid_cash') {
+    return { patch: { ...paidCashPatch(cash, riderKey || '') }, customerText: '' };
+  }
+  if (action === 'pickup' || action === 'en_route') {
+    assertCashPickup(cash);
+  }
   if (Boolean(order.cook_hold) && !order.cook_hold_released_at && (action === 'pickup' || action === 'en_route')) {
     throw new Error('Cocina pidió espera. No inicies el viaje todavía.');
   }

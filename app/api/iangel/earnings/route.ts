@@ -1,6 +1,9 @@
 import { SELF_FEE_MXN } from '@/lib/iangel-constants';
 import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
+import { deliveryFeeSettlement } from '@/lib/iangel-cash';
+import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { orderVisibleToRider } from '@/lib/iangel-presence';
+import { settleAdrianDeliveryFee } from '@/lib/iangel-rider-fee';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -115,7 +118,7 @@ export async function GET(req: Request) {
   const found = await supabase
     .from('orders')
     .select(
-      'id, short_code, self_fee, delivery_fee, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items, iangel_rider_key'
+      'id, short_code, self_fee, delivery_fee, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items, iangel_rider_key, pay_method, delivery_provider, fulfillment_type'
     )
     .in('delivery_provider', ['self', 'wait_self'])
     .or('status.eq.delivered,dispatch_status.eq.delivered')
@@ -128,11 +131,33 @@ export async function GET(req: Request) {
     return iangelJson(req, { error: found.error.message }, 500);
   }
 
-  const rows = ((found.data || []) as (DeliveredRow & { iangel_rider_key?: string | null })[]).filter((row) => {
+  const rows = ((found.data || []) as (DeliveredRow & {
+    iangel_rider_key?: string | null;
+    pay_method?: string | null;
+    delivery_provider?: string | null;
+    fulfillment_type?: string | null;
+  })[]).filter((row) => {
     const owner = String(row.iangel_rider_key || '').trim();
     if (!owner) return riderKey === ANGEL_RIDER_KEY;
     return orderVisibleToRider(row, riderKey);
   });
+
+  for (const row of rows) {
+    const settlement = deliveryFeeSettlement({
+      id: row.id,
+      payMethod: row.pay_method || null,
+      riderKey: row.iangel_rider_key || null,
+      deliveryProvider: row.delivery_provider || null,
+      fulfillment: row.fulfillment_type || null,
+      status: 'delivered',
+    });
+    if (settlement.transfer.kind !== 'transfer' || !settlement.notice) continue;
+    const result = await settleAdrianDeliveryFee(row.id);
+    if (result === 'created') {
+      void closeIangelOpsOrder(row as IangelOpsRow, 'delivered', settlement.notice).catch(() => undefined);
+    }
+  }
+
   const todayYmd = chihuahuaYmd();
   const todayStart = new Date(Date.UTC(todayYmd.y, todayYmd.m - 1, todayYmd.day, 6, 0, 0)).getTime();
   const isCurrentWeek = weekOffset === 0;

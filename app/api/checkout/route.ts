@@ -8,16 +8,18 @@ import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidPickupAt } from '@/lib/pickup-slots';
 import { formatDeliveryReferences, isValidCoord } from '@/lib/delivery-address';
-import { readCustomerIdFromRequest } from '@/lib/customer-auth';
 import { cookies } from 'next/headers';
-import { clientIp, foodDiscountPercentLabel, foodDiscountRate, loyaltyLabel, normalizePhone, quoteFoodDiscount } from '@/lib/loyalty';
+import { CUSTOMER_COOKIE, customerCookieOptions, customerSessionToken, readCustomerIdFromRequest } from '@/lib/customer-auth';
+import { addressKey, clientIp, foodDiscountPercentLabel, foodDiscountRate, loyaltyLabel, normalizeEmail, normalizePhone, quoteFoodDiscount, type LoyaltyKind } from '@/lib/loyalty';
 import { findCustomerIdByPhone, resolveLoyaltyKind } from '@/lib/loyalty-guard';
 import {
   getAvailableJumboReward,
   jumboGiftBase,
   JUMBO_REDEEM_COOKIE,
   readRedeemCookie,
+  redeemJumboReward,
   reserveJumboReward,
+  grantJumboReward,
 } from '@/lib/loyalty-reward';
 import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
@@ -25,6 +27,16 @@ import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { resolvePaidDelivery } from '@/lib/iangel-checkout';
+import { cashCheckoutAllowed, cashStoredAmounts } from '@/lib/iangel-cash';
+import { paidOrderStatusFields } from '@/lib/order-auto-advance';
+import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { alertIfKitchenOfflineForOrder } from '@/lib/kitchen-order-alert';
+import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
+import { notifyIangelNewOrder } from '@/lib/iangel-push';
+import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
+import { namesFromCheckout } from '@/lib/customer-from-checkout';
+import { upsertCustomer } from '@/lib/customers';
+import { sendGiftOrderEmail } from '@/lib/gift-order-email';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -40,7 +52,7 @@ function isValidEmail(value: string): boolean {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale } =
+    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale, payMethod: requestedPay } =
       body as {
         priceBaseTotal: number;
         stripeAccountId?: string;
@@ -48,6 +60,7 @@ export async function POST(req: Request) {
         fulfillment?: string;
         pickupAt?: string | null;
         acceptFinalSale?: boolean;
+        payMethod?: string;
         customer?: {
           name?: string;
           phone?: string;
@@ -56,6 +69,8 @@ export async function POST(req: Request) {
           references?: string;
           lat?: number | null;
           lng?: number | null;
+          firstName?: string;
+          lastName?: string;
         };
         items?: CartItem[];
       };
@@ -230,6 +245,124 @@ export async function POST(req: Request) {
       foodDiscountPesos: foodQuote.discountPesos,
     });
 
+    const payMethod = requestedPay === 'cash' ? 'cash' : 'card';
+
+    if (payMethod === 'cash') {
+      const allowed = cashCheckoutAllowed({
+        provider: deliveryProvider,
+        fulfillment,
+        subtotalWeb: split.subtotalWeb,
+      });
+      if (!allowed.ok) {
+        return NextResponse.json({ error: allowed.error }, { status: 400 });
+      }
+      const amounts = cashStoredAmounts(split.subtotalWeb);
+      const paidStatus = paidOrderStatusFields({ fulfillment, deliveryProvider });
+      const profileLoginToken = crypto.randomUUID().replace(/-/g, '');
+      const referencesText = canGiftJumbo
+        ? [references, 'PROMOCIÓN · Papas Jumbo de regalo'].filter(Boolean).join(' · ')
+        : references || null;
+      const inserted = await supabase
+        .from('orders')
+        .insert({
+          restaurant_id: restaurantId || null,
+          customer_name: name,
+          customer_phone: phone,
+          customer_email: email,
+          delivery_address: address,
+          delivery_references: referencesText,
+          total_charged: amounts.totalCharged,
+          restaurant_payout: amounts.restaurantPayout,
+          platform_fee: amounts.platformFee,
+          customer_fee: 0,
+          delivery_fee: amounts.deliveryFee,
+          fulfillment_type: fulfillment,
+          pickup_at: isPickup ? pickupAtIso : null,
+          status: paidStatus.status,
+          items: items || [],
+          profile_login_token: profileLoginToken,
+          loyalty_kind: canGiftJumbo ? 'jumbo_credit' : loyaltyKind,
+          dropoff_lat: isPickup ? null : lat,
+          dropoff_lng: isPickup ? null : lng,
+          delivery_provider: deliveryProvider,
+          dispatch_status: paidStatus.dispatch_status,
+          pay_method: 'cash',
+          cash_food_due: amounts.cashFoodDue,
+          rider_paid_cash: false,
+          kitchen_received_cash: false,
+        })
+        .select('*')
+        .single();
+      if (inserted.error || !inserted.data) {
+        return NextResponse.json({ error: inserted.error?.message || 'No se pudo guardar el pedido' }, { status: 500 });
+      }
+      const orderRow = inserted.data as DbOrderRow;
+      const names = namesFromCheckout({
+        name,
+        firstName: customer?.firstName,
+        lastName: customer?.lastName,
+      });
+      const profile = await upsertCustomer(supabase, {
+        firstName: names.firstName || name,
+        lastName: names.lastName || name,
+        phone,
+        email,
+      });
+      if (orderRow.customer_id !== profile.id) {
+        await supabase.from('orders').update({ customer_id: profile.id }).eq('id', orderRow.id);
+      }
+      const kind = (canGiftJumbo ? 'jumbo_credit' : loyaltyKind) as LoyaltyKind | null;
+      const alreadyClaimed = await supabase
+        .from('loyalty_claims')
+        .select('id')
+        .eq('order_id', orderRow.id)
+        .maybeSingle();
+      if (!alreadyClaimed.data && (kind === 'first_30' || kind === 'fifth_20' || kind === 'tenth_jumbo')) {
+        await supabase.from('loyalty_claims').insert({
+          kind,
+          customer_id: profile.id,
+          phone: normalizePhone(phone),
+          email: normalizeEmail(email),
+          ip: clientIp(req.headers),
+          address_key: addressKey({ address }),
+          order_id: orderRow.id,
+        });
+      }
+      if (kind === 'tenth_jumbo') {
+        await grantJumboReward(supabase, profile.id, orderRow.id);
+      }
+      if (canGiftJumbo && jumboReward) {
+        const redeemed = await redeemJumboReward(supabase, jumboReward.id, profile.id, orderRow.id);
+        if (redeemed) {
+          await sendGiftOrderEmail({
+            to: email,
+            customerName: name,
+            orderId: orderRow.id,
+            token: profileLoginToken,
+            fulfillment: 'delivery',
+            pickupAt: null,
+            totalCharged: amounts.totalCharged,
+          });
+        }
+      }
+      void alertIfKitchenOfflineForOrder(supabase, { id: orderRow.id, short_code: orderRow.short_code }).catch((err) => {
+        Sentry.captureException(err);
+      });
+      void sendDeveloperPurchaseNotice(orderRow).catch((err) => Sentry.captureException(err));
+      if (String(orderRow.dispatch_status || '') === 'self_iangel') {
+        void notifyIangelNewOrder({ code: orderRow.short_code, customer: orderRow.customer_name }).catch((err) => {
+          Sentry.captureException(err);
+        });
+        void notifyIangelOpsOrder(orderRow as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
+      }
+      const response = NextResponse.json({
+        cash: true,
+        order: mapDbOrder({ ...orderRow, customer_id: profile.id }),
+      });
+      response.cookies.set(CUSTOMER_COOKIE, await customerSessionToken(profile.id), customerCookieOptions());
+      return response;
+    }
+
     if (split.totalChargedCentavos < 1) {
       return NextResponse.json({ error: 'No hay un cobro válido para este canje' }, { status: 400 });
     }
@@ -320,6 +453,9 @@ export async function POST(req: Request) {
         dropoff_lng: isPickup ? null : lng,
         delivery_provider: deliveryProvider,
         dispatch_status: dispatchStatus,
+        pay_method: 'card',
+        rider_paid_cash: false,
+        kitchen_received_cash: false,
       })
       .select('id')
       .single();

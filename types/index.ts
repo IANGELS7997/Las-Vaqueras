@@ -101,6 +101,10 @@ export interface Order {
   items: CartItem[];
   customer: OrderCustomer;
   paymentMethod: PaymentMethod;
+  payMethod?: 'card' | 'cash';
+  cashFoodDue?: number | null;
+  riderPaidCash?: boolean;
+  kitchenReceivedCash?: boolean;
   subtotal: number;
   serviceFee: number;
   deliveryFee: number;

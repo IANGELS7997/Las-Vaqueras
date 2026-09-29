@@ -2,8 +2,8 @@ import * as Sentry from '@sentry/nextjs';
 import { sendArrivalEmail, shouldSendArrivalEmail } from '@/lib/arrival-email';
 import { notifyNextDoorEnroute } from '@/lib/enroute-email';
 import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
-import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
+import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -27,10 +27,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (owner && owner !== riderKey) {
       return iangelJson(req, { error: 'Este pedido lo lleva el otro rider' }, 409);
     }
-    const { patch, customerText } = await runIangelOrderAction(row, String(body.action || ''), body.pin);
-    const claim = !owner;
+    const actionName = String(body.action || '');
+    const { patch, customerText } = await runIangelOrderAction(row, actionName, body.pin, riderKey);
+    const claim = !owner && actionName !== 'paid_cash';
     if (claim) patch.iangel_rider_key = riderKey;
-    if (String(body.action || '') === 'deliver') {
+    if (actionName === 'deliver') {
       patch.status = 'delivered';
       patch.dispatch_status = 'delivered';
       patch.rider_status = 'idle';
@@ -47,7 +48,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
     if (
       shouldSendArrivalEmail({
-        action: String(body.action || ''),
+        action: actionName,
         previousDispatch: typeof row.dispatch_status === 'string' ? row.dispatch_status : null,
         fulfillment: typeof row.fulfillment_type === 'string' ? row.fulfillment_type : null,
         email: typeof row.customer_email === 'string' ? row.customer_email : null,
@@ -65,8 +66,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         Sentry.captureException(err);
       }
     }
-    const action = String(body.action || '');
-    if (action === 'pickup' || action === 'en_route' || action === 'deliver') {
+    if (actionName === 'pickup' || actionName === 'en_route' || actionName === 'deliver') {
       await notifyNextDoorEnroute(supabase);
     }
     if (customerText) {
@@ -77,8 +77,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         body: customerText,
       });
     }
-    if (String(body.action || '') === 'deliver') {
-      void closeIangelOpsOrder(updated.data as IangelOpsRow, 'delivered').catch(() => undefined);
+    if (actionName === 'deliver') {
+      void closeDeliveredWithFee(updated.data as Record<string, unknown>).catch(() => undefined);
     }
     return iangelJson(req, { ok: true, order: mapIangelOrder(updated.data as Record<string, unknown>) });
   } catch (error) {

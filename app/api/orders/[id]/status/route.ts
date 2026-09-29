@@ -4,7 +4,9 @@ import { patchFromKitchenStatus } from '@/lib/order-lifecycle';
 import type { OrderStatus } from '@/types';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
+import { kitchenCashPatch, cashViewFromRow } from '@/lib/iangel-cash';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
+import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,11 +21,18 @@ export async function PATCH(
   const body = await req.json().catch(() => ({}));
   const status = body.status as string | undefined;
   const cookHold = typeof body.cookHold === 'boolean' ? body.cookHold : undefined;
+  const riderPaidCash = typeof body.riderPaidCash === 'boolean' ? body.riderPaidCash : undefined;
+  const kitchenReceivedCash = typeof body.kitchenReceivedCash === 'boolean' ? body.kitchenReceivedCash : undefined;
 
   if (status !== undefined && !KITCHEN_ORDER_STATUSES.includes(status as OrderStatus)) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
   }
-  if (status === undefined && cookHold === undefined) {
+  if (
+    status === undefined &&
+    cookHold === undefined &&
+    riderPaidCash === undefined &&
+    kitchenReceivedCash === undefined
+  ) {
     return NextResponse.json({ error: 'sin cambios' }, { status: 400 });
   }
 
@@ -34,6 +43,21 @@ export async function PATCH(
   }
 
   const patch: Record<string, unknown> = {};
+
+  if (riderPaidCash !== undefined || kitchenReceivedCash !== undefined) {
+    try {
+      Object.assign(
+        patch,
+        kitchenCashPatch(cashViewFromRow(current.data as Record<string, unknown>), {
+          riderPaidCash,
+          kitchenReceivedCash,
+        })
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo marcar el efectivo';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
 
   if (cookHold !== undefined) {
     patch.cook_hold = cookHold;
@@ -83,8 +107,10 @@ export async function PATCH(
   }
 
   const nextStatus = String((data as DbOrderRow).status || '');
-  if (nextStatus === 'delivered' || nextStatus === 'cancelled') {
-    void closeIangelOpsOrder(data as DbOrderRow & IangelOpsRow, nextStatus).catch(() => undefined);
+  if (nextStatus === 'delivered') {
+    void closeDeliveredWithFee(data as Record<string, unknown>).catch(() => undefined);
+  } else if (nextStatus === 'cancelled') {
+    void closeIangelOpsOrder(data as DbOrderRow & IangelOpsRow, 'cancelled').catch(() => undefined);
   }
 
   return NextResponse.json({ order: mapDbOrder(data as DbOrderRow) });

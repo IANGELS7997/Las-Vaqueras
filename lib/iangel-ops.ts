@@ -74,12 +74,17 @@ export async function notifyIangelOpsOrder(row: IangelOpsRow) {
   });
 }
 
-export async function closeIangelOpsOrder(row: IangelOpsRow, status: 'delivered' | 'cancelled') {
+export async function closeIangelOpsOrder(
+  row: IangelOpsRow,
+  status: 'delivered' | 'cancelled',
+  fee?: Record<string, unknown> | null
+) {
   if (!isIangelProvider(row)) return;
   await postOps({
     action: 'order-event',
     externalId: row.id,
     status,
+    ...(status === 'delivered' && fee ? fee : {}),
   });
 }
 

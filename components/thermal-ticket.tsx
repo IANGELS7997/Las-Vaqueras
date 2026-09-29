@@ -123,7 +123,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       <div className="my-1 border-t border-dashed border-black" />
       <div className="text-center">
         <p>Solo comida · sin envio ni comisiones</p>
-        <p>{paymentCardLabel(order.cardFunding)}</p>
+        <p>{order.payMethod === 'cash' ? 'Pago: Efectivo' : paymentCardLabel(order.cardFunding)}</p>
       </div>
     </div>
   );

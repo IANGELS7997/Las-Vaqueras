@@ -20,7 +20,11 @@ export const KITCHEN_ORDER_STATUSES: OrderStatus[] = [
 
 export type DbOrderRow = {
   id: string;
-  stripe_payment_intent_id: string;
+  stripe_payment_intent_id: string | null;
+  pay_method?: string | null;
+  cash_food_due?: number | string | null;
+  rider_paid_cash?: boolean | null;
+  kitchen_received_cash?: boolean | null;
   restaurant_id: string | null;
   customer_name: string;
   customer_phone: string;
@@ -58,7 +62,11 @@ function toNumber(value: number | string): number {
 export function mapDbOrder(row: DbOrderRow): Order {
   return {
     id: row.id,
-    stripePaymentIntentId: row.stripe_payment_intent_id,
+    stripePaymentIntentId: row.stripe_payment_intent_id || undefined,
+    payMethod: row.pay_method === 'cash' ? 'cash' : row.pay_method === 'card' ? 'card' : undefined,
+    cashFoodDue: row.cash_food_due == null || row.cash_food_due === '' ? null : Number(row.cash_food_due),
+    riderPaidCash: row.rider_paid_cash === true,
+    kitchenReceivedCash: row.kitchen_received_cash === true,
     items: Array.isArray(row.items) ? row.items : [],
     customer: {
       name: row.customer_name,
