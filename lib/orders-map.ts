@@ -1,5 +1,6 @@
 import type { CartItem, Order, OrderStatus } from '@/types';
 import { customerStatusLabel as syncCustomerLabel } from '@/lib/order-lifecycle';
+import { uberTrackingHref } from '@/lib/uber-tracking-email';
 
 export const ORDER_STATUSES: OrderStatus[] = [
   'awaiting_payment',
@@ -53,6 +54,7 @@ export type DbOrderRow = {
   rider_lat?: number | null;
   rider_lng?: number | null;
   loyalty_kind?: string | null;
+  uber_tracking_url?: string | null;
 };
 
 function toNumber(value: number | string): number {
@@ -96,6 +98,7 @@ export function mapDbOrder(row: DbOrderRow): Order {
     incidentType: row.incident_type || null,
     etaMinutes: row.eta_minutes == null ? null : Number(row.eta_minutes),
     loyaltyKind: row.loyalty_kind || null,
+    uberTrackingUrl: uberTrackingHref(row.uber_tracking_url),
   };
 }
 

@@ -92,6 +92,11 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
                   cookHold: row.cook_hold == null ? prev.cookHold : Boolean(row.cook_hold),
                   etaMinutes: row.eta_minutes == null ? prev.etaMinutes : Number(row.eta_minutes),
                   estimatedMinutes: row.eta_minutes == null ? prev.estimatedMinutes : Number(row.eta_minutes),
+                  uberTrackingUrl:
+                    typeof row.uber_tracking_url === 'string' &&
+                    (row.uber_tracking_url.startsWith('https://') || row.uber_tracking_url.startsWith('http://'))
+                      ? row.uber_tracking_url
+                      : prev.uberTrackingUrl,
                 }
               : prev
           );
@@ -250,6 +255,16 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           <Phone className="h-3.5 w-3.5 text-orange-500" />
           {order.customer.name} · {order.customer.phone}
         </div>
+        {order.uberTrackingUrl ? (
+          <a
+            href={order.uberTrackingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 flex min-h-11 items-center justify-center rounded-xl bg-white px-4 text-sm font-bold text-black"
+          >
+            Seguir con Uber Direct
+          </a>
+        ) : null}
       </div>
 
       <OrderRiderRating orderId={order.id} delivered={status === 'delivered' || order.dispatchStatus === 'delivered'} />

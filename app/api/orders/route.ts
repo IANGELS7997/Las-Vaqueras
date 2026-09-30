@@ -26,6 +26,7 @@ import { grantJumboReward, redeemJumboReward } from '@/lib/loyalty-reward';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { dispatchUberDirectAfterPayment } from '@/lib/uber-dispatch';
+import { sendUberTrackingEmail, shouldSendUberTrackingEmail } from '@/lib/uber-tracking-email';
 import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
 import { notifyIangelNewOrder } from '@/lib/iangel-push';
 import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
@@ -75,6 +76,8 @@ async function persistUberDispatch(
     dropoff_lat?: number | null;
     dropoff_lng?: number | null;
     uber_delivery_id?: string | null;
+    uber_tracking_url?: string | null;
+    profile_login_token?: string | null;
   };
   const patch = await dispatchUberDirectAfterPayment({
     orderId: row.id,
@@ -92,7 +95,23 @@ async function persistUberDispatch(
   if (!patch) return row;
   const saved = await supabase.from('orders').update(patch).eq('id', row.id).select('*').single();
   if (saved.error || !saved.data) return { ...row, dispatch_status: patch.dispatch_status } as DbOrderRow;
-  return saved.data as DbOrderRow;
+  const next = saved.data as DbOrderRow & { profile_login_token?: string | null };
+  if (
+    shouldSendUberTrackingEmail({
+      previousUrl: coords.uber_tracking_url,
+      nextUrl: next.uber_tracking_url,
+      email: next.customer_email,
+    })
+  ) {
+    void sendUberTrackingEmail({
+      to: String(next.customer_email || ''),
+      customerName: next.customer_name,
+      orderId: next.id,
+      trackingUrl: String(next.uber_tracking_url || ''),
+      token: next.profile_login_token,
+    }).catch(reportNoticeFailure);
+  }
+  return next;
 }
 
 async function orderResponseWithProfile(args: {

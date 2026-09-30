@@ -1,5 +1,7 @@
+import * as Sentry from '@sentry/nextjs';
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase-admin';
+import { sendUberTrackingEmail, shouldSendUberTrackingEmail } from '@/lib/uber-tracking-email';
 import {
   isUberIgnoredMoneyEvent,
   kitchenStatusFromUber,
@@ -40,7 +42,9 @@ export async function POST(req: Request) {
   }
 
   const supabase = createAdminSupabase();
-  let orderQuery = supabase.from('orders').select('id, status, fulfillment_type');
+  let orderQuery = supabase
+    .from('orders')
+    .select('id, status, fulfillment_type, customer_email, customer_name, uber_tracking_url, profile_login_token');
   if (event.orderId) {
     orderQuery = orderQuery.eq('id', event.orderId);
   } else if (event.deliveryId) {
@@ -53,11 +57,12 @@ export async function POST(req: Request) {
   }
 
   const nextStatus = kitchenStatusFromUber(event.status);
+  const previousUrl = found.data.uber_tracking_url;
   const patch: Record<string, string | number | null> = {
-    uber_delivery_id: event.deliveryId,
     uber_status: event.status,
-    uber_tracking_url: event.trackingUrl,
   };
+  if (event.deliveryId) patch.uber_delivery_id = event.deliveryId;
+  if (event.trackingUrl) patch.uber_tracking_url = event.trackingUrl;
   if (event.courierLat != null && event.courierLng != null) {
     patch.rider_lat = event.courierLat;
     patch.rider_lng = event.courierLng;
@@ -66,6 +71,22 @@ export async function POST(req: Request) {
     patch.status = nextStatus;
   }
 
-  await supabase.from('orders').update(patch).eq('id', found.data.id);
+  const saved = await supabase.from('orders').update(patch).eq('id', found.data.id);
+  if (
+    !saved.error &&
+    shouldSendUberTrackingEmail({
+      previousUrl,
+      nextUrl: event.trackingUrl,
+      email: found.data.customer_email,
+    })
+  ) {
+    void sendUberTrackingEmail({
+      to: String(found.data.customer_email || ''),
+      customerName: String(found.data.customer_name || ''),
+      orderId: found.data.id,
+      trackingUrl: String(event.trackingUrl || ''),
+      token: found.data.profile_login_token,
+    }).catch((err) => Sentry.captureException(err));
+  }
   return new NextResponse(null, { status: 200 });
 }
