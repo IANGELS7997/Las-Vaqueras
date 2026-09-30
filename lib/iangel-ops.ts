@@ -15,6 +15,8 @@ export type IangelOpsRow = {
   dropoff_lat?: number | string | null;
   dropoff_lng?: number | string | null;
   dispatch_status?: string | null;
+  pay_method?: string | null;
+  cash_food_due?: number | string | null;
 };
 
 function opsUrl() {
@@ -61,6 +63,8 @@ async function postOps(body: Record<string, unknown>) {
 /** Avisa al panel cuando nace un domicilio IANGEL. Un fallo no frena el cobro. */
 export async function notifyIangelOpsOrder(row: IangelOpsRow) {
   if (!isIangelDelivery(row)) return;
+  const payMethod = row.pay_method === 'cash' || row.pay_method === 'card' ? row.pay_method : undefined;
+  const food = Number(row.cash_food_due);
   await postOps({
     action: 'order',
     externalId: row.id,
@@ -71,6 +75,23 @@ export async function notifyIangelOpsOrder(row: IangelOpsRow) {
     dropoff: { lat: Number(row.dropoff_lat), lng: Number(row.dropoff_lng) },
     pickupLabel: RESTAURANT_INFO.pickupStreet,
     createdAt: row.created_at || new Date().toISOString(),
+    ...(payMethod ? { payMethod } : {}),
+    ...(payMethod === 'cash' && Number.isFinite(food) && food > 0 ? { cashFoodDue: food, feeMxn: 50 } : {}),
+  });
+}
+
+export async function markIangelDoorCollected(
+  row: IangelOpsRow,
+  note: { paymentStatus: string; paymentNote: string; cashFoodDue: number }
+) {
+  if (!isIangelProvider(row)) return;
+  await postOps({
+    action: 'order-event',
+    externalId: row.id,
+    paymentStatus: note.paymentStatus,
+    paymentNote: note.paymentNote,
+    cashFoodDue: note.cashFoodDue,
+    payMethod: 'cash',
   });
 }
 
