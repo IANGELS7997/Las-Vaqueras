@@ -569,7 +569,7 @@ export default function KitchenDashboardPage() {
                           size="sm"
                           className="bg-brand-500 text-white hover:bg-brand-600"
                         >
-                          Recibí la comida en efectivo
+                          Recibí el pago
                         </Button>
                       ) : null}
                       {order.kitchenReceivedCash && order.dispatchStatus === 'assigned' ? (
