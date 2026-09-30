@@ -27,6 +27,7 @@ import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
 import { getStripe } from '@/lib/stripe';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { resolvePaidDelivery } from '@/lib/iangel-checkout';
+import { cashAbuseMessage, cashIdentityMessage, type CashPriorOrder } from '@/lib/cash-fraud';
 import { cashCheckoutAllowed, cashStoredAmounts } from '@/lib/iangel-cash';
 import { paidOrderStatusFields } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
@@ -47,6 +48,45 @@ function isPositiveNumber(value: unknown): value is number {
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+async function cashPriors(
+  supabase: ReturnType<typeof createAdminSupabase>,
+  phone: string
+): Promise<CashPriorOrder[]> {
+  const digits = normalizePhone(phone);
+  const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const [openRows, recentRows] = await Promise.all([
+    supabase
+      .from('orders')
+      .select('id, customer_phone, delivery_address, status, created_at')
+      .eq('pay_method', 'cash')
+      .not('status', 'in', '(delivered,cancelled)')
+      .order('created_at', { ascending: false })
+      .limit(40),
+    supabase
+      .from('orders')
+      .select('id, customer_phone, delivery_address, status, created_at')
+      .eq('pay_method', 'cash')
+      .gte('created_at', since)
+      .ilike('customer_phone', `%${digits}%`)
+      .limit(20),
+  ]);
+  if (openRows.error || recentRows.error) {
+    throw new Error(openRows.error?.message || recentRows.error?.message || 'No se pudo revisar el efectivo');
+  }
+  const byId = new Map<string, CashPriorOrder>();
+  for (const row of [...(openRows.data || []), ...(recentRows.data || [])]) {
+    const id = String(row.id || '');
+    if (!id || byId.has(id)) continue;
+    byId.set(id, {
+      phone: String(row.customer_phone || ''),
+      address: String(row.delivery_address || ''),
+      status: String(row.status || ''),
+      createdAt: String(row.created_at || ''),
+    });
+  }
+  return Array.from(byId.values());
 }
 
 export async function POST(req: Request) {
@@ -255,6 +295,26 @@ export async function POST(req: Request) {
       });
       if (!allowed.ok) {
         return NextResponse.json({ error: allowed.error }, { status: 400 });
+      }
+      if (canGiftJumbo) {
+        return NextResponse.json({ error: 'Este cupón no se paga en efectivo' }, { status: 400 });
+      }
+      const firstName = customer?.firstName?.trim() || name.split(' ')[0] || '';
+      const lastName = customer?.lastName?.trim() || name.split(' ').slice(1).join(' ') || '';
+      const identity = cashIdentityMessage({ firstName, lastName, phone, email, address });
+      if (identity) {
+        return NextResponse.json({ error: identity }, { status: 400 });
+      }
+      let priors: CashPriorOrder[] = [];
+      try {
+        priors = await cashPriors(supabase, phone);
+      } catch (err) {
+        Sentry.captureException(err);
+        return NextResponse.json({ error: 'No se pudo revisar el pago en efectivo. Intenta de nuevo.' }, { status: 400 });
+      }
+      const abuse = cashAbuseMessage({ phone, address, prior: priors });
+      if (abuse) {
+        return NextResponse.json({ error: abuse }, { status: 400 });
       }
       const amounts = cashStoredAmounts(split.subtotalWeb);
       const paidStatus = paidOrderStatusFields({ fulfillment, deliveryProvider });
