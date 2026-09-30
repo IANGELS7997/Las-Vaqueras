@@ -40,8 +40,14 @@ function playBeepTwice(ctx: AudioContext) {
   playBeep(ctx);
 }
 
-export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boolean) => void }) {
-  const [isShiftActive, setIsShiftActive] = useState(false);
+export function KitchenShift({
+  restored = false,
+  onShiftChange,
+}: {
+  restored?: boolean;
+  onShiftChange?: (active: boolean) => void;
+}) {
+  const [isShiftActive, setIsShiftActive] = useState(restored);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
 
@@ -71,7 +77,12 @@ export function KitchenShift({ onShiftChange }: { onShiftChange?: (active: boole
   };
 
   useEffect(() => {
+    if (restored) setIsShiftActive(true);
+  }, [restored]);
+
+  useEffect(() => {
     if (!isShiftActive) return;
+    if (!audioRef.current) audioRef.current = new Audio(SOUND_SRC);
     const onAlert = () => playFullAlert();
     window.addEventListener(ALERT_EVENT, onAlert);
     return () => window.removeEventListener(ALERT_EVENT, onAlert);

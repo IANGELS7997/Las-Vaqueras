@@ -6,6 +6,7 @@ import {
   viewKitchenStation,
   type KitchenStationRow,
 } from '@/lib/kitchen-station';
+import { kitchenCookieOptions, kitchenSessionToken, KITCHEN_COOKIE } from '@/lib/kitchen-auth';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -90,5 +91,12 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ station: viewKitchenStation(row as KitchenStationRow) });
+  const response = NextResponse.json({ station: viewKitchenStation(row as KitchenStationRow) });
+  if (!endingShift) {
+    const secret = process.env.KITCHEN_PASSWORD;
+    if (secret) {
+      response.cookies.set(KITCHEN_COOKIE, await kitchenSessionToken(secret), kitchenCookieOptions());
+    }
+  }
+  return response;
 }

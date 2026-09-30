@@ -49,8 +49,6 @@ export async function GET(req: Request) {
     await supabase
       .from('kitchen_station')
       .update({
-        shift_active: false,
-        auto_print: false,
         offline_alert_sent_at: now,
         updated_at: now,
       })
