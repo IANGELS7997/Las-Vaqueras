@@ -125,4 +125,5 @@ export interface Order {
   incidentType?: string | null;
   etaMinutes?: number | null;
   loyaltyKind?: string | null;
+  uberTrackingUrl?: string | null;
 }
