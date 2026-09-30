@@ -27,9 +27,10 @@ assert.equal(shouldSendOrderOfflineAlert(onlineRow, now), false);
 
 const offlineRow: KitchenStationRow = {
   ...onlineRow,
-  last_seen_at: new Date(now - 120_000).toISOString(),
+  last_seen_at: new Date(now - 5 * 60_000).toISOString(),
 };
 assert.equal(isKitchenStationOnline(offlineRow, now), false);
+assert.equal(viewKitchenStation(offlineRow, now).shiftActive, true);
 assert.equal(shouldSendOfflineAlert(offlineRow, now), true);
 assert.equal(shouldSendOrderOfflineAlert(offlineRow, now), true);
 

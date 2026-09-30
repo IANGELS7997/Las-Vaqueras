@@ -57,6 +57,23 @@ const STATUS_CONFIG: Record<
 };
 
 const NEW_ORDER_STATUSES = new Set<OrderStatus>(['pending', 'preparing']);
+const SEEN_KEY = 'lv_kitchen_seen_ids';
+
+function readSeenIds(): Set<string> | null {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    if (!raw) return null;
+    const list = JSON.parse(raw) as unknown;
+    if (!Array.isArray(list)) return new Set();
+    return new Set(list.filter((id): id is string => typeof id === 'string'));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSeenIds(ids: Set<string>) {
+  localStorage.setItem(SEEN_KEY, JSON.stringify(Array.from(ids).slice(-300)));
+}
 
 type StationView = {
   online: boolean;
@@ -90,14 +107,17 @@ export default function KitchenDashboardPage() {
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
   const [shiftActive, setShiftActive] = useState(false);
+  const [shiftRestored, setShiftRestored] = useState(false);
+  const [stationKnown, setStationKnown] = useState(false);
   const [autoPrint, setAutoPrint] = useState(true);
   const [station, setStation] = useState<StationView | null>(null);
   const [opsOk, setOpsOk] = useState<boolean | null>(null);
   const [opsProblems, setOpsProblems] = useState<
     { severity: string; label: string; detail: string }[]
   >([]);
-  const knownIdsRef = useRef<Set<string>>(new Set());
   const printQueueRef = useRef<string[]>([]);
+  const printingIdRef = useRef<string | null>(null);
+  const announcedRef = useRef<Set<string>>(new Set());
   const shiftActiveRef = useRef(false);
   const autoPrintRef = useRef(true);
 
@@ -116,13 +136,38 @@ export default function KitchenDashboardPage() {
   };
 
   const enqueuePrint = (orderId: string) => {
-    if (printQueueRef.current.includes(orderId)) return;
+    if (printingIdRef.current === orderId || printQueueRef.current.includes(orderId)) return;
     printQueueRef.current.push(orderId);
     setPrintingOrderId((current) => {
       if (current) return current;
-      return printQueueRef.current.shift() ?? null;
+      const next = printQueueRef.current.shift() ?? null;
+      printingIdRef.current = next;
+      return next;
     });
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const restore = async () => {
+      try {
+        const status = await fetch('/api/kitchen/station', { cache: 'no-store', credentials: 'include' });
+        if (!status.ok || cancelled) return;
+        const payload = await status.json();
+        const saved = payload.station as StationView | undefined;
+        if (!saved?.shiftActive || cancelled) return;
+        setAutoPrint(saved.autoPrint !== false);
+        setShiftRestored(true);
+        setShiftActive(true);
+        setStation(saved);
+      } finally {
+        if (!cancelled) setStationKnown(true);
+      }
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,28 +177,42 @@ export default function KitchenDashboardPage() {
       const payload = await response.json();
       const nextOrders = (payload.orders || []) as Order[];
       if (cancelled) return;
-      const nextIds = new Set(nextOrders.map((order) => order.id));
-      const isFirstLoad = knownIdsRef.current.size === 0;
-      if (!isFirstLoad) {
+      if (!stationKnown) {
+        setOrders(nextOrders);
+        return;
+      }
+      const seen = readSeenIds();
+      if (!seen) {
+        writeSeenIds(new Set(nextOrders.map((order) => order.id)));
+      } else if (shiftActiveRef.current && autoPrintRef.current) {
         nextOrders.forEach((order) => {
-          if (!knownIdsRef.current.has(order.id) && NEW_ORDER_STATUSES.has(order.status)) {
+          const queued = printingIdRef.current === order.id || printQueueRef.current.includes(order.id);
+          if (
+            !seen.has(order.id) &&
+            !queued &&
+            !announcedRef.current.has(order.id) &&
+            NEW_ORDER_STATUSES.has(order.status)
+          ) {
+            announcedRef.current.add(order.id);
             notifyKitchenNewOrder();
-            if (shiftActiveRef.current && autoPrintRef.current) {
-              enqueuePrint(order.id);
-            }
+            enqueuePrint(order.id);
           }
         });
       }
-      knownIdsRef.current = nextIds;
       setOrders(nextOrders);
     };
     void load();
     const interval = setInterval(load, 4000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [shiftActive, autoPrint, stationKnown]);
 
   useEffect(() => {
     if (!shiftActive) {
@@ -188,22 +247,31 @@ export default function KitchenDashboardPage() {
 
     void beat();
     const interval = window.setInterval(beat, 15000);
-
-    const onLeave = () => {
-      void postStation({
-        shiftActive: false,
-        autoPrint: false,
-        event: 'close',
-      });
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void beat();
     };
-    window.addEventListener('pagehide', onLeave);
-    window.addEventListener('beforeunload', onLeave);
+    document.addEventListener('visibilitychange', onVisible);
+
+    let wakeLock: WakeLockSentinel | null = null;
+    const keepAwake = async () => {
+      try {
+        if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+        wakeLock = await navigator.wakeLock.request('screen');
+      } catch {
+        wakeLock = null;
+      }
+    };
+    void keepAwake();
+    document.addEventListener('visibilitychange', keepAwake);
+    window.addEventListener('pointerdown', keepAwake);
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
-      window.removeEventListener('pagehide', onLeave);
-      window.removeEventListener('beforeunload', onLeave);
+      document.removeEventListener('visibilitychange', onVisible);
+      document.removeEventListener('visibilitychange', keepAwake);
+      window.removeEventListener('pointerdown', keepAwake);
+      void wakeLock?.release().catch(() => undefined);
     };
   }, [shiftActive]);
 
@@ -240,12 +308,20 @@ export default function KitchenDashboardPage() {
   useEffect(() => {
     if (!printingOrderId) return;
     const onAfterPrint = () => {
+      const done = printingIdRef.current;
+      if (done) {
+        const seen = readSeenIds() ?? new Set<string>();
+        seen.add(done);
+        writeSeenIds(seen);
+      }
+      const next = printQueueRef.current.shift() ?? null;
+      printingIdRef.current = next;
       void postStation({
         shiftActive: shiftActiveRef.current,
         autoPrint: autoPrintRef.current,
         event: 'print',
       });
-      setPrintingOrderId(printQueueRef.current.shift() ?? null);
+      setPrintingOrderId(next);
     };
     window.addEventListener('afterprint', onAfterPrint);
     const timer = window.setTimeout(() => window.print(), 80);
@@ -355,7 +431,7 @@ export default function KitchenDashboardPage() {
       </div>
 
       <div className="mb-6">
-        <KitchenShift onShiftChange={handleShiftChange} />
+        <KitchenShift restored={shiftRestored} onShiftChange={handleShiftChange} />
         {shiftActive && (
           <label className="mt-3 flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2 text-sm text-white">
             <span>Imprimir comanda automáticamente al pagar</span>
@@ -381,7 +457,7 @@ export default function KitchenDashboardPage() {
           </p>
           <p className="mt-1 text-xs opacity-80">
             {station?.detail ||
-              'Si cierras esta pestaña, Angel y el dueño reciben un correo de alerta.'}
+              'El turno sigue hasta que presiones Salir. Si esta página se recarga, el turno continúa y la comanda nueva se imprime.'}
           </p>
           <p className="mt-2 text-[11px] opacity-70">
             Nota: el navegador no puede ver si la térmica tiene papel; sí detecta si el panel y la

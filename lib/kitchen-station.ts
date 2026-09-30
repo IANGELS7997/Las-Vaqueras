@@ -1,8 +1,8 @@
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 
 export const KITCHEN_STATION_ID = 'main';
-/** Sin heartbeat en este tiempo = estación caída. */
-export const KITCHEN_ONLINE_WINDOW_MS = 45_000;
+/** Sin heartbeat en este tiempo = señal perdida. El turno sigue hasta Salir. */
+export const KITCHEN_ONLINE_WINDOW_MS = 3 * 60_000;
 /** No repetir el mismo tipo de alerta antes de este tiempo. */
 export const KITCHEN_ALERT_COOLDOWN_MS = 10 * 60_000;
 
@@ -64,8 +64,8 @@ export function viewKitchenStation(
     statusLabel = 'Turno activo sin auto-imprimir';
     detail = 'El panel está abierto, pero la impresión automática está apagada.';
   } else if (shiftActive && !online) {
-    statusLabel = 'Señal perdida';
-    detail = 'Había turno activo, pero dejó de llegar la señal (pestaña cerrada o sin internet).';
+    statusLabel = 'Turno activo, sin señal';
+    detail = 'El turno sigue abierto. Al volver a esta página se imprimen las comandas nuevas. Solo Salir cierra el servicio.';
   }
 
   const printerLabel = printerReady
@@ -131,7 +131,7 @@ export async function sendKitchenOfflineAlert(args: {
   if (args.reason === 'stale') {
     subject = 'Alerta cocina: se perdió la señal del panel · Las Vaqueras';
     lead =
-      'Había un turno de cocina activo, pero la señal dejó de llegar (cerraron la pestaña, se fue el internet o se apagó la computadora).';
+      'El turno de cocina sigue abierto, pero la señal dejó de llegar. Al volver a abrir la página, las comandas nuevas se imprimen. El servicio solo se cierra con Salir.';
   }
   if (args.reason === 'order_while_offline') {
     subject = 'Urgente: pedido pagado y cocina offline · Las Vaqueras';
