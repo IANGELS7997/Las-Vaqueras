@@ -3,6 +3,8 @@ import { sendArrivalEmail, shouldSendArrivalEmail } from '@/lib/arrival-email';
 import { notifyNextDoorEnroute } from '@/lib/enroute-email';
 import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
+import { doorCollectAmounts } from '@/lib/iangel-cash';
+import { markIangelDoorCollected, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -79,6 +81,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
     if (actionName === 'deliver') {
       void closeDeliveredWithFee(updated.data as Record<string, unknown>).catch(() => undefined);
+    }
+    if (actionName === 'collect_door') {
+      const saved = updated.data as Record<string, unknown>;
+      const amounts = doorCollectAmounts(Number(saved.cash_food_due));
+      void markIangelDoorCollected(saved as IangelOpsRow, {
+        paymentStatus: 'cobrado',
+        paymentNote: amounts.note,
+        cashFoodDue: amounts.comida,
+      }).catch((err) => Sentry.captureException(err));
     }
     return iangelJson(req, { ok: true, order: mapIangelOrder(updated.data as Record<string, unknown>) });
   } catch (error) {

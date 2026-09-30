@@ -1,4 +1,4 @@
-import { assertCashPickup, cashViewFromRow, paidCashPatch } from '@/lib/iangel-cash';
+import { assertCashPickup, cashViewFromRow, collectDoorPatch, paidCashPatch } from '@/lib/iangel-cash';
 import { patchFromRiderAction } from '@/lib/order-lifecycle';
 
 export type IangelOrder = {
@@ -11,6 +11,7 @@ export type IangelOrder = {
   cashFoodDue: number | null;
   riderPaidCash: boolean;
   kitchenReceivedCash: boolean;
+  doorCollected: boolean;
   cookHold: boolean;
   cookHoldReleasedAt: string | null;
   leaveAtDoor: boolean;
@@ -71,6 +72,7 @@ export function mapIangelOrder(row: Record<string, unknown>): IangelOrder {
     cashFoodDue: payMethod === 'cash' && due != null && due !== '' ? Number(due) : null,
     riderPaidCash: row.rider_paid_cash === true,
     kitchenReceivedCash: row.kitchen_received_cash === true,
+    doorCollected: row.cash_door_collected_at != null && String(row.cash_door_collected_at) !== '',
     cookHold: Boolean(row.cook_hold),
     cookHoldReleasedAt: (row.cook_hold_released_at as string | null) || null,
     leaveAtDoor: Boolean(row.leave_at_door),
@@ -108,6 +110,9 @@ export async function runIangelOrderAction(
   const cash = cashViewFromRow(order);
   if (action === 'paid_cash') {
     return { patch: { ...paidCashPatch(cash, riderKey || '') }, customerText: '' };
+  }
+  if (action === 'collect_door') {
+    return { patch: { ...collectDoorPatch(cash) }, customerText: '' };
   }
   if (action === 'pickup' || action === 'en_route') {
     assertCashPickup(cash);

@@ -6,6 +6,8 @@ import {
   cashStoredAmounts,
   deliveryFeeSettlement,
   kitchenCashPatch,
+  collectDoorPatch,
+  doorCollectAmounts,
   paidCashPatch,
 } from './iangel-cash';
 
@@ -198,5 +200,27 @@ try {
   afterPickup = true;
 }
 assert(afterPickup, 'después de Recogí no se borra la marca');
+
+const door = doorCollectAmounts(180.4);
+assert(door.comida === 180 && door.puerta === 230, 'la puerta es comida redondeada más 50');
+const marked = collectDoorPatch({
+  ...cashOrder,
+  dispatchStatus: 'waiting_customer',
+  leaveAtDoor: false,
+});
+assert(typeof marked.cash_door_collected_at === 'string', 'collect_door guarda la hora');
+let early = false;
+try {
+  collectDoorPatch({ ...cashOrder, dispatchStatus: 'picked_up' });
+} catch {
+  early = true;
+}
+assert(early, 'no se cobra en puerta antes de entregar');
+const atDoorLeave = collectDoorPatch({
+  ...cashOrder,
+  dispatchStatus: 'arrived',
+  leaveAtDoor: true,
+});
+assert(Boolean(atDoorLeave.cash_door_collected_at), 'dejar en puerta se cobra al llegar');
 
 console.log('iangel-cash ok');

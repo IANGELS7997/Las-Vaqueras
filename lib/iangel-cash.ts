@@ -19,6 +19,8 @@ export type CashOrderView = {
   cashFoodDue: number | null;
   riderPaidCash: boolean;
   kitchenReceivedCash: boolean;
+  doorCollected?: boolean;
+  leaveAtDoor?: boolean;
   dispatchStatus: string | null;
   riderKey: string | null;
   fulfillment?: string | null;
@@ -103,6 +105,8 @@ export function cashViewFromRow(row: Record<string, unknown>): CashOrderView {
     cashFoodDue: due == null || due === '' ? null : Number(due),
     riderPaidCash: row.rider_paid_cash === true,
     kitchenReceivedCash: row.kitchen_received_cash === true,
+    doorCollected: row.cash_door_collected_at != null && String(row.cash_door_collected_at) !== '',
+    leaveAtDoor: row.leave_at_door === true,
     dispatchStatus: (row.dispatch_status as string | null) || null,
     riderKey: row.iangel_rider_key == null ? null : String(row.iangel_rider_key),
     fulfillment: row.fulfillment_type == null ? null : String(row.fulfillment_type),
@@ -130,6 +134,36 @@ export function paidCashPatch(order: CashOrderView, actorKey: string): { rider_p
     throw new Error('La comida en efectivo ya quedó marcada');
   }
   return { rider_paid_cash: true };
+}
+
+export function doorCollectAmounts(food: number) {
+  const comida = Math.round(Number(food));
+  const puerta = comida + SELF_FEE_MXN;
+  return {
+    comida,
+    puerta,
+    note: `Puerta $${puerta} · comida $${comida} + envío $${SELF_FEE_MXN}`,
+  };
+}
+
+/** Marca el efectivo cobrado en la puerta. No cierra el viaje. */
+export function collectDoorPatch(order: CashOrderView): { cash_door_collected_at: string } {
+  if (order.payMethod !== 'cash') {
+    throw new Error('Este pedido no es en efectivo');
+  }
+  const due = Number(order.cashFoodDue);
+  if (!Number.isFinite(due) || due <= 0) {
+    throw new Error('Este pedido no tiene el monto de la comida');
+  }
+  const status = String(order.dispatchStatus || '');
+  const atDoor = status === 'waiting_customer' || (status === 'arrived' && order.leaveAtDoor === true);
+  if (!atDoor) {
+    throw new Error('El cobro en puerta es al entregar');
+  }
+  if (order.doorCollected) {
+    throw new Error('Este pedido ya quedó cobrado');
+  }
+  return { cash_door_collected_at: new Date().toISOString() };
 }
 
 export function assertCashPickup(order: CashOrderView) {

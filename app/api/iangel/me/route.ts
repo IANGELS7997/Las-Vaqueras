@@ -5,6 +5,7 @@ import { activeRiderKeys, getRiderPresence, listRiderPresence, mirrorServiceActi
 import { getOrCreateRider } from '@/lib/iangel-state';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { isIangelShift } from '@/lib/iangel-shift';
+import { sendUberDirectNotice } from '@/lib/uber-direct-email';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,7 @@ function mapRider(rider: Parameters<typeof mapRiderProfile>[0]) {
     active: profile.active,
     name: profile.name,
     uberDirect: profile.uberDirect,
+    uberDirectAllowed: false,
     emoji: profile.emoji,
     avatarUrl: profile.avatarUrl,
   };
@@ -31,6 +33,7 @@ async function riderView(req: Request) {
     ...view,
     active: presence.rider_active === true,
     name: presence.display_name || view.name,
+    uberDirectAllowed: key === ANGEL_RIDER_KEY,
   };
 }
 
@@ -58,6 +61,10 @@ export async function PATCH(req: Request) {
   };
   const riderKey = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
   const rider = await getOrCreateRider();
+  if (typeof body.uber_direct_enabled === 'boolean' && riderKey !== ANGEL_RIDER_KEY) {
+    return iangelJson(req, { error: 'Uber Direct solo lo activa Angel Salinas' }, 403);
+  }
+  const previousUber = rider.uber_direct_enabled === true;
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof body.rider_active === 'boolean') {
     const presencePatch: Record<string, unknown> = { rider_active: body.rider_active };
@@ -96,6 +103,12 @@ export async function PATCH(req: Request) {
     const row = updated.data as typeof rider;
     if (typeof body.uber_direct_enabled === 'boolean' && row.uber_direct_enabled !== body.uber_direct_enabled) {
       return iangelJson(req, { error: 'No se pudo confirmar Uber Direct' }, 500);
+    }
+    if (typeof body.uber_direct_enabled === 'boolean' && previousUber !== body.uber_direct_enabled) {
+      void sendUberDirectNotice({
+        enabled: body.uber_direct_enabled,
+        actor: 'Angel Salinas · 6141812108',
+      }).catch(() => undefined);
     }
   }
 
