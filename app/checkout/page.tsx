@@ -15,8 +15,8 @@ import { Separator } from '@/components/ui/separator';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import { COPY } from '@/lib/iangel-copy';
+import { cashOptionLock, cashPaySummary } from '@/lib/cash-fraud';
 import { CASH_FOOD_CAP_MXN } from '@/lib/iangel-cash';
-import { SELF_FEE_MXN } from '@/lib/iangel-constants';
 import {
   calcCartBaseTotal,
   calcCartLineWeb,
@@ -424,10 +424,24 @@ export default function CheckoutPage() {
   const deliveryReady = isFreeGift || isPickup || (quotedFee != null && !quoting);
   const bagBlocked = !isPickup && iangelCarries(quotedKind) && !bagFits(items);
   const iangelDelivery = !isPickup && (quotedKind === 'self' || quotedKind === 'wait_self');
-  const cashOffered = iangelDelivery && split.subtotalWeb > 0 && split.subtotalWeb <= CASH_FOOD_CAP_MXN;
+  const cashOverCap = split.subtotalWeb > CASH_FOOD_CAP_MXN;
+  const cashIdentityReady = Boolean(
+    firstName.trim().length >= 2 && lastName.trim().length >= 2 && contactReady && addressReady
+  );
+  const cashLock = isPickup
+    ? 'El efectivo solo está en envío IANGEL.'
+    : cashOptionLock({
+        identityReady: cashIdentityReady,
+        quoting,
+        quoted: quotedKind != null,
+        iangel: iangelDelivery,
+        overCap: cashOverCap,
+        gift: isGiftCheckout,
+      });
+  const cashClickable = cashLock == null;
   useEffect(() => {
-    if (!cashOffered && payChoice === 'cash') setPayChoice('card');
-  }, [cashOffered, payChoice]);
+    if (!cashClickable && payChoice === 'cash') setPayChoice('card');
+  }, [cashClickable, payChoice]);
   const canStartPayment = Boolean(
     detailsReady &&
       acceptFinalSale &&
@@ -506,7 +520,7 @@ export default function CheckoutPage() {
         customer,
         items,
         acceptFinalSale: true,
-        payMethod: cashOffered && payChoice === 'cash' ? 'cash' : 'card',
+        payMethod: cashClickable && payChoice === 'cash' ? 'cash' : 'card',
       }),
     });
     const payload = await response.json();
@@ -952,45 +966,43 @@ export default function CheckoutPage() {
                   </div>
                 ) : null}
                 {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
-                {iangelDelivery ? (
+                {!isPickup && !isFreeGift ? (
                   <div className="mb-4 space-y-2">
                     <p className="text-sm font-semibold text-white">Cómo pagas</p>
-                    {cashOffered ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setPayChoice('card')}
-                          className={cn(
-                            'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
-                            payChoice === 'card'
-                              ? 'border-brand-500 bg-brand-500 text-white'
-                              : 'border-border bg-card text-muted-foreground'
-                          )}
-                        >
-                          Tarjeta
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPayChoice('cash')}
-                          className={cn(
-                            'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
-                            payChoice === 'cash'
-                              ? 'border-brand-500 bg-brand-500 text-white'
-                              : 'border-border bg-card text-muted-foreground'
-                          )}
-                        >
-                          Efectivo
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        La comida pasa de {formatMXN(CASH_FOOD_CAP_MXN)}. Solo tarjeta.
-                      </p>
-                    )}
-                    {cashOffered && payChoice === 'cash' ? (
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        En la tienda el rider deja {formatMXN(split.subtotalWeb)}. En la puerta cobra la comida más{' '}
-                        {formatMXN(SELF_FEE_MXN)}.
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPayChoice('card')}
+                        className={cn(
+                          'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
+                          payChoice === 'card'
+                            ? 'border-brand-500 bg-brand-500 text-white'
+                            : 'border-border bg-card text-muted-foreground'
+                        )}
+                      >
+                        Tarjeta
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!cashClickable}
+                        onClick={() => {
+                          if (!cashClickable) return;
+                          setPayChoice('cash');
+                        }}
+                        className={cn(
+                          'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50',
+                          payChoice === 'cash'
+                            ? 'border-brand-500 bg-brand-500 text-white'
+                            : 'border-border bg-card text-muted-foreground'
+                        )}
+                      >
+                        Pago en efectivo
+                      </button>
+                    </div>
+                    {cashLock ? <p className="text-xs leading-relaxed text-muted-foreground">{cashLock}</p> : null}
+                    {cashClickable && payChoice === 'cash' ? (
+                      <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                        {cashPaySummary(split.subtotalWeb)}
                       </p>
                     ) : null}
                   </div>
@@ -1039,7 +1051,7 @@ export default function CheckoutPage() {
                     'Canjear · pagar'
                   ) : gift.active ? (
                     'Canjear · pagar envío'
-                  ) : payChoice === 'cash' && cashOffered ? (
+                  ) : payChoice === 'cash' && cashClickable ? (
                     'Confirmar efectivo'
                   ) : (
                     'Pagar'
