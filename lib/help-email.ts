@@ -1,9 +1,9 @@
 import { customerHelpCopy, HELP_LABELS, type HelpKind, type HelpPay } from '@/lib/rider-help';
-import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
 
 const DEVELOPER_EMAIL = 'iangels7997@gmail.com';
 
-async function send(to: string, subject: string, html: string, text: string) {
+async function send(to: string, subject: string, html: string, text: string, bcc?: string[]) {
   const key = process.env.RESEND_API_KEY || '';
   if (!key || !to) return;
   await fetch('https://api.resend.com/emails', {
@@ -15,6 +15,7 @@ async function send(to: string, subject: string, html: string, text: string) {
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
+      ...(bcc && bcc.length > 0 ? { bcc } : {}),
       subject,
       html,
       text,
@@ -48,7 +49,8 @@ ${customerMailButtons(orderUrl)}
       input.customerEmail,
       `${label} · #${folio} · Las Vaqueras`,
       html,
-      `${label}\n${summary}\n${customerMailLinksText(orderUrl)}`
+      `${label}\n${summary}\n${customerMailLinksText(orderUrl)}`,
+      customerCopyBcc(input.customerEmail)
     );
   }
   const dev = [
@@ -95,7 +97,8 @@ export async function sendDoorDecisionEmails(input: {
       input.customerEmail,
       `Reembolso aprobado · #${folio} · Las Vaqueras`,
       `<p>Hola ${escMail(input.customerName || '')},</p><p>${escMail(text)}</p>`,
-      text
+      text,
+      customerCopyBcc(input.customerEmail)
     );
   }
 }

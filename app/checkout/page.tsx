@@ -112,7 +112,7 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState('');
   const [paymentIntentId, setPaymentIntentId] = useState('');
   const [quotedFee, setQuotedFee] = useState<number | null>(null);
-  const [quotedKind, setQuotedKind] = useState<'self' | 'wait_self' | 'uber' | null>(null);
+  const [quotedKind, setQuotedKind] = useState<'self' | 'wait_self' | 'uber' | 'managed' | null>(null);
   const [quotedUberRaw, setQuotedUberRaw] = useState(0);
   const [farZone, setFarZone] = useState(false);
   const [waitNotice, setWaitNotice] = useState<string | null>(null);
@@ -386,7 +386,14 @@ export default function CheckoutPage() {
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.error || 'No se pudo cotizar el envío');
           setQuotedFee(payload.customerFee ?? payload.fee);
-          setQuotedKind(payload.kind === 'self' || payload.kind === 'wait_self' || payload.kind === 'uber' ? payload.kind : 'uber');
+          setQuotedKind(
+            payload.kind === 'self' ||
+              payload.kind === 'wait_self' ||
+              payload.kind === 'uber' ||
+              payload.kind === 'managed'
+              ? payload.kind
+              : null
+          );
           setQuotedUberRaw(Number(payload.uberFee) || 0);
           setFarZone(payload.farZone === true);
           setWaitNotice(typeof payload.waitNotice === 'string' ? payload.waitNotice : null);

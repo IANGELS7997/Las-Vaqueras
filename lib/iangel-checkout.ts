@@ -57,7 +57,13 @@ export async function resolvePaidDelivery(input: {
   }
 
   const dispatchStatus =
-    routing.defaultKind === 'uber' ? 'needs_n8n_uber' : routing.defaultKind === 'wait_self' ? 'cook_hold' : 'self_iangel';
+    routing.defaultKind === 'uber'
+      ? 'needs_n8n_uber'
+      : routing.defaultKind === 'wait_self'
+        ? 'cook_hold'
+        : routing.defaultKind === 'managed'
+          ? 'managed'
+          : 'self_iangel';
 
   return {
     meters,

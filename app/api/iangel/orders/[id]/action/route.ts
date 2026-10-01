@@ -7,6 +7,7 @@ import { doorCollectAmounts } from '@/lib/iangel-cash';
 import { markIangelDoorCollected, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 import { getRiderPresence } from '@/lib/iangel-presence';
+import { isHouseIangelRow, saveOrderProof } from '@/lib/order-proof';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -19,7 +20,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const denied = await requireIangel(req);
   if (denied) return denied;
   const riderKey = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
-  const body = (await req.json().catch(() => ({}))) as { action?: string; pin?: string; hasDoorPhoto?: boolean };
+  const body = (await req.json().catch(() => ({}))) as {
+    action?: string;
+    pin?: string;
+    hasDoorPhoto?: boolean;
+    photo?: string;
+  };
   const supabase = createAdminSupabase();
   const found = await supabase.from('orders').select('*').eq('id', params.id).maybeSingle();
   if (!found.data) return iangelJson(req, { error: 'Pedido no encontrado' }, 404);
@@ -34,8 +40,31 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (actionName === 'incident') {
       return iangelJson(req, { error: 'Usa Ayuda para reportar. El viaje no se cierra desde aquí.' }, 400);
     }
-    if (actionName === 'deliver' && row.leave_at_door === true && body.hasDoorPhoto !== true) {
-      return iangelJson(req, { error: 'Toma la foto de la puerta antes de cerrar el viaje.' }, 400);
+    if ((actionName === 'pickup_photo' || actionName === 'dropoff_photo') && typeof body.photo !== 'string') {
+      return iangelJson(req, { error: 'Toma la foto antes de continuar.' }, 400);
+    }
+    if (
+      (actionName === 'pickup_photo' || actionName === 'dropoff_photo' || (actionName === 'deliver' && body.photo)) &&
+      typeof body.photo === 'string'
+    ) {
+      if (!isHouseIangelRow(row)) {
+        return iangelJson(req, { error: 'Este pedido no usa la foto de IANGEL' }, 400);
+      }
+      const kind = actionName === 'pickup_photo' ? 'pickup' : 'dropoff';
+      const proof = await saveOrderProof(supabase, params.id, kind, body.photo);
+      Object.assign(row, proof);
+      const savedProof = await supabase.from('orders').update(proof).eq('id', params.id).select('*').maybeSingle();
+      if (savedProof.error) throw new Error(savedProof.error.message);
+      if (savedProof.data) Object.assign(row, savedProof.data);
+      if (actionName === 'pickup_photo' || actionName === 'dropoff_photo') {
+        return iangelJson(req, { ok: true, order: mapIangelOrder(row) });
+      }
+    }
+    if (isHouseIangelRow(row) && (actionName === 'pickup' || actionName === 'en_route') && !row.kitchen_released_at) {
+      return iangelJson(req, { error: 'Cocina todavía no entrega el pedido.' }, 400);
+    }
+    if (isHouseIangelRow(row) && actionName === 'deliver' && !row.dropoff_photo_at) {
+      return iangelJson(req, { error: 'Toma la foto en el domicilio antes de cerrar el viaje.' }, 400);
     }
     const presence = await getRiderPresence(riderKey);
     const locked = String((presence as { help_lock_note?: string | null }).help_lock_note || '').trim();

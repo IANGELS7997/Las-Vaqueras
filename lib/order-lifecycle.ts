@@ -79,6 +79,7 @@ const RIDER_LABEL: Record<string, string> = {
   delivered_unclaimed: 'Sin reclamar',
   incident: 'Incidente',
   needs_n8n_uber: 'Reasignar envío',
+  managed: 'Gestionar pedido',
   uber_dispatched: 'Uber Direct',
   cancelled: 'Cancelado',
 };
@@ -155,6 +156,18 @@ export function viewFromOrder(input: OrderSyncInput): OrderSyncView {
       customerLabel = 'Recibido';
       customerDetail = 'Cocina ya tiene tu pedido.';
       stepIndex = 0;
+    }
+  } else if (dispatch === 'managed') {
+    if (kitchenStatus === 'in_transit') {
+      customerPhase = 'en_route';
+      customerLabel = 'En camino';
+      customerDetail = 'Tu pedido va en camino, el repartidor llegará pronto a tu domicilio.';
+      stepIndex = 2;
+    } else {
+      customerPhase = kitchenStatus === 'preparing' ? 'kitchen' : 'received';
+      customerLabel = kitchenStatus === 'preparing' ? 'En cocina' : 'Recibido';
+      customerDetail = 'Estamos preparando tu pedido.';
+      stepIndex = kitchenStatus === 'preparing' ? 1 : 0;
     }
   } else if (dispatch === 'waiting_customer') {
     customerPhase = 'at_door';

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
   KITCHEN_STATION_ID,
-  sendKitchenOfflineAlert,
-  shouldSendOfflineAlert,
+  sendKitchenShiftNotice,
+  shiftNoticeKind,
   viewKitchenStation,
   type KitchenStationRow,
 } from '@/lib/kitchen-station';
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
   };
 
   const supabase = createAdminSupabase();
+  const previous = await loadStation(supabase);
   const now = new Date().toISOString();
   const event = body.event || 'heartbeat';
   const endingShift = event === 'close' || event === 'end_shift';
@@ -79,16 +80,9 @@ export async function POST(req: Request) {
   }
 
   const row = saved.data as KitchenStationRow;
-
-  // close = pestaña/navegador (alerta). end_shift = botón "Cerrar turno" (sin alerta).
-  if (event === 'close' && shouldSendOfflineAlert(row)) {
-    const alert = await sendKitchenOfflineAlert({ reason: 'closed' });
-    if (alert.sent) {
-      await supabase
-        .from('kitchen_station')
-        .update({ offline_alert_sent_at: now, updated_at: now })
-        .eq('id', KITCHEN_STATION_ID);
-    }
+  const notice = shiftNoticeKind(Boolean(previous?.shift_active), Boolean(row.shift_active));
+  if (notice) {
+    await sendKitchenShiftNotice(notice);
   }
 
   const response = NextResponse.json({ station: viewKitchenStation(row as KitchenStationRow) });

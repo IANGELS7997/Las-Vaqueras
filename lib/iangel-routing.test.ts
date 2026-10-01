@@ -42,22 +42,23 @@ assert(at4000.defaultKind === 'self', '4000 m inclusive → IANGEL $50');
 assert(!at4000.allowUber, '4000 m sin Uber');
 
 const at4001 = kinds(AT_15, 4001, true, false, true);
-assert(at4001.defaultKind === 'self' && at4001.options[0]?.customerFee === 55, '4001 m → IANGEL $55');
-assert(!at4001.allowUber, '4001 m sin Uber');
+assert(at4001.defaultKind === 'managed' && at4001.options[0]?.customerFee === 55, '4001 m → gestionar $55');
+assert(!at4001.allowSelf && !at4001.allowUber, '4001 m no entra a IANGEL');
+assert(at4001.options[0]?.title === 'Envío', 'el cliente ve Envío');
 
 const at4500 = kinds(AT_15, 4500, true, false, true);
-assert(at4500.defaultKind === 'self' && at4500.options[0]?.customerFee === 55, '4500 m → IANGEL $55');
+assert(at4500.defaultKind === 'managed' && at4500.options[0]?.customerFee === 55, '4500 m → gestionar $55');
 assert(!at4500.blocked, '4500 m sí hay domicilio');
 assert(!at4500.farZone, '4500 m sigue en el aviso de 45 min');
 
-const at4500Off = kinds(AT_15, 4500, true, false, false);
-assert(at4500Off.defaultKind === 'self' && !at4500Off.blocked, '4500 m sigue IANGEL');
+const at4500Off = kinds(AT_15, 4500, false, false, false);
+assert(at4500Off.defaultKind === 'managed' && !at4500Off.blocked, '4500 m no depende del rider');
 
 const at4501 = kinds(AT_15, 4501, true, false, true);
-assert(at4501.defaultKind === 'self' && at4501.farZone, '4501 m → IANGEL y aviso de 1 hora');
+assert(at4501.defaultKind === 'managed' && at4501.farZone, '4501 m → gestionar y aviso de 1 hora');
 
-const at4501Off = kinds(AT_15, 4501, true, false, false);
-assert(at4501Off.defaultKind === 'self' && at4501Off.farZone, '4501 m → IANGEL y 1 hora');
+const at4501Off = kinds(AT_15, 4501, false, true, false);
+assert(at4501Off.defaultKind === 'managed' && at4501Off.farZone, '4501 m ignora rider ocupado');
 
 const inactive2km = kinds(AT_15, 2000, false, false, true);
 assert(inactive2km.blocked && inactive2km.defaultKind === null, '≤4000 m inactivo → sin domicilio');
@@ -86,17 +87,17 @@ assert(midSelf.defaultKind === 'self', '3.5 km en turno → IANGEL $50');
 assert(!midSelf.allowUber, '3.5 km en turno sin Uber');
 
 const midUber = kinds(AT_15, 4200, true, false, true);
-assert(midUber.defaultKind === 'self' && midUber.options[0]?.customerFee === 55, '4.2 km → IANGEL $55');
-assert(!midUber.allowUber, 'más de 4 km sin Uber');
+assert(midUber.defaultKind === 'managed' && midUber.options[0]?.customerFee === 55, '4.2 km → gestionar $55');
+assert(!midUber.allowUber && !midUber.allowSelf, 'más de 4 km no es IANGEL');
 
-const mid = kinds(AT_15, 4600, true, false);
-assert(mid.defaultKind === 'self' && mid.farZone, '4.6 km → IANGEL y 1 hora');
+const mid = kinds(AT_15, 4600, false, false);
+assert(mid.defaultKind === 'managed' && mid.farZone, '4.6 km → gestionar y 1 hora');
 
-const at5500 = kinds(AT_15, 5500, true, false, false);
-assert(at5500.defaultKind === 'self' && at5500.options[0]?.customerFee === 55, '5500 m → IANGEL $55');
+const at5500 = kinds(AT_15, 5500, false, true, false);
+assert(at5500.defaultKind === 'managed' && at5500.options[0]?.customerFee === 55, '5500 m → gestionar $55');
 
-const at6500 = kinds(AT_15, 6500, true, false, false);
-assert(at6500.defaultKind === 'self' && at6500.options[0]?.customerFee === 55, '6500 m inclusive → IANGEL $55');
+const at6500 = kinds(AT_15, 6500, false, false, false);
+assert(at6500.defaultKind === 'managed' && at6500.options[0]?.customerFee === 55, '6500 m inclusive → gestionar $55');
 
 const far = kinds(AT_15, 6501, true, false, true);
 assert(far.blocked, 'más de 6.5 km se bloquea');
@@ -205,8 +206,27 @@ assert(
 const afterShiftUberOff = kinds(AT_2105, 2000, false, false, false);
 assert(afterShiftUberOff.blocked && !afterShiftUberOff.allowUber, '21:05 Uber OFF → sin domicilio');
 
-const inBandUberOff = kinds(AT_15, 4200, true, false, false);
-assert(inBandUberOff.defaultKind === 'self' && inBandUberOff.options[0]?.customerFee === 55, '4001–4500 → IANGEL $55');
+const inBandUberOff = kinds(AT_15, 4200, false, false, false);
+assert(inBandUberOff.defaultKind === 'managed' && inBandUberOff.options[0]?.customerFee === 55, '4001–4500 → gestionar $55');
+
+const managedSplit = calcCheckoutSplit({
+  priceBaseTotal: CARTA,
+  fulfillment: 'delivery',
+  provider: 'managed',
+});
+assert(managedSplit.deliveryFee === 55, 'gestionar cobra $55');
+assert(
+  managedSplit.restaurantPayout ===
+    Number(
+      (
+        calcWebPrice(CARTA) -
+        calcDeveloperFood(CARTA) -
+        managedSplit.stripeShare +
+        managedSplit.deliveryFee
+      ).toFixed(2)
+    ),
+  'gestionar: dueño recibe comida menos 15% y su Stripe, más los $55'
+);
 
 const selfWhileUberOff = kinds(AT_15, 2000, true, false, false);
 assert(selfWhileUberOff.defaultKind === 'self', 'en turno online → IANGEL');

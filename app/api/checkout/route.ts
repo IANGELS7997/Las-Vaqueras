@@ -136,7 +136,7 @@ export async function POST(req: Request) {
     let uberFee = 0;
     let uberQuoteId: string | null = null;
     let routedDeliveryFee: number | undefined;
-    let deliveryProvider: 'pickup' | 'self' | 'uber' | 'wait_self' = isPickup ? 'pickup' : 'self';
+    let deliveryProvider: 'pickup' | 'self' | 'uber' | 'wait_self' | 'managed' = isPickup ? 'pickup' : 'self';
     let dispatchStatus = isPickup ? 'pickup_store' : 'self_iangel';
     const destination = resolveStripeConnectDestination(
       typeof stripeAccountId === 'string' ? stripeAccountId : null,

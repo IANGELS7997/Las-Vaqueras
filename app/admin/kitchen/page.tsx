@@ -36,6 +36,7 @@ import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { ThermalTicket } from '@/components/thermal-ticket';
 import { MenuProductImage } from '@/components/menu-product-image';
+import { kitchenHandoff, MANAGED_TRACK } from '@/lib/kitchen-handoff';
 import { kitchenStatusLabel, viewFromOrder } from '@/lib/order-lifecycle';
 import { KitchenHelpDesk, KitchenHelpPayout } from '@/components/kitchen-help';
 import type { Order, OrderStatus } from '@/types';
@@ -135,6 +136,20 @@ export default function KitchenDashboardPage() {
     }
     setShiftActive(active);
   };
+
+  useEffect(() => {
+    const onLeave = () => {
+      if (!shiftActiveRef.current) return;
+      shiftActiveRef.current = false;
+      void postStation({
+        shiftActive: false,
+        autoPrint: false,
+        event: 'close',
+      });
+    };
+    window.addEventListener('pagehide', onLeave);
+    return () => window.removeEventListener('pagehide', onLeave);
+  }, []);
 
   const enqueuePrint = (orderId: string) => {
     if (printingIdRef.current === orderId || printQueueRef.current.includes(orderId)) return;
@@ -366,6 +381,26 @@ export default function KitchenDashboardPage() {
     if (payload.order) patchOrderLocal(order.id, payload.order as Order);
   };
 
+  const handleManaged = async (order: Order, step: 'depart' | 'arrive') => {
+    const response = await fetch(`/api/orders/${order.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ managedStep: step }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+  };
+
+  const handleRelease = async (order: Order) => {
+    const response = await fetch(`/api/orders/${order.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ release: true }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+  };
+
   /** Emergencia: forzar listo (pickup) o entregado si el auto-avance falló. */
   const handleEmergencyStatus = async (order: Order, status: OrderStatus) => {
     const response = await fetch(`/api/orders/${order.id}/status`, {
@@ -518,6 +553,7 @@ export default function KitchenDashboardPage() {
               const statusCfg = STATUS_CONFIG[order.status];
               const StatusIcon = statusCfg.icon;
               const statusLabel = kitchenStatusLabel(order.status, order.fulfillment);
+              const handoff = kitchenHandoff(order);
               return (
                 <div
                   key={order.id}
@@ -528,6 +564,11 @@ export default function KitchenDashboardPage() {
                     order.helpLabel && 'border-red-500'
                   )}
                 >
+                  {order.deliveryProvider === 'managed' ? (
+                    <p className="mb-3 text-sm font-bold uppercase tracking-wide text-amber-300">
+                      Gestionar pedido
+                    </p>
+                  ) : null}
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <span className="text-sm font-bold text-white">#{order.shortCode || order.id.slice(0, 8)}</span>
@@ -700,16 +741,38 @@ export default function KitchenDashboardPage() {
                         Listo ahora
                       </Button>
                     ) : null}
-                    {order.fulfillment === 'pickup' && order.status === 'in_transit' ? (
-                      <Button
-                        onClick={() => handleEmergencyStatus(order, 'delivered')}
-                        size="sm"
-                        variant="outline"
-                        className="border-border bg-card"
-                      >
-                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                        Ya recogió
-                      </Button>
+                    {handoff.visible ? (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            onClick={() => {
+                              if (handoff.effect === 'release') void handleRelease(order);
+                              else if (handoff.effect === 'depart' || handoff.effect === 'arrive') {
+                                void handleManaged(order, handoff.effect);
+                              } else void handleEmergencyStatus(order, 'delivered');
+                            }}
+                            size="sm"
+                            disabled={!handoff.enabled}
+                            className="bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-muted disabled:text-muted-foreground"
+                          >
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                            {handoff.label}
+                          </Button>
+                          {handoff.hint ? <p className="text-xs text-muted-foreground">{handoff.hint}</p> : null}
+                        </div>
+                        {handoff.trackIndex != null ? (
+                          <p className="text-xs leading-5 text-muted-foreground">
+                            {MANAGED_TRACK.map((step, index) => (
+                              <span key={step}>
+                                {index > 0 ? ' · ' : ''}
+                                <span className={index === handoff.trackIndex ? 'font-bold text-white' : undefined}>
+                                  {step}
+                                </span>
+                              </span>
+                            ))}
+                          </p>
+                        ) : null}
+                      </div>
                     ) : null}
                     <Button
                       onClick={() => handlePrint(order.id)}

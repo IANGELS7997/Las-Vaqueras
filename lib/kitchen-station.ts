@@ -115,6 +115,29 @@ function alertCooldownOk(iso: string | null | undefined, nowMs: number) {
   return nowMs - t >= KITCHEN_ALERT_COOLDOWN_MS;
 }
 
+export function shiftNoticeKind(wasActive: boolean, nextActive: boolean): 'open' | 'close' | null {
+  if (!wasActive && nextActive) return 'open';
+  if (wasActive && !nextActive) return 'close';
+  return null;
+}
+
+export async function sendKitchenShiftNotice(kind: 'open' | 'close'): Promise<{ sent: boolean }> {
+  const when = new Date().toLocaleString('es-MX', { timeZone: 'America/Chihuahua' });
+  const place = RESTAURANT_INFO.address;
+  const opened = kind === 'open';
+  const subject = opened ? 'Turno abierto · Las Vaqueras' : 'Turno cerrado · Las Vaqueras';
+  const lead = opened
+    ? 'La cajera inició el turno en cocina.'
+    : 'La cajera cerró el turno en cocina.';
+  const text = [lead, '', `Hora: ${when}`, `Local: ${place}`].join('\n');
+  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.5;">
+<p>${lead}</p>
+<p><strong>Hora:</strong> ${when}<br/><strong>Local:</strong> ${place}</p>
+</div>`;
+  const result = await sendOpsEmail({ subject, text, html });
+  return { sent: result.ok };
+}
+
 export async function sendKitchenOfflineAlert(args: {
   reason: 'closed' | 'stale' | 'order_while_offline';
   orderId?: string;

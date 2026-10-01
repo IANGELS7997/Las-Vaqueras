@@ -1,4 +1,4 @@
-import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 
 const SITE = 'https://lasvaqueras.com.mx';
 
@@ -38,13 +38,17 @@ export async function sendArrivalEmail(input: {
   orderId: string;
   token?: string | null;
   leaveAtDoor?: boolean;
+  /** Pedido gestionado en cocina: llegó al domicilio, sin la espera de 10 minutos. */
+  managed?: boolean;
 }) {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
   if (!key || !to.includes('@')) return { ok: false as const };
   const track = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
-  const line = arrivalCustomerLine(input.leaveAtDoor);
+  const line = input.managed
+    ? 'Tu repartidor ha llegado a tu domicilio.'
+    : arrivalCustomerLine(input.leaveAtDoor);
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
 <img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
 <h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu repartidor llegó</h1>
@@ -62,6 +66,7 @@ ${customerMailButtons(track)}
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
+      ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
       subject: 'Tu repartidor llegó · Las Vaqueras',
       html,
       text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${line} ${customerMailLinksText(track)}`,

@@ -1,4 +1,7 @@
+import * as Sentry from '@sentry/nextjs';
 import { NextResponse } from 'next/server';
+import { sendArrivalEmail } from '@/lib/arrival-email';
+import { sendEnrouteEmail } from '@/lib/enroute-email';
 import { KITCHEN_ORDER_STATUSES, mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { patchFromKitchenStatus } from '@/lib/order-lifecycle';
 import type { OrderStatus } from '@/types';
@@ -7,6 +10,7 @@ import { requireKitchenSession } from '@/lib/kitchen-guard';
 import { kitchenCashPatch, cashViewFromRow } from '@/lib/iangel-cash';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
+import { kitchenHandoff } from '@/lib/kitchen-handoff';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +27,8 @@ export async function PATCH(
   const cookHold = typeof body.cookHold === 'boolean' ? body.cookHold : undefined;
   const riderPaidCash = typeof body.riderPaidCash === 'boolean' ? body.riderPaidCash : undefined;
   const kitchenReceivedCash = typeof body.kitchenReceivedCash === 'boolean' ? body.kitchenReceivedCash : undefined;
+  const release = body.release === true;
+  const managedStep = body.managedStep === 'depart' || body.managedStep === 'arrive' ? body.managedStep : undefined;
 
   if (status !== undefined && !KITCHEN_ORDER_STATUSES.includes(status as OrderStatus)) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
@@ -31,7 +37,9 @@ export async function PATCH(
     status === undefined &&
     cookHold === undefined &&
     riderPaidCash === undefined &&
-    kitchenReceivedCash === undefined
+    kitchenReceivedCash === undefined &&
+    !release &&
+    !managedStep
   ) {
     return NextResponse.json({ error: 'sin cambios' }, { status: 400 });
   }
@@ -66,6 +74,43 @@ export async function PATCH(
     } else if (String(current.data.dispatch_status || '') === 'cook_hold') {
       const fulfillment = current.data.fulfillment_type === 'pickup' ? 'pickup' : 'delivery';
       patch.dispatch_status = fulfillment === 'pickup' ? null : 'self_iangel';
+    }
+  }
+
+  if (release) {
+    const decision = kitchenHandoff({
+      fulfillment: current.data.fulfillment_type,
+      deliveryProvider: current.data.delivery_provider,
+      status: current.data.status,
+      payMethod: current.data.pay_method,
+      riderPaidCash: current.data.rider_paid_cash === true,
+      kitchenReceivedCash: current.data.kitchen_received_cash === true,
+      pickupPhotoAt: current.data.pickup_photo_at,
+      kitchenReleasedAt: current.data.kitchen_released_at,
+    });
+    if (!decision.enabled || decision.effect !== 'release') {
+      return NextResponse.json({ error: 'Todavía no se puede entregar este pedido' }, { status: 400 });
+    }
+    patch.kitchen_released_at = new Date().toISOString();
+  }
+
+  if (managedStep) {
+    if (String(current.data.delivery_provider || '') !== 'managed') {
+      return NextResponse.json({ error: 'Este pedido no se gestiona en cocina' }, { status: 400 });
+    }
+    if (managedStep === 'depart') {
+      if (current.data.status === 'in_transit' || current.data.status === 'delivered') {
+        return NextResponse.json({ error: 'Este pedido ya va en camino' }, { status: 400 });
+      }
+      patch.status = 'in_transit';
+      patch.dispatch_status = 'managed';
+    } else {
+      if (current.data.status !== 'in_transit') {
+        return NextResponse.json({ error: 'Primero entrega el pedido para ponerlo en camino' }, { status: 400 });
+      }
+      patch.status = 'delivered';
+      patch.dispatch_status = 'delivered';
+      patch.rider_status = 'idle';
     }
   }
 
@@ -104,6 +149,47 @@ export async function PATCH(
       code: (data as DbOrderRow).short_code,
       customer: (data as DbOrderRow).customer_name,
     }).catch(() => undefined);
+  }
+
+  const saved = data as DbOrderRow & {
+    customer_email?: string | null;
+    customer_name?: string | null;
+    profile_login_token?: string | null;
+    enroute_email_at?: string | null;
+  };
+  if (managedStep === 'depart' && !current.data.enroute_email_at) {
+    const to = String(saved.customer_email || '').trim();
+    if (to.includes('@')) {
+      try {
+        const sent = await sendEnrouteEmail({
+          to,
+          customerName: String(saved.customer_name || ''),
+          orderId: params.id,
+          token: saved.profile_login_token,
+        });
+        if (sent.ok) {
+          await supabase.from('orders').update({ enroute_email_at: new Date().toISOString() }).eq('id', params.id);
+        }
+      } catch (err) {
+        Sentry.captureException(err);
+      }
+    }
+  }
+  if (managedStep === 'arrive') {
+    const to = String(saved.customer_email || '').trim();
+    if (to.includes('@')) {
+      try {
+        await sendArrivalEmail({
+          to,
+          customerName: String(saved.customer_name || ''),
+          orderId: params.id,
+          token: saved.profile_login_token,
+          managed: true,
+        });
+      } catch (err) {
+        Sentry.captureException(err);
+      }
+    }
   }
 
   const nextStatus = String((data as DbOrderRow).status || '');

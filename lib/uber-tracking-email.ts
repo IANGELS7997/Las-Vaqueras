@@ -1,4 +1,4 @@
-import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 
 const SITE = 'https://lasvaqueras.com.mx';
 
@@ -67,6 +67,7 @@ ${customerMailButtons(orderUrl)}
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
+      ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
       subject: UBER_TRACK_SUBJECT,
       html,
       text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${UBER_TRACK_LINE} ${tracking}\n${customerMailLinksText(orderUrl)}`,

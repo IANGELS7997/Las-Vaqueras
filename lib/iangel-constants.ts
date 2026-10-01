@@ -23,4 +23,4 @@ export const DISPATCH_ACTIVE_TRIP = [
   'waiting_customer',
 ] as const;
 
-export type DeliveryProvider = 'pickup' | 'self' | 'uber' | 'wait_self';
+export type DeliveryProvider = 'pickup' | 'self' | 'uber' | 'wait_self' | 'managed';

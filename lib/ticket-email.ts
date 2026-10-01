@@ -1,5 +1,5 @@
 import type { CartItem } from '@/types';
-import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
 
@@ -40,7 +40,7 @@ function whenLine(row: TicketOrder) {
           minute: '2-digit',
         })
       : '';
-    return at ? `Recoger en tienda · ${at}` : 'Recoger en tienda';
+    return at ? `Tu pedido estará listo el ${at}.` : 'Recoger en tienda';
   }
   return row.delivery_address ? `A domicilio · ${row.delivery_address}` : 'A domicilio';
 }
@@ -94,6 +94,7 @@ export async function sendCustomerTicket(row: TicketOrder) {
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
+      ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
       subject: message.subject,
       html: message.html,
       text: message.text,

@@ -15,6 +15,9 @@ export type IangelOrder = {
   cookHold: boolean;
   cookHoldReleasedAt: string | null;
   leaveAtDoor: boolean;
+  pickupPhotoAt: string | null;
+  dropoffPhotoAt: string | null;
+  kitchenReleasedAt: string | null;
   gatedCommunity: boolean;
   dropoffLat: number | null;
   dropoffLng: number | null;
@@ -76,6 +79,9 @@ export function mapIangelOrder(row: Record<string, unknown>): IangelOrder {
     cookHold: Boolean(row.cook_hold),
     cookHoldReleasedAt: (row.cook_hold_released_at as string | null) || null,
     leaveAtDoor: Boolean(row.leave_at_door),
+    pickupPhotoAt: (row.pickup_photo_at as string | null) || null,
+    dropoffPhotoAt: (row.dropoff_photo_at as string | null) || null,
+    kitchenReleasedAt: (row.kitchen_released_at as string | null) || null,
     gatedCommunity: Boolean(row.gated_community),
     dropoffLat: row.dropoff_lat == null ? null : Number(row.dropoff_lat),
     dropoffLng: row.dropoff_lng == null ? null : Number(row.dropoff_lng),

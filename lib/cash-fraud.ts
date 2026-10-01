@@ -146,7 +146,7 @@ export function cashOptionLock(input: {
     return null;
   }
   if (input.quoting || !input.quoted) return 'Espera un momento mientras cotizamos el envío.';
-  if (!input.iangel) return 'El pago en efectivo solo está en envío IANGEL.';
+  if (!input.iangel) return 'En esta distancia el pago es solo con tarjeta.';
   if (input.overCap) return `La comida pasa de ${formatMXN(CASH_FOOD_CAP_MXN)}. Solo tarjeta.`;
   return null;
 }

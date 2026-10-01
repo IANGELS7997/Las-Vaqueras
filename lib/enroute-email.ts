@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 
@@ -81,6 +81,7 @@ ${customerMailButtons(track)}
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
+      ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
       subject: ENROUTE_SUBJECT,
       html,
       text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${ENROUTE_LINE} ${customerMailLinksText(track)}`,

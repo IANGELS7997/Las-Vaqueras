@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     const meters = Math.round(metersFromStore(lat, lng));
     const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
-    // IANGEL: 0–4000 m a $50 y 4001–6500 m a $55. Ya no se cotiza Uber.
+    // 0–4000 m IANGEL $50. 4001–6500 m envío $55 gestionado en cocina. Ya no se cotiza Uber.
     const routingInput = {
       meters,
       riderActive: riderActive === true,
