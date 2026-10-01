@@ -122,6 +122,9 @@ export interface Order {
   pickupPin?: string | null;
   cookHold?: boolean;
   leaveAtDoor?: boolean;
+  helpKind?: string | null;
+  helpLabel?: string | null;
+  helpCode?: string | null;
   incidentType?: string | null;
   etaMinutes?: number | null;
   loyaltyKind?: string | null;

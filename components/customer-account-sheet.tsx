@@ -30,6 +30,7 @@ import {
 } from '@/lib/customer-login-store';
 import { getOpenStatus } from '@/lib/restaurant';
 import type { Order } from '@/types';
+import { CustomerIncompleteRefund } from '@/components/customer-incomplete-refund';
 
 type CustomerProfile = {
   id: string;
@@ -433,6 +434,7 @@ export function CustomerAccountSheet() {
                 <OrderList orders={activeOrders} onOpen={() => setOpen(false)} />
               )}
             </section>
+            <CustomerIncompleteRefund orders={[...activeOrders, ...pastOrders]} />
             <section>
               <h3 className="mb-2 text-sm font-bold text-white">Anteriores</h3>
               {pastOrders.length === 0 ? (

@@ -79,6 +79,28 @@ export default function CheckoutPage() {
   const [colonia, setColonia] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [references, setReferences] = useState('');
+  const [leaveAtDoor, setLeaveAtDoor] = useState(false);
+  const [doorAsk, setDoorAsk] = useState(false);
+  const [pendingAmount, setPendingAmount] = useState(0);
+  const [pendingLabel, setPendingLabel] = useState('');
+
+  useEffect(() => {
+    const digits = checkoutPhoneDigits(phone);
+    if (digits.length < 10) {
+      setPendingAmount(0);
+      setPendingLabel('');
+      return;
+    }
+    const ctrl = new AbortController();
+    fetch(`/api/customer/pending-balance?phone=${encodeURIComponent(phone)}`, { signal: ctrl.signal })
+      .then((response) => response.json())
+      .then((payload) => {
+        setPendingAmount(Number(payload.amountMxn || 0));
+        setPendingLabel(typeof payload.label === 'string' ? payload.label : '');
+      })
+      .catch(() => undefined);
+    return () => ctrl.abort();
+  }, [phone]);
   const [dropoffLat, setDropoffLat] = useState<number | null>(null);
   const [dropoffLng, setDropoffLng] = useState<number | null>(null);
   const [pickupAt, setPickupAt] = useState('');
@@ -521,6 +543,7 @@ export default function CheckoutPage() {
         items,
         acceptFinalSale: true,
         payMethod: cashClickable && payChoice === 'cash' ? 'cash' : 'card',
+        leaveAtDoor,
       }),
     });
     const payload = await response.json();
@@ -877,6 +900,48 @@ export default function CheckoutPage() {
                       disabled={Boolean(clientSecret)}
                     />
                   </div>
+                  <label className="mt-3 flex items-start gap-2 text-sm text-white">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={leaveAtDoor}
+                      disabled={Boolean(clientSecret)}
+                      onChange={(event) => {
+                        if (event.target.checked) setDoorAsk(true);
+                        else setLeaveAtDoor(false);
+                      }}
+                    />
+                    <span>Dejar pedido en la puerta</span>
+                  </label>
+                  {doorAsk ? (
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-50">
+                      <p>
+                        El repartidor dejará el pedido en la puerta y no esperará a que salgas. Si no lo encuentras, no cuenta como pedido no entregado. ¿Confirmas dejarlo en la puerta?
+                      </p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          className="rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-black"
+                          onClick={() => {
+                            setLeaveAtDoor(true);
+                            setDoorAsk(false);
+                          }}
+                        >
+                          Sí, dejarlo
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-md border border-white/30 px-3 py-1.5 text-xs"
+                          onClick={() => {
+                            setLeaveAtDoor(false);
+                            setDoorAsk(false);
+                          }}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>
@@ -1117,10 +1182,16 @@ export default function CheckoutPage() {
                 </div>
               )}
               {quoteError && <p className="text-xs text-red-400">{quoteError}</p>}
+              {pendingAmount > 0 ? (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{pendingLabel || 'Saldo pendiente de tu pedido anterior'}</span>
+                  <span className="text-white">{formatMXN(pendingAmount)}</span>
+                </div>
+              ) : null}
               <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-base font-bold">
                 <span className="text-white">Total</span>
-                <span className="text-brand-500">{formatMXN(isFreeGift ? 0 : displaySplit.totalCharged)}</span>
+                <span className="text-brand-500">{formatMXN(isFreeGift ? 0 : displaySplit.totalCharged + pendingAmount)}</span>
               </div>
             </div>
           </div>

@@ -171,3 +171,7 @@ export async function identifyRiderAccessToken(accessToken: string) {
 export async function locateIangelRider(riderKey: string, lat: number, lng: number) {
   await postOps({ action: 'locate', riderKey, lat, lng });
 }
+
+export async function notifyIangelHelp(report: Record<string, unknown>) {
+  await postOps({ action: 'help-sync', ...report });
+}

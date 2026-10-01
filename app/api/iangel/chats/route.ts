@@ -26,7 +26,7 @@ const SYSTEM_TEMPLATES = [
   {
     id: 'sys-safety',
     title: 'Seguridad',
-    body: 'SOS y navegación están en el mapa. Termina o reporta el viaje antes de desconectarte.',
+    body: 'Ayuda está en el mapa: mapas, copiar la dirección y reportar. Termina el viaje antes de desconectarte.',
   },
 ];
 

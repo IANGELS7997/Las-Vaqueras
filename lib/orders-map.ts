@@ -49,6 +49,9 @@ export type DbOrderRow = {
   pickup_pin?: string | null;
   cook_hold?: boolean | null;
   leave_at_door?: boolean | null;
+  help_kind?: string | null;
+  help_label?: string | null;
+  help_code?: string | null;
   incident_type?: string | null;
   eta_minutes?: number | null;
   rider_lat?: number | null;
@@ -95,6 +98,9 @@ export function mapDbOrder(row: DbOrderRow): Order {
     pickupPin: row.pickup_pin || null,
     cookHold: Boolean(row.cook_hold),
     leaveAtDoor: Boolean(row.leave_at_door),
+    helpKind: row.help_kind || null,
+    helpLabel: row.help_label || null,
+    helpCode: row.help_code || null,
     incidentType: row.incident_type || null,
     etaMinutes: row.eta_minutes == null ? null : Number(row.eta_minutes),
     loyaltyKind: row.loyalty_kind || null,

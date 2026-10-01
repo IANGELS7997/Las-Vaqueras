@@ -36,6 +36,7 @@ import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
 import { sendCustomerTicket } from '@/lib/ticket-email';
 import { notifyIangelNewOrder } from '@/lib/iangel-push';
 import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
+import { openPendingForPhone, settlePendingBalances } from '@/lib/rider-help-store';
 import { namesFromCheckout } from '@/lib/customer-from-checkout';
 import { upsertCustomer } from '@/lib/customers';
 import { sendGiftOrderEmail } from '@/lib/gift-order-email';
@@ -93,7 +94,7 @@ async function cashPriors(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale, payMethod: requestedPay } =
+    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale, payMethod: requestedPay, leaveAtDoor: requestedDoor } =
       body as {
         priceBaseTotal: number;
         stripeAccountId?: string;
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
         pickupAt?: string | null;
         acceptFinalSale?: boolean;
         payMethod?: string;
+        leaveAtDoor?: boolean;
         customer?: {
           name?: string;
           phone?: string;
@@ -221,6 +223,10 @@ export async function POST(req: Request) {
       );
     }
     const supabase = createAdminSupabase();
+    const leaveAtDoor = !isPickup && requestedDoor === true;
+    const pending = await openPendingForPhone(supabase, phone);
+    const pendingMxn = pending.amountMxn;
+    const pendingIds = pending.ids.join(',');
     const cookieCustomerId = await readCustomerIdFromRequest();
     const existingCustomerId = (await findCustomerIdByPhone(supabase, phone)) || cookieCustomerId;
     const loyaltyKind = await resolveLoyaltyKind({
@@ -332,7 +338,9 @@ export async function POST(req: Request) {
           customer_email: email,
           delivery_address: address,
           delivery_references: referencesText,
-          total_charged: amounts.totalCharged,
+          total_charged: amounts.totalCharged + pendingMxn,
+          leave_at_door: leaveAtDoor,
+          pending_balance_ids: pendingIds || null,
           restaurant_payout: amounts.restaurantPayout,
           platform_fee: amounts.platformFee,
           customer_fee: 0,
@@ -419,9 +427,11 @@ export async function POST(req: Request) {
         });
         void notifyIangelOpsOrder(orderRow as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
       }
+      if (pending.ids.length > 0) await settlePendingBalances(supabase, pending.ids);
       const response = NextResponse.json({
         cash: true,
         order: mapDbOrder({ ...orderRow, customer_id: profile.id }),
+        pending: pendingMxn > 0 ? { amountMxn: pendingMxn, label: pending.label } : null,
       });
       response.cookies.set(CUSTOMER_COOKIE, await customerSessionToken(profile.id), customerCookieOptions());
       return response;
@@ -445,14 +455,14 @@ export async function POST(req: Request) {
 
     const stripe = getStripe();
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: split.totalChargedCentavos,
+      amount: split.totalChargedCentavos + pendingMxn * 100,
       currency: 'mxn',
       automatic_payment_methods: { enabled: true },
       ...(skipTransfer
         ? {}
         : {
             transfer_data: { destination },
-            application_fee_amount: split.applicationFeeCentavos,
+            application_fee_amount: split.applicationFeeCentavos + pendingMxn * 100,
           }),
       metadata: {
         price_base_total: String(serverBase),
@@ -501,7 +511,9 @@ export async function POST(req: Request) {
         delivery_references: canGiftJumbo
           ? [references, 'PROMOCIÓN · Papas Jumbo de regalo'].filter(Boolean).join(' · ')
           : references || null,
-        total_charged: split.totalCharged,
+        total_charged: split.totalCharged + pendingMxn,
+        leave_at_door: leaveAtDoor,
+        pending_balance_ids: pendingIds || null,
         restaurant_payout: split.restaurantPayout,
         platform_fee: split.platformFee,
         customer_fee: split.customerFee,
@@ -538,7 +550,9 @@ export async function POST(req: Request) {
         uberFee: split.uberFee,
         deliveryDiscount: split.deliveryDiscount,
         deliveryFee: split.deliveryFee,
-        totalCharged: split.totalCharged,
+        totalCharged: split.totalCharged + pendingMxn,
+        pendingMxn,
+        pendingLabel: pending.label,
         restaurantPayout: split.restaurantPayout,
         platformFee: split.platformFee,
         foodFullWeb: split.foodFullWeb,
