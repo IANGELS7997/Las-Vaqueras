@@ -32,6 +32,7 @@ import { getOpenStatus } from '@/lib/restaurant';
 import type { Order } from '@/types';
 import { CustomerDoorReport } from '@/components/customer-door-report';
 import { CustomerIncompleteRefund } from '@/components/customer-incomplete-refund';
+import { isRefundReview, REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 
 type CustomerProfile = {
   id: string;
@@ -217,8 +218,8 @@ export function CustomerAccountSheet() {
   const initials = customer
     ? `${customer.firstName.charAt(0)}${customer.lastName.charAt(0)}`.toUpperCase()
     : '';
-  const activeOrders = orders.filter((order) => ACTIVE.has(order.status));
-  const pastOrders = orders.filter((order) => !ACTIVE.has(order.status));
+  const activeOrders = orders.filter((order) => ACTIVE.has(order.status) || isRefundReview(order.helpLabel));
+  const pastOrders = orders.filter((order) => !ACTIVE.has(order.status) && !isRefundReview(order.helpLabel));
 
   return (
     <Sheet
@@ -435,7 +436,7 @@ export function CustomerAccountSheet() {
                 <OrderList orders={activeOrders} onOpen={() => setOpen(false)} />
               )}
             </section>
-            <CustomerIncompleteRefund orders={[...activeOrders, ...pastOrders]} />
+            <CustomerIncompleteRefund orders={[...activeOrders, ...pastOrders]} onSent={() => void loadMe()} />
             <CustomerDoorReport orders={[...activeOrders, ...pastOrders]} />
             <section>
               <h3 className="mb-2 text-sm font-bold text-white">Anteriores</h3>
@@ -728,7 +729,7 @@ function StepPeekDialog({
               <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status, order.dispatchStatus)}
+              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {isRefundReview(order.helpLabel) ? REFUND_REVIEW_LABEL : customerStatusLabel(order.status, order.dispatchStatus)}
             </p>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
               {order.items.slice(0, 4).map((item) => (
@@ -763,7 +764,7 @@ function OrderList({ orders, onOpen }: { orders: Order[]; onOpen: () => void }) 
             <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {customerStatusLabel(order.status, order.dispatchStatus)}
+            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {isRefundReview(order.helpLabel) ? REFUND_REVIEW_LABEL : customerStatusLabel(order.status, order.dispatchStatus)}
           </p>
         </Link>
       ))}

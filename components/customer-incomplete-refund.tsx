@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { isRefundReview, REFUND_ACCEPTED_LABEL, REFUND_REJECTED_LABEL, REFUND_WINDOW_MS } from '@/lib/rider-help';
 import type { Order } from '@/types';
 
 const REASONS = ['Faltó un producto', 'Llegó equivocado', 'Llegó en mal estado', 'Faltó un extra', 'Otro'];
-const WINDOW_MS = 48 * 60 * 60 * 1000;
 
 async function asDataUrl(file: File) {
   const data = await new Promise<string>((resolve, reject) => {
@@ -17,12 +17,13 @@ async function asDataUrl(file: File) {
 }
 
 function eligible(order: Order, now: number) {
-  if (order.helpKind !== 'incomplete' || order.status !== 'delivered') return false;
+  if (order.status !== 'delivered' || isRefundReview(order.helpLabel)) return false;
+  if (order.helpLabel === REFUND_ACCEPTED_LABEL || order.helpLabel === REFUND_REJECTED_LABEL) return false;
   const started = Date.parse(order.createdAt);
-  return Number.isFinite(started) && now - started <= WINDOW_MS;
+  return Number.isFinite(started) && now - started <= REFUND_WINDOW_MS;
 }
 
-export function CustomerIncompleteRefund({ orders }: { orders: Order[] }) {
+export function CustomerIncompleteRefund({ orders, onSent }: { orders: Order[]; onSent?: () => void }) {
   const now = Date.now();
   const open = orders.filter((order) => eligible(order, now));
   const [orderId, setOrderId] = useState(open[0]?.id || '');
@@ -65,13 +66,14 @@ export function CustomerIncompleteRefund({ orders }: { orders: Order[] }) {
     const payload = await response.json().catch(() => ({}));
     setBusy(false);
     setMessage(payload.message || payload.error || 'No se envió');
+    if (response.ok) onSent?.();
   }
 
   return (
     <section className="rounded-xl border border-border/60 bg-card p-3">
       <h3 className="text-sm font-bold text-white">Solicitar reembolso</h3>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        Solo si el repartidor reportó el pedido incorrecto o incompleto, dentro de 48 horas. Hacen falta la foto de la comida, la foto del ticket y una descripción. El crédito es comida más envío en tu próxima compra, si cocina y admin aceptan.
+        Puedes pedirlo en un pedido ya entregado, dentro de 48 horas, aunque el repartidor no lo haya reportado. Hacen falta la foto de la comida, la foto del ticket y una descripción. El crédito es comida más envío en tu próxima compra, si cocina y admin aceptan.
       </p>
       {existing ? <p className="mt-2 text-xs text-orange-300">{existing}</p> : null}
       <label className="mt-3 block text-xs text-muted-foreground">

@@ -4,6 +4,9 @@ import {
   closePlan,
   helpStepError,
   incompleteRefundCredit,
+  isOpenCustomerRefund,
+  isRefundReview,
+  REFUND_REVIEW_LABEL,
   rejectedMotoDebt,
   stackedPendingLabel,
 } from './rider-help';
@@ -91,5 +94,19 @@ assert.equal(
 
 assert.equal(incompleteRefundCredit({ pay: 'cash', cashFood: 110, total: 160, delivery: 50, service: 0 }), 160);
 assert.equal(incompleteRefundCredit({ pay: 'card', cashFood: 0, total: 160, delivery: 50, service: 0 }), 160);
+assert.equal(isRefundReview(REFUND_REVIEW_LABEL), true);
+assert.equal(isRefundReview('Pedido incorrecto o incompleto'), false);
+assert.equal(
+  isOpenCustomerRefund({ kind: 'incomplete', customer_note: 'Faltó la salsa', resolution: null, refund_credit_mxn: null }),
+  true
+);
+assert.equal(
+  isOpenCustomerRefund({ kind: 'incomplete', customer_note: '', resolution: null, refund_credit_mxn: null }),
+  false
+);
+assert.equal(
+  isOpenCustomerRefund({ kind: 'incomplete', customer_note: 'Faltó la salsa', resolution: 'credit', refund_credit_mxn: 160 }),
+  false
+);
 
 console.log('rider-help tests: ok');

@@ -16,6 +16,29 @@ export type HelpKind = (typeof HELP_KINDS)[number];
 export type HelpPay = 'card' | 'cash';
 export type HelpStep = 'notice' | 'close';
 
+export const REFUND_REVIEW_LABEL = 'Verificar reembolso';
+export const REFUND_ACCEPTED_LABEL = 'Reembolso aceptado';
+export const REFUND_REJECTED_LABEL = 'Reembolso rechazado';
+/** Reporte abierto por el cliente, sin rider. No es una clave de repartidor. */
+export const CUSTOMER_REFUND_RIDER_KEY = 'cliente';
+
+export function isRefundReview(label: string | null | undefined) {
+  return label === REFUND_REVIEW_LABEL;
+}
+
+export function isOpenCustomerRefund(row: {
+  kind?: string | null;
+  customer_note?: string | null;
+  resolution?: string | null;
+  refund_credit_mxn?: number | null;
+}) {
+  if (String(row.kind || '') !== 'incomplete') return false;
+  if (!String(row.customer_note || '').trim()) return false;
+  if (row.refund_credit_mxn) return false;
+  const resolution = String(row.resolution || '');
+  return resolution !== 'rejected' && resolution !== 'credit';
+}
+
 export const HELP_LABELS: Record<HelpKind, string> = {
   no_contact: 'No puedo contactar al usuario',
   refused_pay: 'No quiso pagar',

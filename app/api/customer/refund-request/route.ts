@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
 import { notifyIangelHelp } from '@/lib/iangel-ops';
-import { HELP_LABELS } from '@/lib/rider-help';
+import { CUSTOMER_REFUND_RIDER_KEY, foodMxnFromOrder, REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 import { refundStillOpen, saveHelpEvidence } from '@/lib/rider-help-store';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   const supabase = createAdminSupabase();
   const order = await supabase
     .from('orders')
-    .select('id, customer_id, status, created_at, short_code, pay_method')
+    .select('id, customer_id, status, created_at, short_code, pay_method, cash_food_due, restaurant_payout, total_charged, delivery_fee, customer_fee')
     .eq('id', body.orderId || '')
     .maybeSingle();
   if (!order.data || order.data.customer_id !== customerId) {
@@ -85,37 +85,53 @@ export async function POST(req: Request) {
     .eq('order_id', order.data.id)
     .eq('kind', 'incomplete')
     .maybeSingle();
-  if (!report.data) {
-    return NextResponse.json(
-      { error: 'El repartidor también tiene que reportar el pedido incorrecto o incompleto' },
-      { status: 400 }
-    );
-  }
-  if (String(report.data.customer_note || '').trim()) {
+  if (report.error) return NextResponse.json({ error: report.error.message }, { status: 400 });
+  if (String(report.data?.customer_note || '').trim()) {
     return NextResponse.json({ error: 'Esa solicitud ya fue enviada' }, { status: 400 });
   }
   try {
     const ticket = body.ticketPhoto ? await saveHelpEvidence(supabase, order.data.id, body.ticketPhoto) : '';
     const food = body.foodPhoto ? await saveHelpEvidence(supabase, order.data.id, body.foodPhoto) : '';
     if (!ticket || !food) return NextResponse.json({ error: 'Adjunta la foto del ticket y la foto de la comida' }, { status: 400 });
-    const saved = await supabase
-      .from('rider_help_reports')
-      .update({
-        customer_reason: reason,
-        customer_note: note.slice(0, 500),
-        customer_choice: 'discount',
-        evidence_path: `${ticket}|${food}`,
-        phase: 'customer',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', report.data.id);
-    if (saved.error) return NextResponse.json({ error: saved.error.message }, { status: 400 });
+    const customerFields = {
+      customer_reason: reason,
+      customer_note: note.slice(0, 500),
+      customer_choice: 'discount',
+      evidence_path: `${ticket}|${food}`,
+      phase: 'customer',
+      updated_at: new Date().toISOString(),
+    };
+    const saved = report.data
+      ? await supabase.from('rider_help_reports').update(customerFields).eq('id', report.data.id).select('id').single()
+      : await supabase
+          .from('rider_help_reports')
+          .insert({
+            order_id: order.data.id,
+            rider_key: CUSTOMER_REFUND_RIDER_KEY,
+            kind: 'incomplete',
+            pay_method: order.data.pay_method === 'cash' ? 'cash' : 'card',
+            food_mxn: foodMxnFromOrder(order.data),
+            rider_due_mxn: 0,
+            customer_due_mxn: 0,
+            note: `${reason}. ${note}`.slice(0, 500),
+            ...customerFields,
+          })
+          .select('id')
+          .single();
+    if (saved.error || !saved.data) {
+      return NextResponse.json({ error: saved.error?.message || 'No se guardó la solicitud' }, { status: 400 });
+    }
+    const marked = await supabase
+      .from('orders')
+      .update({ help_kind: 'incomplete', help_label: REFUND_REVIEW_LABEL })
+      .eq('id', order.data.id);
+    if (marked.error) return NextResponse.json({ error: marked.error.message }, { status: 400 });
     const code = String(order.data.short_code || order.data.id).slice(0, 8);
     void notifyIangelHelp({
-      reportId: report.data.id,
+      reportId: saved.data.id,
       externalId: order.data.id,
       kind: 'incomplete',
-      label: HELP_LABELS.incomplete,
+      label: REFUND_REVIEW_LABEL,
       phase: 'customer',
       payMethod: order.data.pay_method || 'card',
       note: `${reason}. ${note}`,

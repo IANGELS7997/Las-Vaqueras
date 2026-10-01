@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { orderBranchId } from '@/lib/branches';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
 import { listHelpReports, resolveHelpReport, decideIncompleteRefund } from '@/lib/rider-help-store';
-import { HELP_LABELS, isHelpKind } from '@/lib/rider-help';
+import { HELP_LABELS, isHelpKind, isOpenCustomerRefund, REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -29,6 +29,7 @@ export async function GET() {
         orderId: row.order_id,
         kind: row.kind,
         label: (() => {
+          if (isOpenCustomerRefund(row)) return REFUND_REVIEW_LABEL;
           const kind = String(row.kind || '');
           return isHelpKind(kind) ? HELP_LABELS[kind] : kind;
         })(),
