@@ -13,6 +13,8 @@ const buttons = customerMailButtons(orderUrl);
 check(buttons.includes('Ver mi pedido'), 'el correo tiene ver mi pedido');
 check(buttons.includes('Agregar app al inicio'), 'el correo tiene agregar app');
 check(buttons.includes(INSTALL_APP_URL), 'el boton abre la pagina de instalar');
+check(buttons.includes('pedido=pedido-1'), 'instalar entra con el mismo pedido');
+check(buttons.includes('token+secreto'), 'instalar entra con la misma sesion');
 
 const ticket = buildTicketEmail({
   id: 'abc-def',
