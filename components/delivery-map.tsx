@@ -155,7 +155,7 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
 
   return (
     <div className="space-y-3">
-      <div className="relative">
+      <div className="relative z-0 isolate">
         <div
           ref={containerRef}
           className="h-[min(45vh,360px)] min-h-[320px] w-full overflow-hidden rounded-xl border border-border/60 bg-secondary/40"
