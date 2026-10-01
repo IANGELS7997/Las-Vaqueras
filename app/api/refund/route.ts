@@ -6,6 +6,7 @@ import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { orderBranchId } from '@/lib/branches';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
+import { reopenCashPlatformFees } from '@/lib/cash-platform-fee-store';
 
 export const runtime = 'nodejs';
 
@@ -56,6 +57,7 @@ export async function POST(req: Request) {
     });
 
     await markOrderCancelled(paymentIntentId);
+    await reopenCashPlatformFees(createAdminSupabase(), paymentIntentId);
 
     return NextResponse.json({
       success: true,
@@ -75,6 +77,7 @@ export async function POST(req: Request) {
 
       if (alreadyRefunded && paymentIntentId) {
         await markOrderCancelled(paymentIntentId);
+        await reopenCashPlatformFees(createAdminSupabase(), paymentIntentId);
         return NextResponse.json({ success: true, refund: { status: 'already_refunded' } });
       }
 

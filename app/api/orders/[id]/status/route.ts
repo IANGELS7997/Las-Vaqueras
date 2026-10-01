@@ -11,6 +11,7 @@ import { requireKitchenBranch } from '@/lib/kitchen-guard';
 import { kitchenCashPatch, cashViewFromRow } from '@/lib/iangel-cash';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
+import { dropUncollectedCashFee } from '@/lib/cash-platform-fee-store';
 import { kitchenHandoff } from '@/lib/kitchen-handoff';
 
 export const runtime = 'nodejs';
@@ -199,6 +200,9 @@ export async function PATCH(
   if (nextStatus === 'delivered') {
     void closeDeliveredWithFee(data as Record<string, unknown>).catch(() => undefined);
   } else if (nextStatus === 'cancelled') {
+    if (String(current.data.pay_method || '') === 'cash') {
+      await dropUncollectedCashFee(supabase, params.id);
+    }
     void closeIangelOpsOrder(data as DbOrderRow & IangelOpsRow, 'cancelled').catch(() => undefined);
   }
 
