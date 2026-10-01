@@ -30,6 +30,11 @@ export function customerInstallUrl(orderId: string, token?: string | null) {
   return query ? `${INSTALL_APP_URL}?${query}` : INSTALL_APP_URL;
 }
 
+/** Misma página de instalar, dentro del sitio que el cliente ya tiene abierto. */
+export function customerInstallPath(orderId: string, token?: string | null) {
+  return customerInstallUrl(orderId, token).slice(CUSTOMER_SITE.length) || '/instalar';
+}
+
 function installUrlForOrderLink(orderUrl: string) {
   try {
     const url = new URL(orderUrl);

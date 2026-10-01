@@ -1,4 +1,4 @@
-import { INSTALL_APP_URL, customerMailButtons, customerOrderUrl } from './customer-mail';
+import { INSTALL_APP_URL, customerInstallPath, customerMailButtons, customerOrderUrl } from './customer-mail';
 import { buildTicketEmail } from './ticket-email';
 
 function check(ok: boolean, message: string) {
@@ -15,6 +15,11 @@ check(buttons.includes('Agregar app al inicio'), 'el correo tiene agregar app');
 check(buttons.includes(INSTALL_APP_URL), 'el boton abre la pagina de instalar');
 check(buttons.includes('pedido=pedido-1'), 'instalar entra con el mismo pedido');
 check(buttons.includes('token+secreto'), 'instalar entra con la misma sesion');
+
+const installPath = customerInstallPath('pedido-1', 'token secreto');
+check(installPath.startsWith('/instalar?'), 'la pantalla abre instalar en el mismo sitio');
+check(installPath.includes('pedido=pedido-1'), 'la pantalla lleva el mismo pedido');
+check(!installPath.includes('lasvaqueras.com'), 'la pantalla no sale del sitio');
 
 const ticket = buildTicketEmail({
   id: 'abc-def',
