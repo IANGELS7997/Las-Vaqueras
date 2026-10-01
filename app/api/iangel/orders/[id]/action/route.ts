@@ -119,7 +119,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         body: customerText,
       });
     }
-    if (actionName === 'deliver') {
+    if (actionName === 'deliver' || (actionName === 'finish_report' && updated.data.status === 'delivered')) {
       void closeDeliveredWithFee(updated.data as Record<string, unknown>).catch(() => undefined);
     }
     if (actionName === 'collect_door') {

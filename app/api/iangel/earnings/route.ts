@@ -25,6 +25,8 @@ type DeliveredRow = {
   gated_community: boolean | null;
   total_charged: number | null;
   items: unknown;
+  help_kind: string | null;
+  help_label: string | null;
 };
 
 function tripAmount(row: DeliveredRow) {
@@ -118,10 +120,10 @@ export async function GET(req: Request) {
   const found = await supabase
     .from('orders')
     .select(
-      'id, short_code, self_fee, delivery_fee, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items, iangel_rider_key, pay_method, delivery_provider, fulfillment_type'
+      'id, short_code, self_fee, delivery_fee, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items, iangel_rider_key, pay_method, delivery_provider, fulfillment_type, help_kind, help_label'
     )
     .in('delivery_provider', ['self', 'wait_self'])
-    .or('status.eq.delivered,dispatch_status.eq.delivered')
+    .or('status.eq.delivered,dispatch_status.eq.delivered,dispatch_status.eq.help_return')
     .gte('created_at', weekIso)
     .lt('created_at', weekEndIso)
     .order('created_at', { ascending: false })
@@ -211,6 +213,7 @@ export async function GET(req: Request) {
     total: Number(row.total_charged || 0),
     items: asItems(row.items),
     status: row.dispatch_status || row.status || 'delivered',
+    outcome: row.help_label || (row.help_kind ? String(row.help_kind) : 'Entrega normal'),
   }));
 
   return iangelJson(req, {

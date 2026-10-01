@@ -86,8 +86,8 @@ export async function notifyIangelNewOrder(input: { code?: string | null; custom
   const code = input.code ? `#${String(input.code).replace(/^#/, '')}` : 'Nuevo';
   const who = input.customer?.trim() || 'Cliente';
   return notifyIangelRider({
-    title: 'Nuevo pedido IANGEL',
-    body: `${code} · ${who}. Recibiste un nuevo pedido.`,
+    title: 'Acabas de recibir un nuevo pedido',
+    body: `${code} · ${who}. Acabas de recibir un nuevo pedido.`,
     url: '/',
     tag: `order-${code}`,
   });

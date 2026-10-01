@@ -36,7 +36,7 @@ import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
 import { sendCustomerTicket } from '@/lib/ticket-email';
 import { notifyIangelNewOrder } from '@/lib/iangel-push';
 import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
-import { openPendingForPhone, settlePendingBalances } from '@/lib/rider-help-store';
+import { openPendingForPhone, pendingAdjustment, settlePendingBalances } from '@/lib/rider-help-store';
 import { namesFromCheckout } from '@/lib/customer-from-checkout';
 import { upsertCustomer } from '@/lib/customers';
 import { sendGiftOrderEmail } from '@/lib/gift-order-email';
@@ -229,6 +229,7 @@ export async function POST(req: Request) {
     const pending = await openPendingForPhone(supabase, phone);
     const pendingMxn = pending.amountMxn;
     const pendingIds = pending.ids.join(',');
+    const creditMxn = Math.min(0, Number(pending.creditMxn || 0));
     const cookieCustomerId = await readCustomerIdFromRequest();
     const existingCustomerId = (await findCustomerIdByPhone(supabase, phone)) || cookieCustomerId;
     const loyaltyKind = await resolveLoyaltyKind({
@@ -327,6 +328,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: abuse }, { status: 400 });
       }
       const amounts = cashStoredAmounts(split.subtotalWeb, fulfillment, routedDeliveryFee);
+      const cashAdjust = pendingAdjustment(amounts.totalCharged, pending);
       const paidStatus = paidOrderStatusFields({ fulfillment, deliveryProvider });
       const profileLoginToken = crypto.randomUUID().replace(/-/g, '');
       const referencesText = canGiftJumbo
@@ -341,9 +343,9 @@ export async function POST(req: Request) {
           customer_email: email,
           delivery_address: address,
           delivery_references: referencesText,
-          total_charged: amounts.totalCharged + pendingMxn,
+          total_charged: amounts.totalCharged + cashAdjust.extra,
           leave_at_door: leaveAtDoor,
-          pending_balance_ids: pendingIds || null,
+          pending_balance_ids: cashAdjust.settleIds.join(',') || null,
           restaurant_payout: amounts.restaurantPayout,
           platform_fee: amounts.platformFee,
           customer_fee: 0,
@@ -430,7 +432,7 @@ export async function POST(req: Request) {
         });
         void notifyIangelOpsOrder(orderRow as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
       }
-      if (pending.ids.length > 0) await settlePendingBalances(supabase, pending.ids);
+      if (cashAdjust.settleIds.length > 0) await settlePendingBalances(supabase, cashAdjust.settleIds);
       const response = NextResponse.json({
         cash: true,
         order: mapDbOrder({ ...orderRow, customer_id: profile.id }),
@@ -454,18 +456,19 @@ export async function POST(req: Request) {
       );
     }
 
+    const cardAdjust = pendingAdjustment(split.totalCharged, pending);
     const skipTransfer = waiveFood || split.restaurantPayoutCentavos <= 0;
 
     const stripe = getStripe();
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: split.totalChargedCentavos + pendingMxn * 100,
+      amount: Math.max(0, split.totalChargedCentavos + cardAdjust.extra * 100),
       currency: 'mxn',
       automatic_payment_methods: { enabled: true },
       ...(skipTransfer
         ? {}
         : {
             transfer_data: { destination },
-            application_fee_amount: split.applicationFeeCentavos + pendingMxn * 100,
+            application_fee_amount: Math.max(0, split.applicationFeeCentavos + cardAdjust.extra * 100),
           }),
       metadata: {
         price_base_total: String(serverBase),
@@ -514,9 +517,9 @@ export async function POST(req: Request) {
         delivery_references: canGiftJumbo
           ? [references, 'PROMOCIÓN · Papas Jumbo de regalo'].filter(Boolean).join(' · ')
           : references || null,
-        total_charged: split.totalCharged + pendingMxn,
+        total_charged: split.totalCharged + cardAdjust.extra,
         leave_at_door: leaveAtDoor,
-        pending_balance_ids: pendingIds || null,
+        pending_balance_ids: cardAdjust.settleIds.join(',') || null,
         restaurant_payout: split.restaurantPayout,
         platform_fee: split.platformFee,
         customer_fee: split.customerFee,

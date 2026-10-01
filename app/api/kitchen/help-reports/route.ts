@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireKitchenSession } from '@/lib/kitchen-guard';
-import { listHelpReports, resolveHelpReport } from '@/lib/rider-help-store';
+import { listHelpReports, resolveHelpReport, decideIncompleteRefund } from '@/lib/rider-help-store';
 import { HELP_LABELS, isHelpKind } from '@/lib/rider-help';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -32,6 +32,10 @@ export async function GET() {
         customerReason: row.customer_reason,
         customerNote: row.customer_note,
         customerChoice: row.customer_choice,
+        kitchenRefund: row.kitchen_refund,
+        adminRefund: row.admin_refund,
+        refundNote: row.refund_note,
+        refundCreditMxn: row.refund_credit_mxn,
         createdAt: row.created_at,
       })),
     });
@@ -44,8 +48,24 @@ export async function GET() {
 export async function POST(req: Request) {
   const denied = await requireKitchenSession();
   if (denied) return denied;
-  const body = (await req.json().catch(() => ({}))) as { id?: string; decision?: string };
-  const decision = body.decision === 'approved' || body.decision === 'rejected' ? body.decision : null;
+  const body = (await req.json().catch(() => ({}))) as {
+    id?: string;
+    decision?: string;
+    scope?: string;
+    reason?: string;
+  };
+  if (body.scope === 'refund') {
+    const vote = body.decision === 'approved' || body.decision === 'rejected' ? body.decision : null;
+    if (!body.id || !vote) return NextResponse.json({ error: 'Falta el caso o la decisión' }, { status: 400 });
+    try {
+      const saved = await decideIncompleteRefund(createAdminSupabase(), body.id, 'kitchen', vote, body.reason || '');
+      return NextResponse.json(saved);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo resolver';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+  const decision = body.decision === 'approved' || body.decision === 'rejected' || body.decision === 'deposited' ? body.decision : null;
   if (!body.id || !decision) return NextResponse.json({ error: 'Falta el caso o la decisión' }, { status: 400 });
   try {
     const saved = await resolveHelpReport(createAdminSupabase(), body.id, decision);

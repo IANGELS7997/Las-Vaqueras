@@ -39,6 +39,7 @@ import { MenuProductImage } from '@/components/menu-product-image';
 import { kitchenHandoff, MANAGED_TRACK } from '@/lib/kitchen-handoff';
 import { kitchenStatusLabel, viewFromOrder } from '@/lib/order-lifecycle';
 import { KitchenHelpDesk, KitchenHelpPayout } from '@/components/kitchen-help';
+import { KitchenWeekHistory } from '@/components/kitchen-week-history';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -828,6 +829,8 @@ export default function KitchenDashboardPage() {
           </div>
         )}
       </div>
+
+      <KitchenWeekHistory />
 
       {/* Completed orders */}
       {completedOrders.length > 0 && (
