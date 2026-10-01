@@ -19,6 +19,7 @@ import { isBranchId } from '@/lib/branches';
 import { alertIfKitchenOfflineForOrder } from '@/lib/kitchen-order-alert';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { settlePendingBalances } from '@/lib/rider-help-store';
+import { settleCashPlatformFees } from '@/lib/cash-platform-fee-store';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
 import { addressKey, clientIp, normalizeEmail, normalizePhone, type LoyaltyKind } from '@/lib/loyalty';
@@ -312,6 +313,7 @@ export async function POST(req: Request) {
     if (existing.data) {
       const row = existing.data as DbOrderRow;
       if (row.status !== 'awaiting_payment') {
+        await settleCashPlatformFees(supabase, paymentIntentId);
         return orderResponseWithProfile({
           orderRow: row,
           firstName,
@@ -364,6 +366,7 @@ export async function POST(req: Request) {
       );
 
       maybeNotifyPaidOrder(withUber);
+      await settleCashPlatformFees(supabase, paymentIntentId);
       const pendingIds = String((row as { pending_balance_ids?: string | null }).pending_balance_ids || '')
         .split(',')
         .map((id) => id.trim())
@@ -402,8 +405,14 @@ export async function POST(req: Request) {
         delivery_address: address,
         delivery_references: references,
         total_charged: split.totalCharged,
-        restaurant_payout: split.restaurantPayout,
-        platform_fee: split.platformFee,
+        restaurant_payout:
+          Number(paymentIntent.metadata.cash_platform_fee || 0) > 0
+            ? Number(paymentIntent.metadata.restaurant_payout)
+            : split.restaurantPayout,
+        platform_fee:
+          Number(paymentIntent.metadata.cash_platform_fee || 0) > 0
+            ? Number(paymentIntent.metadata.platform_fee)
+            : split.platformFee,
         customer_fee: split.customerFee,
         delivery_fee: split.deliveryFee,
         fulfillment_type: fulfillment,
@@ -432,6 +441,7 @@ export async function POST(req: Request) {
     );
 
     maybeNotifyPaidOrder(insertedUber);
+    await settleCashPlatformFees(supabase, paymentIntentId);
 
     return orderResponseWithProfile({
       orderRow: insertedUber,
