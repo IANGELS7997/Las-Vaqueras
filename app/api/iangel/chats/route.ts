@@ -16,12 +16,7 @@ const SYSTEM_TEMPLATES = [
   {
     id: 'sys-welcome',
     title: 'Bienvenida IANGEL',
-    body: 'Conecta con el control de la izquierda para recibir pedidos de casa ($50).',
-  },
-  {
-    id: 'sys-uber',
-    title: 'Uber Direct',
-    body: 'Activa Uber Direct en el mismo panel si quieres que Las Vaqueras cotice envíos Uber.',
+    body: 'Conecta con el control de la izquierda para recibir pedidos de casa. Hasta 4 km son $50 y de ahí a 6.5 km son $55.',
   },
   {
     id: 'sys-safety',

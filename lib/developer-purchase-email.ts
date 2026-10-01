@@ -3,6 +3,7 @@ import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
 
 const DEVELOPER_EMAIL = 'iangels7997@gmail.com';
+const STORE_EMAIL = 'servicio@lasvaqueras.com.mx';
 
 type NoticeRow = DbOrderRow & {
   delivery_provider?: string | null;
@@ -99,7 +100,7 @@ export async function sendDeveloperPurchaseNotice(row: NoticeRow) {
     },
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
-      to: [DEVELOPER_EMAIL],
+      to: [DEVELOPER_EMAIL, STORE_EMAIL],
       subject: `Compra nueva · #${code} · Las Vaqueras`,
       html,
       text,

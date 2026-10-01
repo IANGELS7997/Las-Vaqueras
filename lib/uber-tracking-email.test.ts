@@ -12,8 +12,8 @@ check(uberTrackingHref('javascript:alert(1)') === null, 'rechaza otro esquema');
 check(uberTrackingHref('') === null, 'vacío no es enlace');
 
 check(
-  shouldSendUberTrackingEmail({ previousUrl: null, nextUrl: link, email: 'cliente@correo.com' }),
-  'el primer enlace se manda'
+  shouldSendUberTrackingEmail({ previousUrl: null, nextUrl: link, email: 'cliente@correo.com' }) === false,
+  'ya no se manda el correo de Uber Direct'
 );
 check(
   shouldSendUberTrackingEmail({ previousUrl: link, nextUrl: link, email: 'cliente@correo.com' }) === false,

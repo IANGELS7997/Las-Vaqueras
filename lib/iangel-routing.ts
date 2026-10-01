@@ -1,5 +1,6 @@
 import {
   FAR_NOTICE_MIN_M,
+  OUTER_FEE_MXN,
   SELF_FEE_MXN,
   SELF_MAX_M,
   SERVICE_MAX_M,
@@ -7,7 +8,6 @@ import {
   type DeliveryProvider,
 } from '@/lib/iangel-constants';
 import { COPY } from '@/lib/iangel-copy';
-import { calcCustomerDeliveryFee } from '@/lib/delivery-tarifa';
 import { isIangelShift } from '@/lib/iangel-shift';
 
 export type RoutingOption = {
@@ -45,63 +45,38 @@ export type RoutingResult = {
   farZone: boolean;
 };
 
-function money(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function uberOption(uberQuoteFee: number | null | undefined): RoutingOption | null {
-  if (uberQuoteFee == null || !Number.isFinite(uberQuoteFee)) return null;
-  const { deliveryFee } = calcCustomerDeliveryFee({ uberFee: uberQuoteFee });
-  return {
-    kind: 'uber',
-    customerFee: deliveryFee,
-    uberFee: money(uberQuoteFee),
-    title: COPY.uberTitle,
-    body: COPY.uberBody,
-  };
-}
-
-function selfOption(): RoutingOption {
+function selfOption(fee = SELF_FEE_MXN): RoutingOption {
   return {
     kind: 'self',
-    customerFee: SELF_FEE_MXN,
+    customerFee: fee,
     uberFee: 0,
-    title: COPY.selfTitle,
+    title: fee === SELF_FEE_MXN ? COPY.selfTitle : `Envío IANGEL · $${fee}`,
     body: COPY.selfBody,
   };
 }
 
-function waitOption(): RoutingOption {
+function waitOption(fee = SELF_FEE_MXN): RoutingOption {
   return {
     kind: 'wait_self',
-    customerFee: SELF_FEE_MXN,
+    customerFee: fee,
     uberFee: 0,
-    title: COPY.waitTitle,
+    title: fee === SELF_FEE_MXN ? COPY.waitTitle : `Envío IANGEL · $${fee}`,
     body: COPY.waitBody,
   };
 }
 
 /**
- * Uber Direct apagado:
- * IANGEL $50 en 0–4000 m, turno 12:00–21:00 y rider activo.
- * Ocupado en ese radio: $50 + aviso, sin Uber.
- * 4001–5500 m: Uber aunque el rider no lo encienda.
- * Fuera de turno, 0–4000 m no tiene domicilio.
- * Uber Direct encendido (emergencia):
- * cualquier pedido de 0–5500 m sale por Uber.
- * Más de 5500 m: sin domicilio.
- * 4501–5500 m marca farZone para el aviso de hasta 1 hora.
+ * IANGEL $50 en 0–4000 m y $55 en 4001–6500 m, en turno y con rider activo.
+ * Ocupado: el mismo precio, con aviso de espera.
+ * Fuera de turno o sin rider: solo recoger en tienda.
+ * Más de 6500 m: sin domicilio.
  */
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   const meters = Math.max(0, Math.round(input.meters));
   const inShift = isIangelShift(input.now);
-  const emergency = input.uberDirectEnabled === true;
-  const uber = uberOption(input.uberQuoteFee);
-  const inIangelBand = meters <= SELF_MAX_M;
-  const inOuterBand = meters >= UBER_MIN_M && meters <= SERVICE_MAX_M;
-  const selfEligible = inShift && input.riderActive && inIangelBand && !emergency;
-  const waitEligible = selfEligible && input.riderBusy;
-  const selfFree = selfEligible && !input.riderBusy;
+  const covered = meters <= SERVICE_MAX_M;
+  const fee = meters <= SELF_MAX_M ? SELF_FEE_MXN : OUTER_FEE_MXN;
+  const farZone = meters >= FAR_NOTICE_MIN_M && meters >= UBER_MIN_M;
 
   const base = {
     meters,
@@ -124,51 +99,35 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
     allowWait: false,
   });
 
-  if (meters > SERVICE_MAX_M) return blocked(COPY.tooFar);
+  if (!covered) return blocked(COPY.tooFar);
+  if (!inShift) return blocked(COPY.outOfShift);
+  if (!input.riderActive) return blocked(COPY.inactive);
 
-  if (emergency || inOuterBand) {
-    if (!uber) return blocked(COPY.uberQuoteMissing);
+  if (input.riderBusy) {
     return {
       ...base,
-      farZone: meters >= FAR_NOTICE_MIN_M,
-      defaultKind: 'uber',
-      options: [uber],
-      allowSelf: false,
-      allowUber: true,
-      allowWait: false,
-    };
-  }
-
-  if (selfFree) {
-    return {
-      ...base,
-      defaultKind: 'self',
-      options: [selfOption()],
-      allowSelf: true,
-      allowUber: false,
-      allowWait: false,
-    };
-  }
-
-  if (waitEligible) {
-    return {
-      ...base,
+      farZone,
       defaultKind: 'wait_self',
-      options: [waitOption()],
+      options: [waitOption(fee)],
       allowSelf: false,
       allowUber: false,
       allowWait: true,
     };
   }
 
-  return blocked(!inShift ? COPY.outOfShift : COPY.inactive);
+  return {
+    ...base,
+    farZone,
+    defaultKind: 'self',
+    options: [selfOption(fee)],
+    allowSelf: true,
+    allowUber: false,
+    allowWait: false,
+  };
 }
 
-export function needsUberQuote(input: Omit<RoutingInput, 'uberQuoteFee'>): boolean {
-  const meters = Math.max(0, Math.round(input.meters));
-  if (meters > SERVICE_MAX_M) return false;
-  if (meters >= UBER_MIN_M) return true;
-  return input.uberDirectEnabled === true;
+export function needsUberQuote(_input: Omit<RoutingInput, 'uberQuoteFee'>): boolean {
+  return false;
 }
 
 export function assertProviderAllowed(routing: RoutingResult, kind: DeliveryProvider): boolean {

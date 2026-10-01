@@ -256,11 +256,15 @@ export async function POST(req: Request) {
     const platilloCount = Number.isFinite(Number(paymentIntent.metadata.platillo_count))
       ? Number(paymentIntent.metadata.platillo_count)
       : countDeliveryPlatillos(items || []);
-    const uberFee = Number(
-      paymentIntent.metadata.uber_fee ||
-        (fulfillment === 'pickup' ? 0 : paymentIntent.metadata.delivery_fee) ||
-        0
-    );
+    const providerMeta = paymentIntent.metadata.delivery_provider;
+    const deliveryProvider =
+      providerMeta === 'self' || providerMeta === 'wait_self' || providerMeta === 'uber' || providerMeta === 'pickup'
+        ? providerMeta
+        : fulfillment === 'pickup'
+          ? 'pickup'
+          : 'self';
+    const uberFee = Number(paymentIntent.metadata.uber_fee || 0);
+    const routedDeliveryFee = Number(paymentIntent.metadata.delivery_fee || 0);
     const pickupAt = paymentIntent.metadata.pickup_at || null;
     const foodDiscountPesos = Number(paymentIntent.metadata.food_discount_pesos || 0);
     const chargedRaw = paymentIntent.metadata.food_web_charged;
@@ -275,7 +279,10 @@ export async function POST(req: Request) {
       priceBaseTotal,
       fulfillment,
       platilloCount,
+      provider: deliveryProvider,
       uberFee,
+      deliveryFee:
+        deliveryProvider === 'self' || deliveryProvider === 'wait_self' ? routedDeliveryFee : undefined,
       foodWebTotal,
       foodDiscountPesos: Number.isFinite(foodDiscountPesos) ? foodDiscountPesos : 0,
     });

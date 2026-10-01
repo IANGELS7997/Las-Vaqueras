@@ -152,6 +152,7 @@ export default function CheckoutPage() {
     platilloCount,
     provider: isPickup ? 'pickup' : quotedKind || undefined,
     uberFee: isPickup ? 0 : quotedKind === 'uber' ? quotedUberRaw : 0,
+    deliveryFee: isPickup ? 0 : quotedFee ?? undefined,
     foodWebTotal: foodQuote.chargedWeb,
     foodDiscountPesos: foodQuote.discountPesos,
   });
@@ -448,18 +449,17 @@ export default function CheckoutPage() {
   const iangelDelivery = !isPickup && (quotedKind === 'self' || quotedKind === 'wait_self');
   const cashOverCap = split.subtotalWeb > CASH_FOOD_CAP_MXN;
   const cashIdentityReady = Boolean(
-    firstName.trim().length >= 2 && lastName.trim().length >= 2 && contactReady && addressReady
+    firstName.trim().length >= 2 && lastName.trim().length >= 2 && contactReady && (isPickup || addressReady)
   );
-  const cashLock = isPickup
-    ? 'El efectivo solo está en envío IANGEL.'
-    : cashOptionLock({
-        identityReady: cashIdentityReady,
-        quoting,
-        quoted: quotedKind != null,
-        iangel: iangelDelivery,
-        overCap: cashOverCap,
-        gift: isGiftCheckout,
-      });
+  const cashLock = cashOptionLock({
+    identityReady: cashIdentityReady,
+    quoting,
+    quoted: quotedKind != null,
+    iangel: iangelDelivery,
+    overCap: cashOverCap,
+    gift: isGiftCheckout,
+    pickup: isPickup,
+  });
   const cashClickable = cashLock == null;
   useEffect(() => {
     if (!cashClickable && payChoice === 'cash') setPayChoice('card');
@@ -1031,7 +1031,7 @@ export default function CheckoutPage() {
                   </div>
                 ) : null}
                 {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
-                {!isPickup && !isFreeGift ? (
+                {!isFreeGift ? (
                   <div className="mb-4 space-y-2">
                     <p className="text-sm font-semibold text-white">Cómo pagas</p>
                     <div className="grid grid-cols-2 gap-2">
@@ -1067,7 +1067,7 @@ export default function CheckoutPage() {
                     {cashLock ? <p className="text-xs leading-relaxed text-muted-foreground">{cashLock}</p> : null}
                     {cashClickable && payChoice === 'cash' ? (
                       <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                        {cashPaySummary(split.subtotalWeb)}
+                        {cashPaySummary(split.subtotalWeb, mode, quotedFee)}
                       </p>
                     ) : null}
                   </div>

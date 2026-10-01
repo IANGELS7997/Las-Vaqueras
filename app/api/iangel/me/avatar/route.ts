@@ -1,5 +1,6 @@
-import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
+import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
 import { mapRiderProfile, riderAvatarPublicUrl } from '@/lib/iangel-profile';
+import { getRiderPresence, saveRiderPresence } from '@/lib/iangel-presence';
 import { getOrCreateRider } from '@/lib/iangel-state';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -35,11 +36,12 @@ export async function POST(req: Request) {
     return iangelJson(req, { error: 'Usa una foto JPG, PNG o WebP' }, 400);
   }
 
-  const rider = await getOrCreateRider();
+  const riderKey = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
+  const presence = await getRiderPresence(riderKey);
   const supabase = createAdminSupabase();
-  const path = `${rider.id}/${Date.now()}.${extensionFor(file.type)}`;
+  const path = `${riderKey}/${Date.now()}.${extensionFor(file.type)}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const previousPath = (rider as { avatar_path?: string | null }).avatar_path || null;
+  const previousPath = (presence as { avatar_path?: string | null }).avatar_path || null;
 
   const uploaded = await supabase.storage.from('iangel-avatars').upload(path, buffer, {
     contentType: file.type,
@@ -49,23 +51,27 @@ export async function POST(req: Request) {
     return iangelJson(req, { error: uploaded.error.message }, 500);
   }
 
-  const updated = await supabase
-    .from('iangel_riders')
-    .update({ avatar_path: path, updated_at: new Date().toISOString() })
-    .eq('id', rider.id)
-    .select('*')
-    .single();
-  if (updated.error) {
-    return iangelJson(req, { error: updated.error.message }, 500);
+  let updatedPresence;
+  try {
+    updatedPresence = await saveRiderPresence(riderKey, { avatar_path: path });
+  } catch (error) {
+    return iangelJson(req, { error: error instanceof Error ? error.message : 'No se guardó la foto' }, 500);
   }
 
   if (previousPath && previousPath !== path) {
     await supabase.storage.from('iangel-avatars').remove([previousPath]);
   }
 
-  const row = updated.data as typeof rider & { avatar_path?: string | null; emoji?: string | null };
+  const shared = await getOrCreateRider();
+  const saved = updatedPresence as typeof presence & { avatar_path?: string | null; emoji?: string | null };
   return iangelJson(req, {
-    rider: mapRiderProfile(row),
-    avatarUrl: riderAvatarPublicUrl(row.avatar_path),
+    rider: {
+      ...mapRiderProfile(shared),
+      name: presence.display_name || shared.display_name || 'IANGEL',
+      emoji: (saved.emoji && String(saved.emoji).trim()) || '🛵',
+      avatarUrl: riderAvatarPublicUrl(saved.avatar_path),
+      active: presence.rider_active === true,
+    },
+    avatarUrl: riderAvatarPublicUrl(saved.avatar_path),
   });
 }

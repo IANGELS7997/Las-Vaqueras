@@ -40,7 +40,9 @@ assert(atCap.ok === true, '$500 todavía es efectivo');
 const over = cashCheckoutAllowed({ provider: 'self', fulfillment: 'delivery', subtotalWeb: 501 });
 assert(over.ok === false, '$501 rechaza efectivo');
 assert(cashCheckoutAllowed({ provider: 'uber', fulfillment: 'delivery', subtotalWeb: 180 }).ok === false, 'Uber no es efectivo');
-assert(cashCheckoutAllowed({ provider: 'self', fulfillment: 'pickup', subtotalWeb: 180 }).ok === false, 'recoger no es efectivo');
+assert(cashCheckoutAllowed({ provider: 'pickup', fulfillment: 'pickup', subtotalWeb: 180 }).ok === true, 'recoger sí es efectivo');
+const pickupCash = cashStoredAmounts(180, 'pickup');
+assert(pickupCash.deliveryFee === 0 && pickupCash.totalCharged === 180, 'recoger en efectivo no cobra envío');
 
 const cashOrder = {
   payMethod: 'cash',

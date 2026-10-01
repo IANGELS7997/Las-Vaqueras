@@ -135,8 +135,9 @@ export async function POST(req: Request) {
     const isPickup = fulfillment === 'pickup';
     let uberFee = 0;
     let uberQuoteId: string | null = null;
-    let deliveryProvider: 'pickup' | 'self' | 'uber' | 'wait_self' = isPickup ? 'pickup' : 'uber';
-    let dispatchStatus = isPickup ? 'pickup_store' : 'needs_n8n_uber';
+    let routedDeliveryFee: number | undefined;
+    let deliveryProvider: 'pickup' | 'self' | 'uber' | 'wait_self' = isPickup ? 'pickup' : 'self';
+    let dispatchStatus = isPickup ? 'pickup_store' : 'self_iangel';
     const destination = resolveStripeConnectDestination(
       typeof stripeAccountId === 'string' ? stripeAccountId : null,
       {
@@ -194,6 +195,7 @@ export async function POST(req: Request) {
       dispatchStatus = paid.dispatchStatus;
       uberFee = paid.uberFee;
       uberQuoteId = paid.uberQuoteId;
+      routedDeliveryFee = paid.customerFee;
       if (iangelCarries(paid.kind) && !bagFits(cartItems)) {
         return NextResponse.json(
           { error: `${BAG_LIMIT_TITLE}. ${BAG_LIMIT_BODY}` },
@@ -288,6 +290,7 @@ export async function POST(req: Request) {
       platilloCount,
       provider: deliveryProvider,
       uberFee,
+      deliveryFee: routedDeliveryFee,
       foodWebTotal: foodQuote.chargedWeb,
       foodDiscountPesos: foodQuote.discountPesos,
     });
@@ -308,7 +311,7 @@ export async function POST(req: Request) {
       }
       const firstName = customer?.firstName?.trim() || name.split(' ')[0] || '';
       const lastName = customer?.lastName?.trim() || name.split(' ').slice(1).join(' ') || '';
-      const identity = cashIdentityMessage({ firstName, lastName, phone, email, address });
+      const identity = cashIdentityMessage({ firstName, lastName, phone, email, address, fulfillment });
       if (identity) {
         return NextResponse.json({ error: identity }, { status: 400 });
       }
@@ -323,7 +326,7 @@ export async function POST(req: Request) {
       if (abuse) {
         return NextResponse.json({ error: abuse }, { status: 400 });
       }
-      const amounts = cashStoredAmounts(split.subtotalWeb);
+      const amounts = cashStoredAmounts(split.subtotalWeb, fulfillment, routedDeliveryFee);
       const paidStatus = paidOrderStatusFields({ fulfillment, deliveryProvider });
       const profileLoginToken = crypto.randomUUID().replace(/-/g, '');
       const referencesText = canGiftJumbo

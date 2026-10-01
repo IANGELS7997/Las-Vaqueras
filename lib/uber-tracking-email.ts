@@ -30,9 +30,8 @@ export function shouldSendUberTrackingEmail(input: {
   nextUrl?: string | null;
   email?: string | null;
 }) {
-  if (uberTrackingHref(input.previousUrl)) return false;
-  if (!uberTrackingHref(input.nextUrl)) return false;
-  return String(input.email || '').trim().includes('@');
+  void input;
+  return false;
 }
 
 export async function sendUberTrackingEmail(input: {

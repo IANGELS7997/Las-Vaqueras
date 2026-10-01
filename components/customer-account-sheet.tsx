@@ -30,6 +30,7 @@ import {
 } from '@/lib/customer-login-store';
 import { getOpenStatus } from '@/lib/restaurant';
 import type { Order } from '@/types';
+import { CustomerDoorReport } from '@/components/customer-door-report';
 import { CustomerIncompleteRefund } from '@/components/customer-incomplete-refund';
 
 type CustomerProfile = {
@@ -435,6 +436,7 @@ export function CustomerAccountSheet() {
               )}
             </section>
             <CustomerIncompleteRefund orders={[...activeOrders, ...pastOrders]} />
+            <CustomerDoorReport orders={[...activeOrders, ...pastOrders]} />
             <section>
               <h3 className="mb-2 text-sm font-bold text-white">Anteriores</h3>
               {pastOrders.length === 0 ? (

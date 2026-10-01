@@ -1,4 +1,4 @@
-import { iangelJson, iangelPreflight, requireIangel } from '@/lib/iangel-auth';
+import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
 import { getRiderProfileBundle, RIDER_EMOJIS } from '@/lib/iangel-profile';
 import { isIangelShift } from '@/lib/iangel-shift';
 
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const denied = await requireIangel(req);
   if (denied) return denied;
   try {
-    const bundle = await getRiderProfileBundle();
+    const bundle = await getRiderProfileBundle(riderKeyFromRequest(req) || ANGEL_RIDER_KEY);
     return iangelJson(req, {
       ...bundle,
       inShift: isIangelShift(),
