@@ -61,23 +61,32 @@ const at4501Off = kinds(AT_15, 4501, false, true, false);
 assert(at4501Off.defaultKind === 'managed' && at4501Off.farZone, '4501 m ignora rider ocupado');
 
 const inactive2km = kinds(AT_15, 2000, false, false, true);
-assert(inactive2km.blocked && inactive2km.defaultKind === null, '≤4000 m inactivo → sin domicilio');
+assert(
+  inactive2km.defaultKind === 'managed' && inactive2km.options[0]?.customerFee === 50 && !inactive2km.blocked,
+  '≤4000 m sin rider → gestionar $50'
+);
+assert(!inactive2km.allowSelf && !inactive2km.farZone, '≤4000 m sin rider no entra a IANGEL ni avisa 1 hora');
 
 const coveredNear = kinds(AT_15, 30, true, false, true);
 assert(coveredNear.defaultKind === 'self' && coveredNear.allowSelf, 'en turno a 30 m → IANGEL');
 
 const afterShift = kinds(AT_2105, 2000, true, false, true);
-assert(afterShift.blocked, '21:05 a 2 km → sin domicilio');
-assert(!afterShift.allowSelf, 'desde las 21:00 no es IANGEL');
+assert(
+  afterShift.defaultKind === 'managed' && afterShift.options[0]?.customerFee === 50 && !afterShift.allowSelf,
+  '21:05 a 2 km, tienda abierta → gestionar $50'
+);
 
 const atNine = kinds(AT_210000, 30, true, false, true);
-assert(atNine.blocked, '21:00 exacto a 30 m → sin domicilio');
+assert(atNine.defaultKind === 'managed' && atNine.options[0]?.customerFee === 50, '21:00 exacto a 30 m → gestionar $50');
 
 const afterShiftUberBand = kinds(AT_2105, 4200, true, false, true);
 assert(afterShiftUberBand.blocked, '4001–4500 m fuera de turno → sin domicilio');
 
 const afterShiftNear = kinds(AT_2105, 3500, true, false, true);
-assert(afterShiftNear.blocked, '0–4000 m fuera de turno → sin domicilio');
+assert(afterShiftNear.defaultKind === 'managed' && !afterShiftNear.allowSelf, '0–4000 m a las 21:05 → gestionar');
+
+const afterClose = kinds(new Date('2026-09-15T21:16:00-06:00'), 2000, false, false);
+assert(afterClose.blocked, '21:16 Centro cerrado → sin domicilio');
 
 const lateStill = kinds(AT_205959, 3500, true, false);
 assert(lateStill.defaultKind === 'self', '20:59:59 <=4000 activo+libre → $50');
@@ -204,7 +213,10 @@ assert(
 );
 
 const afterShiftUberOff = kinds(AT_2105, 2000, false, false, false);
-assert(afterShiftUberOff.blocked && !afterShiftUberOff.allowUber, '21:05 Uber OFF → sin domicilio');
+assert(
+  afterShiftUberOff.defaultKind === 'managed' && !afterShiftUberOff.allowUber && !afterShiftUberOff.allowSelf,
+  '21:05 sin rider → gestionar, sin Uber'
+);
 
 const inBandUberOff = kinds(AT_15, 4200, false, false, false);
 assert(inBandUberOff.defaultKind === 'managed' && inBandUberOff.options[0]?.customerFee === 55, '4001–4500 → gestionar $55');
@@ -232,10 +244,36 @@ const selfWhileUberOff = kinds(AT_15, 2000, true, false, false);
 assert(selfWhileUberOff.defaultKind === 'self', 'en turno online → IANGEL');
 
 const offlineNear = kinds(AT_15, 2000, false, false, true);
-assert(offlineNear.blocked, 'offline en turno → sin domicilio');
+assert(
+  offlineNear.defaultKind === 'managed' && offlineNear.options[0]?.customerFee === 50 && !offlineNear.allowSelf,
+  'sin rider en turno → gestionar $50'
+);
 
 const offlineUberOff = kinds(AT_15, 2000, false, false, false);
-assert(offlineUberOff.blocked && !offlineUberOff.allowUber, 'offline en turno + Uber OFF → sin domicilio');
+assert(
+  offlineUberOff.defaultKind === 'managed' && !offlineUberOff.allowUber && !offlineUberOff.allowSelf,
+  'sin rider → gestionar, sin Uber'
+);
+
+const nearManagedSplit = calcCheckoutSplit({
+  priceBaseTotal: CARTA,
+  fulfillment: 'delivery',
+  provider: 'managed',
+  deliveryFee: SELF_FEE_MXN,
+});
+assert(nearManagedSplit.deliveryFee === 50, 'gestionar cercano cobra $50');
+assert(
+  nearManagedSplit.restaurantPayout ===
+    Number(
+      (
+        calcWebPrice(CARTA) -
+        calcDeveloperFood(CARTA) -
+        nearManagedSplit.stripeShare +
+        nearManagedSplit.deliveryFee
+      ).toFixed(2)
+    ),
+  'gestionar cercano: la sucursal recibe la comida menos el 15% y su Stripe, más los $50'
+);
 
 function branchKinds(branchId: 'norte' | 'sur', now: Date, meters: number) {
   return resolveDeliveryRouting({
