@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 
@@ -61,18 +62,14 @@ export async function sendEnrouteEmail(input: {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
   if (!key || !to.includes('@')) return { ok: false as const };
-  const track =
-    `${SITE}/orders/${input.orderId}` +
-    (input.token ? `?s=${encodeURIComponent(input.token)}` : '');
+  const track = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
 <img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
 <h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu pedido va en camino</h1>
 <p>Hola ${first},</p>
 <p>${esc(ENROUTE_LINE)}</p>
-<div style="text-align:center;margin:20px 0;">
-<a href="${esc(track)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Ver mi pedido</a>
-</div>
+${customerMailButtons(track)}
 <p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
@@ -86,7 +83,7 @@ export async function sendEnrouteEmail(input: {
       to: [to],
       subject: ENROUTE_SUBJECT,
       html,
-      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${ENROUTE_LINE} Ver mi pedido: ${track}`,
+      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${ENROUTE_LINE} ${customerMailLinksText(track)}`,
     }),
   });
   return { ok: response.ok };

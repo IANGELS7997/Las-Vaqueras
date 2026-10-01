@@ -7,6 +7,7 @@ import { OrdersProvider } from '@/lib/orders-context';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { DevSignalListener } from '@/components/dev-signal-listener';
+import { PwaRegister } from '@/components/pwa-register';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="es" className="dark">
       <body className={inter.className}>
         <DevSignalListener />
+        <PwaRegister />
         <CartProvider>
           <FulfillmentProvider>
             <OrdersProvider>

@@ -33,6 +33,7 @@ import { paidOrderStatusFields } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { alertIfKitchenOfflineForOrder } from '@/lib/kitchen-order-alert';
 import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
+import { sendCustomerTicket } from '@/lib/ticket-email';
 import { notifyIangelNewOrder } from '@/lib/iangel-push';
 import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { namesFromCheckout } from '@/lib/customer-from-checkout';
@@ -409,6 +410,9 @@ export async function POST(req: Request) {
         Sentry.captureException(err);
       });
       void sendDeveloperPurchaseNotice(orderRow).catch((err) => Sentry.captureException(err));
+      void sendCustomerTicket({ ...orderRow, profile_login_token: profileLoginToken }).catch((err) => {
+        Sentry.captureException(err);
+      });
       if (String(orderRow.dispatch_status || '') === 'self_iangel') {
         void notifyIangelNewOrder({ code: orderRow.short_code, customer: orderRow.customer_name }).catch((err) => {
           Sentry.captureException(err);
@@ -444,7 +448,6 @@ export async function POST(req: Request) {
       amount: split.totalChargedCentavos,
       currency: 'mxn',
       automatic_payment_methods: { enabled: true },
-      receipt_email: email,
       ...(skipTransfer
         ? {}
         : {

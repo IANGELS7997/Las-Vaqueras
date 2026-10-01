@@ -28,6 +28,7 @@ import { createAdminSupabase } from '@/lib/supabase-admin';
 import { dispatchUberDirectAfterPayment } from '@/lib/uber-dispatch';
 import { sendUberTrackingEmail, shouldSendUberTrackingEmail } from '@/lib/uber-tracking-email';
 import { sendDeveloperPurchaseNotice } from '@/lib/developer-purchase-email';
+import { sendCustomerTicket, type TicketOrder } from '@/lib/ticket-email';
 import { notifyIangelNewOrder } from '@/lib/iangel-push';
 import { notifyIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 
@@ -37,8 +38,9 @@ function reportNoticeFailure(err: unknown) {
   Sentry.captureException(err);
 }
 
-function maybeNotifyPaidOrder(row: DbOrderRow) {
+function maybeNotifyPaidOrder(row: TicketOrder) {
   void sendDeveloperPurchaseNotice(row).catch(reportNoticeFailure);
+  void sendCustomerTicket(row).catch(reportNoticeFailure);
   if (String(row.dispatch_status || '') !== 'self_iangel') return;
   void notifyIangelNewOrder({
     code: row.short_code,

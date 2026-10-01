@@ -48,14 +48,12 @@ function PaymentForm({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/checkout/complete`,
-            receipt_email: pending.customer.email,
-            payment_method_data: {
-              billing_details: {
-                name: pending.customer.name,
-                phone: pending.customer.phone,
-                email: pending.customer.email,
-              },
-            },
+        payment_method_data: {
+          billing_details: {
+            name: pending.customer.name,
+            phone: pending.customer.phone,
+          },
+        },
       },
       redirect: 'if_required',
     });
@@ -103,6 +101,7 @@ function PaymentForm({
         options={{
           layout: 'tabs',
           wallets: { applePay: 'auto', googlePay: 'auto' },
+          fields: { billingDetails: { email: 'never' } },
         }}
       />
       {error && <p className="text-sm text-red-400">{error}</p>}

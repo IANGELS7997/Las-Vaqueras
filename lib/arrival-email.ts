@@ -1,3 +1,5 @@
+import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+
 const SITE = 'https://lasvaqueras.com.mx';
 
 function esc(value: unknown) {
@@ -40,9 +42,7 @@ export async function sendArrivalEmail(input: {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
   if (!key || !to.includes('@')) return { ok: false as const };
-  const track =
-    `${SITE}/orders/${input.orderId}` +
-    (input.token ? `?s=${encodeURIComponent(input.token)}` : '');
+  const track = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
   const line = arrivalCustomerLine(input.leaveAtDoor);
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
@@ -50,9 +50,7 @@ export async function sendArrivalEmail(input: {
 <h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu repartidor llegó</h1>
 <p>Hola ${first},</p>
 <p>${esc(line)}</p>
-<div style="text-align:center;margin:20px 0;">
-<a href="${esc(track)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Ver mi pedido</a>
-</div>
+${customerMailButtons(track)}
 <p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
@@ -66,7 +64,7 @@ export async function sendArrivalEmail(input: {
       to: [to],
       subject: 'Tu repartidor llegó · Las Vaqueras',
       html,
-      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${line} Ver mi pedido: ${track}`,
+      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${line} ${customerMailLinksText(track)}`,
     }),
   });
   return { ok: response.ok };
