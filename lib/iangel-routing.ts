@@ -76,10 +76,26 @@ function managedOption(customerFee = OUTER_FEE_MXN): RoutingOption {
   };
 }
 
+function centroNearManaged(base: Omit<RoutingResult, 'defaultKind' | 'options' | 'allowSelf' | 'allowUber' | 'allowWait' | 'blocked' | 'blockedReason'>): RoutingResult {
+  return {
+    ...base,
+    blocked: false,
+    blockedReason: null,
+    farZone: false,
+    defaultKind: 'managed',
+    options: [managedOption(SELF_FEE_MXN)],
+    allowSelf: false,
+    allowUber: false,
+    allowWait: false,
+  };
+}
+
 /**
- * 0–4000 m: IANGEL $50, en turno y con rider activo.
- * 4001–6500 m: envío $55 gestionado en cocina. No entra a la app y no depende del rider.
- * Fuera de turno: solo recoger. Más de 6500 m: sin domicilio.
+ * Centro, 0–4000 m con rider activo: IANGEL $50 hasta las 21:00.
+ * Centro, 0–4000 m sin rider, tienda abierta: «Gestionar pedido» $50, solo tarjeta, hasta el cierre (21:15).
+ * Centro, 4001–6500 m: «Gestionar pedido» $55. No depende del rider y termina con el turno (21:00).
+ * Norte y Sur: «Gestionar pedido» mientras la sucursal está abierta.
+ * Más de 6500 m: sin domicilio.
  */
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   const meters = Math.max(0, Math.round(input.meters));
@@ -113,15 +129,13 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   });
 
   if (!covered) return blocked(COPY.tooFar);
-  if (!inShift) {
-    return blocked(
-      branch.deliveryFollowsStoreHours
-        ? `Fuera de horario de ${branch.shortName} (${branch.hoursLabel}). Puedes recoger en tienda.`
-        : COPY.outOfShift
-    );
-  }
 
   if (branch.deliveryFollowsStoreHours) {
+    if (!inShift) {
+      return blocked(
+        `Fuera de horario de ${branch.shortName} (${branch.hoursLabel}). Puedes recoger en tienda.`
+      );
+    }
     return {
       ...base,
       farZone: meters >= FAR_NOTICE_MIN_M,
@@ -131,6 +145,13 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
       allowUber: false,
       allowWait: false,
     };
+  }
+
+  const storeOpen = isBranchOpen(branch.id, input.now);
+  const near = meters < UBER_MIN_M;
+  if (!inShift) {
+    if (near && storeOpen) return centroNearManaged(base);
+    return blocked(COPY.outOfShift);
   }
 
   if (outer) {
@@ -145,7 +166,10 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
     };
   }
 
-  if (!input.riderActive) return blocked(COPY.inactive);
+  if (!input.riderActive) {
+    if (storeOpen) return centroNearManaged(base);
+    return blocked(COPY.inactive);
+  }
 
   if (input.riderBusy) {
     return {

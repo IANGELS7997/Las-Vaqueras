@@ -10,6 +10,7 @@ alwaysApply: true
 - Uber Direct: dueño = `0.90 × P − Stripe/2`. Plataforma = lo que el cliente pagó menos el pago del dueño. Stripe se parte a la mitad.
 - Recoger: comida = P′, envío $0; misma regla 15% que IANGEL.
 - IANGEL en Centro (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50** íntegros para el rider. Sin 3%. Sin Uber.
+- Centro **0–4000 m** sin rider, tienda abierta (hasta 9:15pm): «Gestionar pedido» **$50**, solo tarjeta. El envío se queda en la sucursal. No entra a la app del rider. De 9:00 a 9:15 también es «Gestionar pedido», aunque el turno del rider ya terminó.
 - Rider ocupado en ese radio de Centro: sigue **$50**. Aviso 35–45 min.
 - Centro **4001–6500 m**: «Gestionar pedido» $55. El envío se suma al pago del dueño. Solo tarjeta.
 - Norte y Sur, **0–6500 m**: siempre «Gestionar pedido». $50 de 0 a 4000 m y $55 de 4001 a 6500 m. Solo tarjeta. El envío y el resto de la comida van a Adrian. Angel se queda el 15% de P. No entra a la app del rider.
