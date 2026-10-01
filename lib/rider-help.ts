@@ -35,10 +35,42 @@ export type ClosePlan = {
   customerDue: number;
   customerLabel: string | null;
   kitchenPay: number;
+  /** Deuda del rider. No es un pago de caja. */
+  riderDebt: number;
   lockUntil: 'payout' | 'resolve' | null;
   keepDeliveryFee: boolean;
   needsEvidence: boolean;
 };
+
+export const RIDER_LOCK_BANNER = 'Cuenta desactivada, porfavor cubre el monto pendiente';
+export const REFUND_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+/** Crédito del cliente: comida + envío. No toca los $50 del rider. */
+export function incompleteRefundCredit(input: {
+  pay: HelpPay;
+  cashFood: number;
+  total: number;
+  delivery: number;
+  service: number;
+}) {
+  const delivery = Math.max(0, Math.round(input.delivery));
+  const service = Math.max(0, Math.round(input.service));
+  const food =
+    input.pay === 'cash'
+      ? Math.max(0, Math.round(input.cashFood))
+      : Math.max(0, Math.round(input.total - delivery - service));
+  return food + delivery;
+}
+
+export function returnPay(food: number) {
+  return Math.max(0, Math.round(food)) + DELIVERY_FEE_MXN + INCONVENIENCE_MXN;
+}
+
+/** Reporte comprobado como falso. Efectivo: comida + $75. Tarjeta: comida + $50. */
+export function falseReportDebt(pay: HelpPay, food: number) {
+  const comida = Math.max(0, Math.round(food));
+  return pay === 'cash' ? comida + DELIVERY_FEE_MXN + INCONVENIENCE_MXN : comida + DELIVERY_FEE_MXN;
+}
 
 export function isHelpKind(value: string): value is HelpKind {
   return (HELP_KINDS as readonly string[]).includes(value);
@@ -77,75 +109,48 @@ export function stackedPendingLabel(labels: string[]) {
 }
 
 /** Lo que queda decidido al cerrar el reporte. El reembolso de tarjeta lo hace Angel en Stripe. */
-export function closePlan(kind: HelpKind, pay: HelpPay, food: number): ClosePlan {
-  const cardLeave: ClosePlan = {
-    closesTrip: true,
-    dispatchStatus: 'delivered_unclaimed',
-    orderStatus: 'delivered',
+export function closePlan(kind: HelpKind, pay: HelpPay, food: number, hasBag = true): ClosePlan {
+  const open: ClosePlan = {
+    closesTrip: false,
+    dispatchStatus: null,
+    orderStatus: null,
     customerDue: 0,
     customerLabel: null,
     kitchenPay: 0,
+    riderDebt: 0,
     lockUntil: null,
     keepDeliveryFee: true,
     needsEvidence: true,
   };
-  const cashReturn = (extra25: boolean, lockUntil: 'payout' | 'resolve'): ClosePlan => ({
+  const payout = returnPay(food);
+  if (kind === 'no_contact' || kind === 'cant_enter') {
+    if (pay === 'cash') {
+      return { ...open, kitchenPay: payout, keepDeliveryFee: false };
+    }
+    return open;
+  }
+  if (kind === 'refused_pay') {
+    return {
+      ...open,
+      customerDue: payout,
+      customerLabel: PAGO,
+      kitchenPay: payout,
+      keepDeliveryFee: false,
+    };
+  }
+  if (kind === 'incomplete') return open;
+  return {
     closesTrip: true,
     dispatchStatus: 'help_return',
     orderStatus: null,
-    customerDue: extra25 ? food + DELIVERY_FEE_MXN + INCONVENIENCE_MXN : 0,
-    customerLabel: extra25 ? (kind === 'refused_pay' ? PAGO : SALDO) : null,
-    kitchenPay: food + DELIVERY_FEE_MXN + (extra25 ? INCONVENIENCE_MXN : 0),
-    lockUntil,
-    keepDeliveryFee: false,
+    customerDue: 0,
+    customerLabel: null,
+    kitchenPay: 0,
+    riderDebt: hasBag ? Math.max(0, Math.round(food)) : 0,
+    lockUntil: 'resolve',
+    keepDeliveryFee: !hasBag,
     needsEvidence: true,
-  });
-
-  if (kind === 'no_contact' || kind === 'cant_enter') {
-    return pay === 'cash' ? cashReturn(true, 'payout') : cardLeave;
-  }
-  if (kind === 'refused_pay') {
-    return cashReturn(true, 'payout');
-  }
-  if (kind === 'incomplete') {
-    return {
-      closesTrip: false,
-      dispatchStatus: null,
-      orderStatus: null,
-      customerDue: 0,
-      customerLabel: null,
-      kitchenPay: 0,
-      lockUntil: null,
-      keepDeliveryFee: true,
-      needsEvidence: true,
-    };
-  }
-  if (kind === 'moto') {
-    return {
-      closesTrip: true,
-      dispatchStatus: 'help_return',
-      orderStatus: null,
-      customerDue: 0,
-      customerLabel: null,
-      kitchenPay: 0,
-      lockUntil: 'resolve',
-      keepDeliveryFee: pay === 'card',
-      needsEvidence: true,
-    };
-  }
-  return pay === 'cash'
-    ? { ...cashReturn(false, 'resolve'), keepDeliveryFee: false }
-    : {
-        closesTrip: true,
-        dispatchStatus: 'help_return',
-        orderStatus: null,
-        customerDue: 0,
-        customerLabel: null,
-        kitchenPay: 0,
-        lockUntil: 'resolve',
-        keepDeliveryFee: true,
-        needsEvidence: true,
-      };
+  };
 }
 
 export function rejectedMotoDebt(pay: HelpPay, food: number) {
@@ -228,12 +233,10 @@ export function riderLockCopy(input: {
   food: number;
 }) {
   if (input.debt > 0) {
-    return `Debes ${input.debt} pesos antes de volver a conectarte. Solo se reconocen los ${DELIVERY_FEE_MXN} del envío${
-      input.food > 0 ? `; la comida fue ${input.food}, así que el saldo es ${input.debt}` : ''
-    }. Las instrucciones de transferencia llegan en Chat.`;
+    return `${RIDER_LOCK_BANNER}. Debes ${input.debt} pesos.`;
   }
   if (input.code && input.kitchenPay > 0) {
-    return `Tienes 24 horas para cobrar en la tienda. Código ${input.code}. La cajera debe escribirlo para entregarte ${input.kitchenPay} pesos.`;
+    return `Reporte recibido. Código ${input.code}. La cajera lo escribe en el pedido para entregarte ${input.kitchenPay} pesos y cerrar el viaje. Puedes finalizar este viaje y seguir con otros.`;
   }
   if (input.kind === 'moto' || input.kind === 'unsafe') {
     return 'Tu cuenta queda restringida hasta que el caso se marque resuelto. El plazo de revisión es de 72 horas.';

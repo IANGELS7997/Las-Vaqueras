@@ -18,6 +18,8 @@ export type IangelOrder = {
   pickupPhotoAt: string | null;
   dropoffPhotoAt: string | null;
   kitchenReleasedAt: string | null;
+  helpKind: string | null;
+  helpCode: string | null;
   gatedCommunity: boolean;
   dropoffLat: number | null;
   dropoffLng: number | null;
@@ -82,6 +84,8 @@ export function mapIangelOrder(row: Record<string, unknown>): IangelOrder {
     pickupPhotoAt: (row.pickup_photo_at as string | null) || null,
     dropoffPhotoAt: (row.dropoff_photo_at as string | null) || null,
     kitchenReleasedAt: (row.kitchen_released_at as string | null) || null,
+    helpKind: (row.help_kind as string | null) || null,
+    helpCode: (row.help_code as string | null) || null,
     gatedCommunity: Boolean(row.gated_community),
     dropoffLat: row.dropoff_lat == null ? null : Number(row.dropoff_lat),
     dropoffLng: row.dropoff_lng == null ? null : Number(row.dropoff_lng),
@@ -119,6 +123,18 @@ export async function runIangelOrderAction(
   }
   if (action === 'collect_door') {
     return { patch: { ...collectDoorPatch(cash) }, customerText: '' };
+  }
+  if (action === 'finish_report') {
+    const kind = String(order.help_kind || '');
+    const payable = kind === 'no_contact' || kind === 'cant_enter' || kind === 'refused_pay';
+    if (!payable) throw new Error('Este pedido no tiene un reporte para finalizar');
+    if (String(order.pay_method || '') === 'card') {
+      return {
+        patch: { status: 'delivered', dispatch_status: 'delivered', rider_status: 'idle' },
+        customerText: '',
+      };
+    }
+    return { patch: { dispatch_status: 'help_return' }, customerText: '' };
   }
   if (action === 'pickup' || action === 'en_route') {
     assertCashPickup(cash);

@@ -3,13 +3,14 @@ import { notifyIangelHelp } from '@/lib/iangel-ops';
 import { saveRiderPresence } from '@/lib/iangel-presence';
 import { normalizePhone } from '@/lib/loyalty';
 import {
-  approvedMotoKitchenPay,
   closePlan,
+  falseReportDebt,
   foodMxnFromOrder,
   HELP_LABELS,
   helpStepError,
+  incompleteRefundCredit,
   isHelpKind,
-  rejectedMotoDebt,
+  REFUND_WINDOW_MS,
   riderLockCopy,
   stackedPendingLabel,
   waitElapsedSeconds,
@@ -57,7 +58,7 @@ export async function saveHelpEvidence(supabase: SupabaseClient, orderId: string
 
 export async function openPendingForPhone(supabase: SupabaseClient, phone: string) {
   const key = normalizePhone(phone);
-  if (key.length < 10) return { amountMxn: 0, label: '', ids: [] as string[] };
+  if (key.length < 10) return { amountMxn: 0, creditMxn: 0, label: '', ids: [] as string[], creditIds: [] as string[] };
   const found = await supabase
     .from('customer_pending_balances')
     .select('id, label, amount_mxn')
@@ -66,10 +67,27 @@ export async function openPendingForPhone(supabase: SupabaseClient, phone: strin
   if (found.error) throw new Error(found.error.message);
   const rows = found.data || [];
   const amountMxn = rows.reduce((sum, row) => sum + Math.max(0, Number(row.amount_mxn || 0)), 0);
+  const credits = rows.filter((row) => Number(row.amount_mxn || 0) < 0);
+  const creditMxn = credits.reduce((sum, row) => sum + Number(row.amount_mxn || 0), 0);
   return {
     amountMxn,
+    creditMxn,
     label: stackedPendingLabel(rows.map((row) => String(row.label || ''))),
     ids: rows.map((row) => String(row.id)),
+    creditIds: credits.map((row) => String(row.id)),
+  };
+}
+
+export function pendingAdjustment(
+  orderTotal: number,
+  pending: { amountMxn: number; creditMxn?: number; ids: string[]; creditIds?: string[] }
+) {
+  const credit = Math.min(0, Number(pending.creditMxn || 0));
+  const fits = orderTotal + pending.amountMxn + credit >= 0;
+  const creditIds = new Set(pending.creditIds || []);
+  return {
+    extra: pending.amountMxn + (fits ? credit : 0),
+    settleIds: fits ? pending.ids : pending.ids.filter((id) => !creditIds.has(id)),
   };
 }
 
@@ -105,7 +123,11 @@ export async function submitRiderHelp(
   if (problem) throw new Error(problem);
 
   const food = foodMxnFromOrder(row);
-  const plan = step === 'close' ? closePlan(kind, pay, food) : null;
+  if (kind === 'refused_pay' && step === 'close' && input.note.trim().length < 8) {
+    throw new Error('Escribe lo que dijo el cliente');
+  }
+  const hasBag = phaseOf(dispatch) === 'dropoff' || dispatch === 'picked_up';
+  const plan = step === 'close' ? closePlan(kind, pay, food, hasBag) : null;
   const code = plan && plan.kitchenPay > 0 ? payoutCode() : null;
   const note = [input.note.trim(), input.policeReport.trim() ? `Reporte ${input.policeReport.trim()}` : '']
     .filter(Boolean)
@@ -175,9 +197,9 @@ export async function submitRiderHelp(
   }
 
   const lockText = plan
-    ? riderLockCopy({ kind, code: savedCode, kitchenPay: plan.kitchenPay, debt: 0, food })
+    ? riderLockCopy({ kind, code: savedCode, kitchenPay: plan.kitchenPay, debt: plan.riderDebt, food })
     : '';
-  if (plan?.lockUntil && lockText) {
+  if (plan && (plan.lockUntil || plan.riderDebt > 0) && lockText) {
     await saveRiderPresence(riderKey, {
       help_lock_note: lockText,
       help_lock_order_id: row.id,
@@ -250,6 +272,11 @@ export async function payHelpAtRegister(supabase: SupabaseClient, orderId: strin
   if (row.lock_until === 'payout') {
     await saveRiderPresence(String(row.rider_key), { help_lock_note: null, help_lock_order_id: null });
   }
+  await supabase
+    .from('orders')
+    .update({ status: 'delivered', dispatch_status: 'delivered', rider_status: 'idle' })
+    .eq('id', orderId)
+    .neq('status', 'cancelled');
   return { ok: true, amount: Number(row.rider_due_mxn || 0) };
 }
 
@@ -323,12 +350,22 @@ async function resolveDoorMissing(
 export async function resolveHelpReport(
   supabase: SupabaseClient,
   reportId: string,
-  decision: 'approved' | 'rejected'
+  decision: 'approved' | 'rejected' | 'deposited'
 ) {
   const found = await supabase.from('rider_help_reports').select('*').eq('id', reportId).maybeSingle();
   if (found.error) throw new Error(found.error.message);
   if (!found.data) throw new Error('Reporte no encontrado');
   const row = found.data;
+  if (decision === 'deposited') {
+    await saveRiderPresence(String(row.rider_key), { help_lock_note: null, help_lock_order_id: null });
+    await supabase.from('order_messages').insert({
+      order_id: row.order_id,
+      actor: 'system',
+      kind: 'system',
+      body: 'Depósito registrado. Ya puedes volver a recibir pedidos.',
+    });
+    return { ok: true, decision, kitchenPay: 0, debt: 0 };
+  }
   if (String(row.kind || '') === 'door_missing') {
     return resolveDoorMissing(supabase, row, decision);
   }
@@ -338,8 +375,8 @@ export async function resolveHelpReport(
   let kitchenPay = Number(row.rider_due_mxn || 0);
   let debt = 0;
   let code = typeof row.payout_code === 'string' ? row.payout_code : null;
-  if (kind === 'moto' && decision === 'approved') kitchenPay = approvedMotoKitchenPay(pay, food);
-  if (kind === 'moto' && decision === 'rejected') debt = rejectedMotoDebt(pay, food);
+  if (kind === 'moto' && decision === 'approved' && Number(row.rider_due_mxn || 0) === 0) kitchenPay = 0;
+  if (decision === 'rejected') debt = falseReportDebt(pay, food);
   if (kitchenPay > 0 && !code) code = payoutCode();
   const lockText =
     debt > 0
@@ -398,6 +435,119 @@ export async function resolveHelpReport(
     detail: lockText,
   }).catch(() => undefined);
   return { ok: true, decision, kitchenPay, debt };
+}
+
+export function refundStillOpen(createdAt: string | null | undefined, now = Date.now()) {
+  const started = Date.parse(String(createdAt || ''));
+  if (!Number.isFinite(started)) return false;
+  return now - started <= REFUND_WINDOW_MS;
+}
+
+/** Cocina y admin votan por separado. El crédito se crea solo si los dos aceptan. */
+export async function decideIncompleteRefund(
+  supabase: SupabaseClient,
+  reportId: string,
+  actor: 'kitchen' | 'admin',
+  decision: 'approved' | 'rejected',
+  reason = ''
+) {
+  const found = await supabase.from('rider_help_reports').select('*').eq('id', reportId).maybeSingle();
+  if (found.error) throw new Error(found.error.message);
+  const row = found.data;
+  if (!row || String(row.kind) !== 'incomplete') throw new Error('Este caso no es un pedido incompleto');
+  if (row.resolution === 'rejected' || row.resolution === 'credit') throw new Error('Ese caso ya quedó cerrado');
+  if (!String(row.customer_note || '').trim()) throw new Error('El cliente aún no solicita el reembolso');
+  if (row.refund_credit_mxn) throw new Error('Ese crédito ya quedó aplicado');
+  const column = actor === 'kitchen' ? 'kitchen_refund' : 'admin_refund';
+  if (row[column]) throw new Error('Esa revisión ya quedó registrada');
+  const note = reason.trim().slice(0, 240);
+  const other = actor === 'kitchen' ? row.admin_refund : row.kitchen_refund;
+  const order = await supabase
+    .from('orders')
+    .select('id, customer_phone, customer_name, pay_method, cash_food_due, total_charged, delivery_fee, customer_fee, short_code, created_at')
+    .eq('id', row.order_id)
+    .maybeSingle();
+  if (order.error) throw new Error(order.error.message);
+  if (!refundStillOpen(order.data?.created_at)) throw new Error('Pasaron más de 48 horas desde el pedido');
+
+  if (decision === 'rejected') {
+    const saved = await supabase
+      .from('rider_help_reports')
+      .update({
+        [column]: 'rejected',
+        resolution: 'rejected',
+        phase: 'resolved',
+        refund_note: note || 'Rechazado',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', reportId);
+    if (saved.error) throw new Error(saved.error.message);
+    const who = actor === 'kitchen' ? 'Cocina' : 'Admin';
+    await supabase.from('order_messages').insert({
+      order_id: row.order_id,
+      actor: 'system',
+      kind: 'system',
+      body: `${who} rechazó el reembolso. ${note || 'Sin crédito en la próxima compra.'}`,
+    });
+    return { ok: true, closed: true, creditMxn: 0 };
+  }
+
+  if (other !== 'approved') {
+    const saved = await supabase
+      .from('rider_help_reports')
+      .update({ [column]: 'approved', updated_at: new Date().toISOString() })
+      .eq('id', reportId);
+    if (saved.error) throw new Error(saved.error.message);
+    return { ok: true, closed: false, creditMxn: 0 };
+  }
+
+  const pay: HelpPay = order.data?.pay_method === 'cash' ? 'cash' : 'card';
+  const credit = incompleteRefundCredit({
+    pay,
+    cashFood: Number(order.data?.cash_food_due || row.food_mxn || 0),
+    total: Number(order.data?.total_charged || 0),
+    delivery: Number(order.data?.delivery_fee || 0),
+    service: Number(order.data?.customer_fee || 0),
+  });
+  if (credit <= 0) throw new Error('Ese pedido no tiene un monto para acreditar');
+  const phone = normalizePhone(String(order.data?.customer_phone || ''));
+  if (phone.length < 10) throw new Error('El pedido no tiene teléfono para el crédito');
+  const prior = await supabase
+    .from('customer_pending_balances')
+    .select('id')
+    .eq('source_order_id', row.order_id)
+    .eq('label', 'Crédito por pedido incompleto')
+    .limit(1);
+  if (prior.error) throw new Error(prior.error.message);
+  if ((prior.data || []).length === 0) {
+    const inserted = await supabase.from('customer_pending_balances').insert({
+      phone,
+      source_order_id: row.order_id,
+      label: 'Crédito por pedido incompleto',
+      amount_mxn: -credit,
+      status: 'open',
+    });
+    if (inserted.error) throw new Error(inserted.error.message);
+  }
+  const saved = await supabase
+    .from('rider_help_reports')
+    .update({
+      [column]: 'approved',
+      resolution: 'credit',
+      phase: 'resolved',
+      refund_credit_mxn: credit,
+      refund_note: 'Comida + envío en la próxima compra',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reportId);
+  if (saved.error) throw new Error(saved.error.message);
+  await supabase.from('order_messages').insert({
+    order_id: row.order_id,
+    actor: 'system',
+    kind: 'system',
+    body: `Reembolso aceptado. ${credit} pesos de comida y envío quedan en tu próxima compra.`,
+  });
+  return { ok: true, closed: true, creditMxn: credit };
 }
 
 export async function listHelpReports(supabase: SupabaseClient) {
