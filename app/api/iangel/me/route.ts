@@ -29,11 +29,13 @@ async function riderView(req: Request) {
   const key = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
   const [shared, presence] = await Promise.all([getOrCreateRider(), getRiderPresence(key)]);
   const view = mapRider(shared);
+  const lock = String((presence as { help_lock_note?: string | null }).help_lock_note || '').trim();
   return {
     ...view,
-    active: presence.rider_active === true,
+    active: lock ? false : presence.rider_active === true,
     name: presence.display_name || view.name,
     uberDirectAllowed: key === ANGEL_RIDER_KEY,
+    helpLock: lock || null,
   };
 }
 
@@ -67,6 +69,11 @@ export async function PATCH(req: Request) {
   const previousUber = rider.uber_direct_enabled === true;
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof body.rider_active === 'boolean') {
+    if (body.rider_active) {
+      const presence = await getRiderPresence(riderKey);
+      const lock = String((presence as { help_lock_note?: string | null }).help_lock_note || '').trim();
+      if (lock) return iangelJson(req, { error: lock }, 409);
+    }
     const presencePatch: Record<string, unknown> = { rider_active: body.rider_active };
     if (body.rider_active) presencePatch.last_ping_at = new Date().toISOString();
     await saveRiderPresence(riderKey, presencePatch);

@@ -27,7 +27,11 @@ export async function POST(req: Request) {
   if (queued.error) return iangelJson(req, { error: queued.error.message }, 500);
 
   const rows = ((queued.data || []) as IangelOpsRow[]).filter(
-    (row) => row.dispatch_status !== 'delivered' && row.dispatch_status !== 'incident'
+    (row) =>
+      row.dispatch_status !== 'delivered' &&
+      row.dispatch_status !== 'incident' &&
+      row.dispatch_status !== 'delivered_unclaimed' &&
+      row.dispatch_status !== 'help_return'
   );
   const fifo = rows.map((row) => row.id);
   const lat = Number(body.lat);

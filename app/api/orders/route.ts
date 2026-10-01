@@ -17,6 +17,7 @@ import { isValidCoord } from '@/lib/delivery-address';
 import { paidOrderStatusFields } from '@/lib/order-auto-advance';
 import { alertIfKitchenOfflineForOrder } from '@/lib/kitchen-order-alert';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { settlePendingBalances } from '@/lib/rider-help-store';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { cardFingerprintFromPaymentIntent, cardFundingFromPaymentIntent } from '@/lib/card-funding';
 import { addressKey, clientIp, normalizeEmail, normalizePhone, type LoyaltyKind } from '@/lib/loyalty';
@@ -352,6 +353,11 @@ export async function POST(req: Request) {
       );
 
       maybeNotifyPaidOrder(withUber);
+      const pendingIds = String((row as { pending_balance_ids?: string | null }).pending_balance_ids || '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (pendingIds.length > 0) await settlePendingBalances(supabase, pendingIds);
 
       return orderResponseWithProfile({
         orderRow: withUber,

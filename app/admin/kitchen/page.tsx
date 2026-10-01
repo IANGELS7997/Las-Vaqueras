@@ -37,6 +37,7 @@ import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift'
 import { ThermalTicket } from '@/components/thermal-ticket';
 import { MenuProductImage } from '@/components/menu-product-image';
 import { kitchenStatusLabel, viewFromOrder } from '@/lib/order-lifecycle';
+import { KitchenHelpDesk, KitchenHelpPayout } from '@/components/kitchen-help';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -432,6 +433,7 @@ export default function KitchenDashboardPage() {
 
       <div className="mb-6">
         <KitchenShift restored={shiftRestored} onShiftChange={handleShiftChange} />
+        <KitchenHelpDesk />
         {shiftActive && (
           <label className="mt-3 flex items-center justify-between rounded-lg border border-border/60 bg-card px-3 py-2 text-sm text-white">
             <span>Imprimir comanda automáticamente al pagar</span>
@@ -522,7 +524,8 @@ export default function KitchenDashboardPage() {
                   className={cn(
                     'rounded-2xl border border-border/60 bg-card p-4 transition-all',
                     (order.status === 'pending' || order.status === 'preparing') && 'border-blue-500/30',
-                    order.cookHold && 'border-yellow-500/40'
+                    order.cookHold && 'border-yellow-500/40',
+                    order.helpLabel && 'border-red-500'
                   )}
                 >
                   <div className="mb-3 flex items-center justify-between">
@@ -542,6 +545,7 @@ export default function KitchenDashboardPage() {
                     </div>
                   </div>
 
+                  {order.helpLabel ? <KitchenHelpPayout orderId={order.id} label={order.helpLabel} /> : null}
                   <div className="mb-3 flex items-start gap-2 text-xs text-muted-foreground">
                     <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
                     <div>

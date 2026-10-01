@@ -6,6 +6,7 @@ import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
 import { doorCollectAmounts } from '@/lib/iangel-cash';
 import { markIangelDoorCollected, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
+import { getRiderPresence } from '@/lib/iangel-presence';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -30,8 +31,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return iangelJson(req, { error: 'Este pedido lo lleva el otro rider' }, 409);
     }
     const actionName = String(body.action || '');
-    const { patch, customerText } = await runIangelOrderAction(row, actionName, body.pin, riderKey);
+    if (actionName === 'incident') {
+      return iangelJson(req, { error: 'Usa Ayuda para reportar. El viaje no se cierra desde aquí.' }, 400);
+    }
+    const presence = await getRiderPresence(riderKey);
+    const locked = String((presence as { help_lock_note?: string | null }).help_lock_note || '').trim();
     const claim = !owner && actionName !== 'paid_cash';
+    if (claim && locked) return iangelJson(req, { error: locked }, 409);
+    const { patch, customerText } = await runIangelOrderAction(row, actionName, body.pin, riderKey);
     if (claim) patch.iangel_rider_key = riderKey;
     if (actionName === 'deliver') {
       patch.status = 'delivered';
