@@ -1,3 +1,4 @@
+import { branchMailLine } from '@/lib/branches';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { GIFT_EMAIL_ARRIVAL, GIFT_EMAIL_FINAL } from '@/lib/gift-checkout';
 import { JUMBO_PRODUCT_NAME } from '@/lib/loyalty';
@@ -11,6 +12,7 @@ export async function sendGiftOrderEmail(input: {
   fulfillment: 'pickup' | 'delivery';
   pickupAt?: string | null;
   totalCharged?: number;
+  branchId?: unknown;
 }) {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
@@ -35,7 +37,7 @@ export async function sendGiftOrderEmail(input: {
 <p style="font-weight:700;">${when}</p>
 <p>Orden #${input.orderId.slice(0, 8)} · ${total}</p>
 ${customerMailButtons(track)}
-<p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
+<p>${branchMailLine(input.branchId)}</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',

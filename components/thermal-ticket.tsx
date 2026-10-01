@@ -4,6 +4,7 @@ import { paymentCardLabel } from '@/lib/card-funding';
 import { loyaltyCajaTicketLines } from '@/lib/loyalty';
 import { formatMXN } from '@/lib/pricing';
 import { formatPickupAt } from '@/lib/pickup-slots';
+import { branchById } from '@/lib/branches';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import type { Order } from '@/types';
 
@@ -22,6 +23,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
     return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
   const promoLines = loyaltyCajaTicketLines(order.loyaltyKind);
+  const branch = branchById(order.branchId);
 
   return (
     <div
@@ -33,9 +35,9 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       }
     >
       <div className="text-center">
-        <p className="font-bold">LAS VAQUERAS</p>
-        <p>{RESTAURANT_INFO.address}</p>
-        <p>Tel: {RESTAURANT_INFO.phone}</p>
+        <p className="font-bold">{branch.name.toUpperCase()}</p>
+        <p>{branch.address}</p>
+        <p>Tel: {branch.phone}</p>
         <p>{RESTAURANT_INFO.email}</p>
       </div>
       <div className="my-1 border-t border-dashed border-black" />

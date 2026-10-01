@@ -88,7 +88,10 @@ export function calcCheckoutSplit({
 
   let delivery = { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 };
   if (kind === 'managed') {
-    const managedFee = routedFee > 0 && routedFee !== SELF_FEE_MXN ? routedFee : OUTER_FEE_MXN;
+    const managedFee =
+      typeof legacyDeliveryFee === 'number' && Number.isFinite(legacyDeliveryFee) && legacyDeliveryFee > 0
+        ? Math.round(legacyDeliveryFee)
+        : OUTER_FEE_MXN;
     delivery = { deliveryFee: managedFee, deliveryDiscount: 0, uberFee: 0 };
   } else if (kind === 'self' || kind === 'wait_self') {
     delivery = { deliveryFee: routedFee, deliveryDiscount: 0, uberFee: 0 };

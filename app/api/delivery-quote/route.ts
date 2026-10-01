@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
+import { isBranchId, metersFromBranch } from '@/lib/branches';
 import { isValidCoord } from '@/lib/delivery-address';
 import { COPY } from '@/lib/iangel-copy';
-import { metersFromStore } from '@/lib/iangel-geo';
 import { assignmentFromRouting, quoteExpiresAt, signQuoteAssignment } from '@/lib/iangel-quote-token';
 import { needsUberQuote, resolveDeliveryRouting } from '@/lib/iangel-routing';
 import { getRoutingRiderFlags } from '@/lib/iangel-state';
@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     const postalCode = typeof body.postalCode === 'string' ? body.postalCode.trim() : '';
     const phone = typeof body.phone === 'string' ? body.phone : '';
     const priceBaseTotal = Number(body.priceBaseTotal) || 0;
+    const branchId = isBranchId(body.branchId) ? body.branchId : 'centro';
 
     if (!isValidCoord(lat, lng) || !street || !extNumber || !/^\d{5}$/.test(postalCode)) {
       return NextResponse.json(
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const meters = Math.round(metersFromStore(lat, lng));
+    const meters = Math.round(metersFromBranch(branchId, lat, lng));
     const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
     // 0–4000 m IANGEL $50. 4001–6500 m envío $55 gestionado en cocina. Ya no se cotiza Uber.
     const routingInput = {
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
       riderBusy: riderBusy === true,
       uberDirectEnabled: uberDirectEnabled === true,
       priceBaseTotal,
+      branchId,
     };
 
     let uberQuoteId: string | null = null;
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
       uberQuoteFee = quote.fee;
     }
 
-    const routing = resolveDeliveryRouting({ ...routingInput, uberQuoteFee });
+    const routing = resolveDeliveryRouting({ ...routingInput, uberQuoteFee, branchId });
     if (routing.blocked || !routing.defaultKind) {
       return NextResponse.json(
         { error: routing.blockedReason || COPY.inactive, routing, meters },
@@ -83,6 +85,7 @@ export async function POST(req: Request) {
       uberQuoteId,
       uberFee: option.uberFee,
       customerFee: option.customerFee,
+      branchId,
     });
     const token = await signQuoteAssignment(assignment);
 

@@ -1,3 +1,4 @@
+import { branchById, isBranchOpen, type BranchId } from '@/lib/branches';
 import {
   FAR_NOTICE_MIN_M,
   OUTER_FEE_MXN,
@@ -26,6 +27,7 @@ export type RoutingInput = {
   uberDirectEnabled?: boolean;
   priceBaseTotal: number;
   uberQuoteFee?: number | null;
+  branchId?: BranchId;
 };
 
 export type RoutingResult = {
@@ -64,10 +66,10 @@ function waitOption(): RoutingOption {
   };
 }
 
-function managedOption(): RoutingOption {
+function managedOption(customerFee = OUTER_FEE_MXN): RoutingOption {
   return {
     kind: 'managed',
-    customerFee: OUTER_FEE_MXN,
+    customerFee,
     uberFee: 0,
     title: COPY.managedTitle,
     body: COPY.managedBody,
@@ -81,10 +83,13 @@ function managedOption(): RoutingOption {
  */
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   const meters = Math.max(0, Math.round(input.meters));
-  const inShift = isIangelShift(input.now);
+  const branch = branchById(input.branchId);
+  const inShift = branch.deliveryFollowsStoreHours
+    ? isBranchOpen(branch.id, input.now)
+    : isIangelShift(input.now);
   const covered = meters <= SERVICE_MAX_M;
   const outer = meters >= UBER_MIN_M && meters <= SERVICE_MAX_M;
-  const farZone = meters >= FAR_NOTICE_MIN_M && outer;
+  const farZone = meters >= FAR_NOTICE_MIN_M && covered;
 
   const base = {
     meters,
@@ -108,7 +113,25 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   });
 
   if (!covered) return blocked(COPY.tooFar);
-  if (!inShift) return blocked(COPY.outOfShift);
+  if (!inShift) {
+    return blocked(
+      branch.deliveryFollowsStoreHours
+        ? `Fuera de horario de ${branch.shortName} (${branch.hoursLabel}). Puedes recoger en tienda.`
+        : COPY.outOfShift
+    );
+  }
+
+  if (branch.deliveryFollowsStoreHours) {
+    return {
+      ...base,
+      farZone: meters >= FAR_NOTICE_MIN_M,
+      defaultKind: 'managed',
+      options: [managedOption(outer ? OUTER_FEE_MXN : SELF_FEE_MXN)],
+      allowSelf: false,
+      allowUber: false,
+      allowWait: false,
+    };
+  }
 
   if (outer) {
     return {

@@ -6,7 +6,8 @@ import { KITCHEN_ORDER_STATUSES, mapDbOrder, type DbOrderRow } from '@/lib/order
 import { patchFromKitchenStatus } from '@/lib/order-lifecycle';
 import type { OrderStatus } from '@/types';
 import { createAdminSupabase } from '@/lib/supabase-admin';
-import { requireKitchenSession } from '@/lib/kitchen-guard';
+import { orderBranchId } from '@/lib/branches';
+import { requireKitchenBranch } from '@/lib/kitchen-guard';
 import { kitchenCashPatch, cashViewFromRow } from '@/lib/iangel-cash';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
@@ -19,8 +20,8 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
-  const denied = await requireKitchenSession();
-  if (denied) return denied;
+  const branch = await requireKitchenBranch();
+  if (branch instanceof NextResponse) return branch;
 
   const body = await req.json().catch(() => ({}));
   const status = body.status as string | undefined;
@@ -46,7 +47,7 @@ export async function PATCH(
 
   const supabase = createAdminSupabase();
   const current = await supabase.from('orders').select('*').eq('id', params.id).maybeSingle();
-  if (!current.data) {
+  if (!current.data || orderBranchId(current.data.branch_id) !== branch) {
     return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
   }
 
@@ -166,6 +167,7 @@ export async function PATCH(
           customerName: String(saved.customer_name || ''),
           orderId: params.id,
           token: saved.profile_login_token,
+          branchId: current.data.branch_id,
         });
         if (sent.ok) {
           await supabase.from('orders').update({ enroute_email_at: new Date().toISOString() }).eq('id', params.id);
@@ -180,6 +182,7 @@ export async function PATCH(
     if (to.includes('@')) {
       try {
         await sendArrivalEmail({
+          branchId: current.data.branch_id,
           to,
           customerName: String(saved.customer_name || ''),
           orderId: params.id,

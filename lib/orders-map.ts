@@ -1,3 +1,4 @@
+import { orderBranchId } from '@/lib/branches';
 import type { CartItem, Order, OrderStatus } from '@/types';
 import { customerStatusLabel as syncCustomerLabel } from '@/lib/order-lifecycle';
 import { uberTrackingHref } from '@/lib/uber-tracking-email';
@@ -61,6 +62,7 @@ export type DbOrderRow = {
   rider_lng?: number | null;
   loyalty_kind?: string | null;
   uber_tracking_url?: string | null;
+  branch_id?: string | null;
 };
 
 function toNumber(value: number | string): number {
@@ -111,6 +113,7 @@ export function mapDbOrder(row: DbOrderRow): Order {
     etaMinutes: row.eta_minutes == null ? null : Number(row.eta_minutes),
     loyaltyKind: row.loyalty_kind || null,
     uberTrackingUrl: uberTrackingHref(row.uber_tracking_url),
+    branchId: orderBranchId(row.branch_id),
   };
 }
 

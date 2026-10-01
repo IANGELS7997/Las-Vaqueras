@@ -1,42 +1,40 @@
 import { NextResponse } from 'next/server';
+import { branchById } from '@/lib/branches';
 import {
-  KITCHEN_STATION_ID,
   sendKitchenShiftNotice,
   shiftNoticeKind,
   viewKitchenStation,
   type KitchenStationRow,
 } from '@/lib/kitchen-station';
 import { kitchenCookieOptions, kitchenSessionToken, KITCHEN_COOKIE } from '@/lib/kitchen-auth';
-import { requireKitchenSession } from '@/lib/kitchen-guard';
+import { requireKitchenBranch } from '@/lib/kitchen-guard';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-async function loadStation(supabase: ReturnType<typeof createAdminSupabase>) {
-  const { data } = await supabase
-    .from('kitchen_station')
-    .select('*')
-    .eq('id', KITCHEN_STATION_ID)
-    .maybeSingle();
+async function loadStation(supabase: ReturnType<typeof createAdminSupabase>, stationId: string) {
+  const { data } = await supabase.from('kitchen_station').select('*').eq('id', stationId).maybeSingle();
   return (data || null) as KitchenStationRow | null;
 }
 
 export async function GET() {
-  const denied = await requireKitchenSession();
-  if (denied) return denied;
+  const branchId = await requireKitchenBranch();
+  if (branchId instanceof NextResponse) return branchId;
+  const branch = branchById(branchId);
 
   const supabase = createAdminSupabase();
-  const row = await loadStation(supabase);
+  const row = await loadStation(supabase, branch.stationId);
   return NextResponse.json(
-    { station: viewKitchenStation(row) },
+    { station: viewKitchenStation(row), branchName: branch.shortName, branchId: branch.id },
     { headers: { 'Cache-Control': 'no-store, max-age=0' } }
   );
 }
 
 export async function POST(req: Request) {
-  const denied = await requireKitchenSession();
-  if (denied) return denied;
+  const branchId = await requireKitchenBranch();
+  if (branchId instanceof NextResponse) return branchId;
+  const branch = branchById(branchId);
 
   const body = (await req.json().catch(() => ({}))) as {
     shiftActive?: boolean;
@@ -45,7 +43,7 @@ export async function POST(req: Request) {
   };
 
   const supabase = createAdminSupabase();
-  const previous = await loadStation(supabase);
+  const previous = await loadStation(supabase, branch.stationId);
   const now = new Date().toISOString();
   const event = body.event || 'heartbeat';
   const endingShift = event === 'close' || event === 'end_shift';
@@ -71,7 +69,7 @@ export async function POST(req: Request) {
 
   const saved = await supabase
     .from('kitchen_station')
-    .upsert({ id: KITCHEN_STATION_ID, ...patch }, { onConflict: 'id' })
+    .upsert({ id: branch.stationId, ...patch }, { onConflict: 'id' })
     .select('*')
     .single();
 
@@ -82,14 +80,18 @@ export async function POST(req: Request) {
   const row = saved.data as KitchenStationRow;
   const notice = shiftNoticeKind(Boolean(previous?.shift_active), Boolean(row.shift_active));
   if (notice) {
-    await sendKitchenShiftNotice(notice);
+    await sendKitchenShiftNotice(notice, branch.id);
   }
 
-  const response = NextResponse.json({ station: viewKitchenStation(row as KitchenStationRow) });
+  const response = NextResponse.json({
+    station: viewKitchenStation(row as KitchenStationRow),
+    branchName: branch.shortName,
+    branchId: branch.id,
+  });
   if (!endingShift) {
-    const secret = process.env.KITCHEN_PASSWORD;
-    if (secret) {
-      response.cookies.set(KITCHEN_COOKIE, await kitchenSessionToken(secret), kitchenCookieOptions());
+    const token = await kitchenSessionToken(branch.id);
+    if (token) {
+      response.cookies.set(KITCHEN_COOKIE, token, kitchenCookieOptions());
     }
   }
   return response;

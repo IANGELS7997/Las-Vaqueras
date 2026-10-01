@@ -51,7 +51,7 @@ import {
 } from '@/lib/loyalty';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
 import { FINAL_SALE_CONSENT } from '@/lib/final-sale';
-import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
+import { branchById, isBranchOpen } from '@/lib/branches';
 import type { Order } from '@/types';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -66,7 +66,8 @@ function checkoutPhoneDigits(value: string) {
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, removeItem, clearCart, setLastOrder } = useCart();
-  const { ready, mode, setMode } = useFulfillment();
+  const { ready, mode, setMode, branchId } = useFulfillment();
+  const branch = branchById(branchId);
   const isPickup = mode === 'pickup';
 
   const [firstName, setFirstName] = useState('');
@@ -164,13 +165,13 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const update = () => {
-      setIsOpen(getOpenStatus().isOpen);
+      setIsOpen(branchId ? isBranchOpen(branchId) : false);
       setPickupSlots(generatePickupSlots());
     };
     update();
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [branchId]);
 
   useEffect(() => {
     const draft = readCheckoutDraft();
@@ -318,6 +319,10 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!ready) return;
+    if (!branchId) {
+      router.replace('/');
+      return;
+    }
     if (!isOpen) {
       router.replace('/menu');
       return;
@@ -329,7 +334,7 @@ export default function CheckoutPage() {
       }
       router.replace('/');
     }
-  }, [ready, isOpen, mode, giftMode, router, setMode]);
+  }, [ready, isOpen, mode, giftMode, branchId, router, setMode]);
 
   useEffect(() => {
     setClientSecret('');
@@ -380,6 +385,7 @@ export default function CheckoutPage() {
           postalCode,
           phone,
           priceBaseTotal,
+          branchId,
         }),
       })
         .then(async (response) => {
@@ -410,7 +416,7 @@ export default function CheckoutPage() {
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [isPickup, dropoffLat, dropoffLng, street, extNumber, postalCode, phone, priceBaseTotal]);
+  }, [isPickup, dropoffLat, dropoffLng, street, extNumber, postalCode, phone, priceBaseTotal, branchId]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -502,7 +508,7 @@ export default function CheckoutPage() {
     setPayError('');
 
     const address = isPickup
-      ? RESTAURANT_INFO.address
+      ? branch.address
       : formatDeliveryAddress({ street, extNumber, intNumber, colonia, postalCode });
     const customer = {
       name: `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, ' '),
@@ -520,6 +526,7 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          branchId,
           fulfillment: mode,
           pickupAt,
           items,
@@ -540,6 +547,7 @@ export default function CheckoutPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         priceBaseTotal,
+        branchId,
         fulfillment: mode,
         pickupAt: isPickup ? pickupAt : null,
         stripeAccountId: resolveStripeConnectDestination(null, {
@@ -818,7 +826,7 @@ export default function CheckoutPage() {
                     </p>
                   )}
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    Recoges en {RESTAURANT_INFO.address}.
+                    Recoges en {branch.address}.
                   </p>
                 </div>
               ) : (
@@ -1009,7 +1017,7 @@ export default function CheckoutPage() {
                     phone,
                     email,
                     address: isPickup
-                      ? RESTAURANT_INFO.address
+                      ? branch.address
                       : formatDeliveryAddress({ street, extNumber, intNumber, colonia, postalCode }),
                     references: isPickup
                       ? ''

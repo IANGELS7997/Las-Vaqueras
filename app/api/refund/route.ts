@@ -4,7 +4,8 @@ import Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { createAdminSupabase } from '@/lib/supabase-admin';
-import { requireKitchenSession } from '@/lib/kitchen-guard';
+import { orderBranchId } from '@/lib/branches';
+import { requireKitchenBranch } from '@/lib/kitchen-guard';
 
 export const runtime = 'nodejs';
 
@@ -25,8 +26,8 @@ async function markOrderCancelled(paymentIntentId: string) {
 }
 
 export async function POST(req: Request) {
-  const denied = await requireKitchenSession();
-  if (denied) return denied;
+  const branch = await requireKitchenBranch();
+  if (branch instanceof NextResponse) return branch;
 
   let paymentIntentId: string | undefined;
 
@@ -36,6 +37,15 @@ export async function POST(req: Request) {
 
     if (typeof paymentIntentId !== 'string' || !paymentIntentId.startsWith('pi_')) {
       return NextResponse.json({ error: 'paymentIntentId inválido' }, { status: 400 });
+    }
+
+    const owned = await createAdminSupabase()
+      .from('orders')
+      .select('branch_id')
+      .eq('stripe_payment_intent_id', paymentIntentId)
+      .maybeSingle();
+    if (!owned.data || orderBranchId(owned.data.branch_id) !== branch) {
+      return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
     }
 
     const stripe = getStripe();

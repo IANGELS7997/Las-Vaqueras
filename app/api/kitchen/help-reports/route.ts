@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { requireKitchenSession } from '@/lib/kitchen-guard';
+import { orderBranchId } from '@/lib/branches';
+import { requireKitchenBranch } from '@/lib/kitchen-guard';
 import { listHelpReports, resolveHelpReport, decideIncompleteRefund } from '@/lib/rider-help-store';
 import { HELP_LABELS, isHelpKind } from '@/lib/rider-help';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -7,12 +8,23 @@ import { createAdminSupabase } from '@/lib/supabase-admin';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  const denied = await requireKitchenSession();
-  if (denied) return denied;
+  const branch = await requireKitchenBranch();
+  if (branch instanceof NextResponse) return branch;
   try {
-    const rows = await listHelpReports(createAdminSupabase());
+    const supabase = createAdminSupabase();
+    const rows = await listHelpReports(supabase);
+    const orderIds = rows.map((row) => row.order_id).filter(Boolean);
+    const owned = orderIds.length
+      ? await supabase.from('orders').select('id, branch_id').in('id', orderIds)
+      : { data: [] };
+    const allowed = new Set(
+      (owned.data || [])
+        .filter((row) => orderBranchId(row.branch_id) === branch)
+        .map((row) => row.id)
+    );
+    const visible = rows.filter((row) => allowed.has(row.order_id));
     return NextResponse.json({
-      reports: rows.map((row) => ({
+      reports: visible.map((row) => ({
         id: row.id,
         orderId: row.order_id,
         kind: row.kind,
@@ -45,9 +57,17 @@ export async function GET() {
   }
 }
 
+async function ownsReport(reportId: string, branch: string) {
+  const supabase = createAdminSupabase();
+  const report = await supabase.from('rider_help_reports').select('order_id').eq('id', reportId).maybeSingle();
+  if (!report.data?.order_id) return false;
+  const order = await supabase.from('orders').select('branch_id').eq('id', report.data.order_id).maybeSingle();
+  return orderBranchId(order.data?.branch_id) === branch;
+}
+
 export async function POST(req: Request) {
-  const denied = await requireKitchenSession();
-  if (denied) return denied;
+  const branch = await requireKitchenBranch();
+  if (branch instanceof NextResponse) return branch;
   const body = (await req.json().catch(() => ({}))) as {
     id?: string;
     decision?: string;
@@ -57,6 +77,9 @@ export async function POST(req: Request) {
   if (body.scope === 'refund') {
     const vote = body.decision === 'approved' || body.decision === 'rejected' ? body.decision : null;
     if (!body.id || !vote) return NextResponse.json({ error: 'Falta el caso o la decisión' }, { status: 400 });
+    if (!(await ownsReport(body.id, branch))) {
+      return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
+    }
     try {
       const saved = await decideIncompleteRefund(createAdminSupabase(), body.id, 'kitchen', vote, body.reason || '');
       return NextResponse.json(saved);
@@ -67,6 +90,9 @@ export async function POST(req: Request) {
   }
   const decision = body.decision === 'approved' || body.decision === 'rejected' || body.decision === 'deposited' ? body.decision : null;
   if (!body.id || !decision) return NextResponse.json({ error: 'Falta el caso o la decisión' }, { status: 400 });
+  if (!(await ownsReport(body.id, branch))) {
+    return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
+  }
   try {
     const saved = await resolveHelpReport(createAdminSupabase(), body.id, decision);
     return NextResponse.json(saved);

@@ -15,6 +15,7 @@ import { upsertCustomer } from '@/lib/customers';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { isValidCoord } from '@/lib/delivery-address';
 import { paidOrderStatusFields } from '@/lib/order-auto-advance';
+import { isBranchId } from '@/lib/branches';
 import { alertIfKitchenOfflineForOrder } from '@/lib/kitchen-order-alert';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { settlePendingBalances } from '@/lib/rider-help-store';
@@ -112,6 +113,7 @@ async function persistUberDispatch(
       orderId: next.id,
       trackingUrl: String(next.uber_tracking_url || ''),
       token: next.profile_login_token,
+      branchId: next.branch_id,
     }).catch(reportNoticeFailure);
   }
   return next;
@@ -140,10 +142,7 @@ async function orderResponseWithProfile(args: {
     await args.supabase.from('orders').update({ customer_id: profile.id }).eq('id', args.orderRow.id);
   }
 
-  void alertIfKitchenOfflineForOrder(args.supabase, {
-    id: args.orderRow.id,
-    short_code: args.orderRow.short_code,
-  });
+  void alertIfKitchenOfflineForOrder(args.supabase, args.orderRow);
 
   const kind = args.loyaltyKind;
   const alreadyClaimed = await args.supabase
@@ -189,6 +188,7 @@ async function orderResponseWithProfile(args: {
       token,
       fulfillment: args.orderRow.fulfillment_type === 'pickup' ? 'pickup' : 'delivery',
       pickupAt: args.orderRow.pickup_at,
+      branchId: args.orderRow.branch_id,
       totalCharged: Number(args.orderRow.total_charged || 0),
     });
   }
@@ -258,7 +258,11 @@ export async function POST(req: Request) {
       : countDeliveryPlatillos(items || []);
     const providerMeta = paymentIntent.metadata.delivery_provider;
     const deliveryProvider =
-      providerMeta === 'self' || providerMeta === 'wait_self' || providerMeta === 'uber' || providerMeta === 'pickup'
+      providerMeta === 'self' ||
+      providerMeta === 'wait_self' ||
+      providerMeta === 'uber' ||
+      providerMeta === 'managed' ||
+      providerMeta === 'pickup'
         ? providerMeta
         : fulfillment === 'pickup'
           ? 'pickup'
@@ -410,6 +414,7 @@ export async function POST(req: Request) {
         card_fingerprint: cardFingerprint,
         delivery_provider: paymentIntent.metadata.delivery_provider || null,
         dispatch_status: paidStatus.dispatch_status,
+        branch_id: isBranchId(paymentIntent.metadata.branch_id) ? paymentIntent.metadata.branch_id : 'centro',
         loyalty_kind: loyaltyKindMeta,
         ...(dropoff || {}),
       })

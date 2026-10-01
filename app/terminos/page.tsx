@@ -16,7 +16,7 @@ export default function TermsPage() {
     {
       title: '3. Precios y pagos',
       content:
-        'En recoger, el envío es $0. En domicilio de 0 a 4000 m y en horario 12:00–21:00, el envío es $50. De 4001 a 6500 m el envío es $55 y solo se paga con tarjeta. Si el rider está ocupado, en 0 a 4000 m el precio es el mismo y el pedido puede esperar. Más de 6500 m no hay domicilio; puede recoger en tienda. Fuera de ese horario no hay domicilio. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista, salvo el efectivo en tienda o en envío de 0 a 4000 m.',
+        'Hay tres sucursales: Centro (Rio de Janeiro 903, 12:15pm–9:15pm), Norte (C. Rey Hugo Capeto 17900, 1:00pm–9:30pm) y Sur (José Velázquez 2408, 1:00pm–9:15pm). El domicilio se mide desde la sucursal elegida, hasta 6500 m. En Centro, de 0 a 4000 m y en horario 12:00–21:00 el envío es $50 con el rider de la casa; de 4001 a 6500 m es $55 y solo tarjeta. En Norte y Sur todo el domicilio es gestionado por esa sucursal: $50 de 0 a 4000 m y $55 de 4001 a 6500 m, solo con tarjeta. Recoger es $0 y puede pagarse en efectivo o con tarjeta. Más de 6500 m no hay domicilio. Todos los precios están en pesos mexicanos (MXN).',
     },
     {
       title: '4. Pedidos confirmados',

@@ -13,8 +13,8 @@ import type { MenuItem, CartItem } from '@/types';
 import { BrandLogo } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { isBranchOpen } from '@/lib/branches';
 import { useFulfillment } from '@/lib/fulfillment-context';
-import { getOpenStatus } from '@/lib/restaurant';
 
 const HERO_PROMOS = [
   { src: '/hero/hero-1.jpg', alt: 'Qué tal una torta' },
@@ -35,7 +35,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function MenuPage() {
   const router = useRouter();
-  const { ready, mode, browseOnly } = useFulfillment();
+  const { ready, mode, browseOnly, branchId } = useFulfillment();
   const [isOpen, setIsOpen] = useState<boolean | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('combos');
   const [modalItem, setModalItem] = useState<MenuItem | null>(null);
@@ -44,21 +44,20 @@ export default function MenuPage() {
   const { outOfStockIds } = useOrders();
 
   useEffect(() => {
-    const update = () => setIsOpen(getOpenStatus().isOpen);
+    const update = () => setIsOpen(branchId ? isBranchOpen(branchId) : false);
     update();
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [branchId]);
 
   useEffect(() => {
     if (!ready || isOpen === null) return;
-    const mustChooseFulfillment = isOpen && !mode && !browseOnly;
-    if (mustChooseFulfillment) {
+    if (!branchId || (isOpen && !mode && !browseOnly)) {
       router.replace('/');
     }
-  }, [ready, isOpen, mode, browseOnly, router]);
+  }, [ready, isOpen, mode, browseOnly, branchId, router]);
 
-  const showingMenu = ready && isOpen !== null && !(isOpen && !mode && !browseOnly);
+  const showingMenu = ready && Boolean(branchId) && isOpen !== null && !(isOpen && !mode && !browseOnly);
   const viewOnly = browseOnly || isOpen === false;
   const didResetScroll = useRef(false);
 
@@ -108,7 +107,7 @@ export default function MenuPage() {
     }
   };
 
-  if (!ready || isOpen === null || (isOpen && !mode && !browseOnly)) {
+  if (!ready || !branchId || isOpen === null || (isOpen && !mode && !browseOnly)) {
     return <div className="min-h-[40vh]" />;
   }
 
