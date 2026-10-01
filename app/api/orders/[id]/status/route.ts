@@ -9,7 +9,7 @@ import { createAdminSupabase } from '@/lib/supabase-admin';
 import { orderBranchId } from '@/lib/branches';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
 import { kitchenCashPatch, cashViewFromRow } from '@/lib/iangel-cash';
-import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
+import { closeIangelOpsOrder, syncIangelOpsKitchen, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 import { dropUncollectedCashFee } from '@/lib/cash-platform-fee-store';
 import { kitchenHandoff } from '@/lib/kitchen-handoff';
@@ -204,6 +204,8 @@ export async function PATCH(
       await dropUncollectedCashFee(supabase, params.id);
     }
     void closeIangelOpsOrder(data as DbOrderRow & IangelOpsRow, 'cancelled').catch(() => undefined);
+  } else {
+    void syncIangelOpsKitchen(data as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
   }
 
   return NextResponse.json({ order: mapDbOrder(data as DbOrderRow) });

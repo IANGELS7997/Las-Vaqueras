@@ -442,11 +442,11 @@ export async function POST(req: Request) {
       void sendCustomerTicket({ ...orderRow, profile_login_token: profileLoginToken }).catch((err) => {
         Sentry.captureException(err);
       });
+      void notifyIangelOpsOrder(orderRow as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
       if (String(orderRow.dispatch_status || '') === 'self_iangel') {
         void notifyIangelNewOrder({ code: orderRow.short_code, customer: orderRow.customer_name }).catch((err) => {
           Sentry.captureException(err);
         });
-        void notifyIangelOpsOrder(orderRow as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
       }
       if (cashAdjust.settleIds.length > 0) await settlePendingBalances(supabase, cashAdjust.settleIds);
       const response = NextResponse.json({

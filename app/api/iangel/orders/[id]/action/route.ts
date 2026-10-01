@@ -4,7 +4,7 @@ import { notifyNextDoorEnroute } from '@/lib/enroute-email';
 import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
 import { doorCollectAmounts } from '@/lib/iangel-cash';
-import { markIangelDoorCollected, type IangelOpsRow } from '@/lib/iangel-ops';
+import { markIangelDoorCollected, syncIangelOpsKitchen, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 import { getRiderPresence } from '@/lib/iangel-presence';
 import { isHouseIangelRow, saveOrderProof } from '@/lib/order-proof';
@@ -122,6 +122,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
     if (actionName === 'deliver' || (actionName === 'finish_report' && updated.data.status === 'delivered')) {
       void closeDeliveredWithFee(updated.data as Record<string, unknown>).catch(() => undefined);
+    } else if (String(updated.data.status || '') !== String(row.status || '')) {
+      void syncIangelOpsKitchen(updated.data as IangelOpsRow).catch((err) => Sentry.captureException(err));
     }
     if (actionName === 'collect_door') {
       const saved = updated.data as Record<string, unknown>;
