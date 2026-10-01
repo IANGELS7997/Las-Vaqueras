@@ -38,6 +38,7 @@ import { ThermalTicket } from '@/components/thermal-ticket';
 import { MenuProductImage } from '@/components/menu-product-image';
 import { kitchenHandoff, MANAGED_TRACK } from '@/lib/kitchen-handoff';
 import { kitchenStatusLabel, viewFromOrder } from '@/lib/order-lifecycle';
+import { isRefundReview, REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 import { KitchenHelpDesk, KitchenHelpPayout } from '@/components/kitchen-help';
 import { KitchenWeekHistory } from '@/components/kitchen-week-history';
 import type { Order, OrderStatus } from '@/types';
@@ -351,8 +352,12 @@ export default function KitchenDashboardPage() {
     };
   }, [printingOrderId]);
 
-  const activeOrders = orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled');
-  const completedOrders = orders.filter((o) => o.status === 'delivered' || o.status === 'cancelled');
+  const activeOrders = orders.filter(
+    (o) => isRefundReview(o.helpLabel) || (o.status !== 'delivered' && o.status !== 'cancelled')
+  );
+  const completedOrders = orders.filter(
+    (o) => !isRefundReview(o.helpLabel) && (o.status === 'delivered' || o.status === 'cancelled')
+  );
 
   const handlePrint = (orderId: string) => {
     setPrintingOrderId(orderId);
@@ -554,9 +559,10 @@ export default function KitchenDashboardPage() {
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {activeOrders.map((order) => {
+              const reviewing = isRefundReview(order.helpLabel);
               const statusCfg = STATUS_CONFIG[order.status];
               const StatusIcon = statusCfg.icon;
-              const statusLabel = kitchenStatusLabel(order.status, order.fulfillment);
+              const statusLabel = reviewing ? REFUND_REVIEW_LABEL : kitchenStatusLabel(order.status, order.fulfillment);
               const handoff = kitchenHandoff(order);
               return (
                 <div
@@ -568,7 +574,11 @@ export default function KitchenDashboardPage() {
                     order.helpLabel && 'border-red-500'
                   )}
                 >
-                  {order.deliveryProvider === 'managed' ? (
+                  {reviewing ? (
+                    <p className="mb-3 text-sm font-bold uppercase tracking-wide text-amber-300">
+                      {REFUND_REVIEW_LABEL}
+                    </p>
+                  ) : order.deliveryProvider === 'managed' ? (
                     <p className="mb-3 text-sm font-bold uppercase tracking-wide text-amber-300">
                       Gestionar pedido
                     </p>
@@ -666,7 +676,7 @@ export default function KitchenDashboardPage() {
                       {formatMXN(order.payMethod === 'cash' ? Number(order.cashFoodDue || 0) : order.total)}
                     </span>
                   </div>
-                  {order.payMethod === 'cash' ? (
+                  {order.payMethod === 'cash' && !reviewing ? (
                     <div className="mb-3 space-y-2 rounded-lg border border-brand-500/30 bg-brand-500/10 p-3">
                       <p className="text-xs text-brand-100">
                         {order.riderPaidCash
@@ -711,7 +721,7 @@ export default function KitchenDashboardPage() {
                   ) : null}
 
                   <div className="flex flex-wrap gap-2">
-                    {order.status !== 'delivered' && order.status !== 'cancelled' ? (
+                    {!reviewing && order.status !== 'delivered' && order.status !== 'cancelled' ? (
                       <Button
                         onClick={() => handleCookHold(order, !order.cookHold)}
                         size="sm"
@@ -734,7 +744,7 @@ export default function KitchenDashboardPage() {
                         )}
                       </Button>
                     ) : null}
-                    {order.fulfillment === 'pickup' && order.status === 'preparing' ? (
+                    {!reviewing && order.fulfillment === 'pickup' && order.status === 'preparing' ? (
                       <Button
                         onClick={() => handleEmergencyStatus(order, 'in_transit')}
                         size="sm"
@@ -745,7 +755,7 @@ export default function KitchenDashboardPage() {
                         Listo ahora
                       </Button>
                     ) : null}
-                    {handoff.visible ? (
+                    {!reviewing && handoff.visible ? (
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <div className="flex flex-col gap-1">
                           <Button
@@ -787,6 +797,7 @@ export default function KitchenDashboardPage() {
                       <Printer className="mr-1.5 h-3.5 w-3.5" />
                       Imprimir
                     </Button>
+                    {!reviewing ? (
                     <AlertDialog
                       open={cancelOrderId === order.id}
                       onOpenChange={(open) => !open && setCancelOrderId(null)}
@@ -823,6 +834,7 @@ export default function KitchenDashboardPage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    ) : null}
                   </div>
 
                   <ThermalTicket order={order} active={printingOrderId === order.id} />

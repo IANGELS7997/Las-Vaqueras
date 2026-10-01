@@ -10,6 +10,8 @@ import {
   helpStepError,
   incompleteRefundCredit,
   isHelpKind,
+  REFUND_ACCEPTED_LABEL,
+  REFUND_REJECTED_LABEL,
   REFUND_WINDOW_MS,
   riderLockCopy,
   stackedPendingLabel,
@@ -489,6 +491,10 @@ export async function decideIncompleteRefund(
       kind: 'system',
       body: `${who} rechazó el reembolso. ${note || 'Sin crédito en la próxima compra.'}`,
     });
+    await supabase
+      .from('orders')
+      .update({ help_label: REFUND_REJECTED_LABEL })
+      .eq('id', row.order_id);
     return { ok: true, closed: true, creditMxn: 0 };
   }
 
@@ -547,6 +553,10 @@ export async function decideIncompleteRefund(
     kind: 'system',
     body: `Reembolso aceptado. ${credit} pesos de comida y envío quedan en tu próxima compra.`,
   });
+  await supabase
+    .from('orders')
+    .update({ help_label: REFUND_ACCEPTED_LABEL })
+    .eq('id', row.order_id);
   return { ok: true, closed: true, creditMxn: credit };
 }
 

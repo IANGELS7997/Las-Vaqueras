@@ -116,7 +116,7 @@ export function SiteHeader() {
                 <h1 className="truncate text-base font-bold leading-none text-white sm:text-lg">
                   Las Vaqueras
                 </h1>
-                <p className="mt-0.5 hidden text-[11px] text-muted-foreground sm:block">
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {branch ? branch.shortName : 'Chihuahua, México'}
                 </p>
               </div>

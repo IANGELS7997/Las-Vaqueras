@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { advancePickupOrdersIfDue } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
 
@@ -47,10 +48,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const advanced = await advancePickupOrdersIfDue(
-    supabase,
-    (data || []) as DbOrderRow[]
-  );
+  const review = await supabase
+    .from('orders')
+    .select('*')
+    .eq('branch_id', branch)
+    .eq('help_label', REFUND_REVIEW_LABEL)
+    .limit(40);
+  if (review.error) return NextResponse.json({ error: review.error.message }, { status: 500 });
+
+  const merged = new Map<string, DbOrderRow>();
+  for (const row of [...(data || []), ...(review.data || [])]) {
+    merged.set(String(row.id), row as DbOrderRow);
+  }
+
+  const advanced = await advancePickupOrdersIfDue(supabase, Array.from(merged.values()));
 
   return NextResponse.json({
     orders: advanced.map((row) => mapDbOrder(row)),
