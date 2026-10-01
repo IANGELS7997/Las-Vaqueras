@@ -114,6 +114,7 @@ export default function KitchenDashboardPage() {
   const [stationKnown, setStationKnown] = useState(false);
   const [autoPrint, setAutoPrint] = useState(true);
   const [station, setStation] = useState<StationView | null>(null);
+  const [branchName, setBranchName] = useState('Sucursal');
   const [opsOk, setOpsOk] = useState<boolean | null>(null);
   const [opsProblems, setOpsProblems] = useState<
     { severity: string; label: string; detail: string }[]
@@ -170,6 +171,7 @@ export default function KitchenDashboardPage() {
         const status = await fetch('/api/kitchen/station', { cache: 'no-store', credentials: 'include' });
         if (!status.ok || cancelled) return;
         const payload = await status.json();
+        if (typeof payload.branchName === 'string') setBranchName(payload.branchName);
         const saved = payload.station as StationView | undefined;
         if (!saved?.shiftActive || cancelled) return;
         setAutoPrint(saved.autoPrint !== false);
@@ -259,6 +261,7 @@ export default function KitchenDashboardPage() {
       const status = await fetch('/api/kitchen/station', { cache: 'no-store', credentials: 'include' });
       if (!status.ok || cancelled) return;
       const payload = await status.json();
+      if (typeof payload.branchName === 'string') setBranchName(payload.branchName);
       if (payload.station) setStation(payload.station as StationView);
     };
 
@@ -449,7 +452,7 @@ export default function KitchenDashboardPage() {
       <div className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">Cocina / emergencia</h1>
+            <h1 className="text-2xl font-bold text-white">{branchName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Monitor opcional. El ticket sale solo; el pedido avanza con IANGEL o el timer de recoger.
             </p>

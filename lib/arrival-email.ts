@@ -1,3 +1,4 @@
+import { branchMailLine } from '@/lib/branches';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 
 const SITE = 'https://lasvaqueras.com.mx';
@@ -40,6 +41,7 @@ export async function sendArrivalEmail(input: {
   leaveAtDoor?: boolean;
   /** Pedido gestionado en cocina: llegó al domicilio, sin la espera de 10 minutos. */
   managed?: boolean;
+  branchId?: unknown;
 }) {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
@@ -55,7 +57,7 @@ export async function sendArrivalEmail(input: {
 <p>Hola ${first},</p>
 <p>${esc(line)}</p>
 ${customerMailButtons(track)}
-<p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
+<p>${branchMailLine(input.branchId)}</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',

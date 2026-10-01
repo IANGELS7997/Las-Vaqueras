@@ -9,9 +9,11 @@ alwaysApply: true
 - Recoger e IANGEL: desarrollador = **15% de P**. Dueño = **P′ − ese 15%** (el resto de la carta más el aumento web). Stripe ≈ `1.16 × (0.036 × total + 3)` se reparte entre los dos según esa comida. El centavo sobrante se queda con el dueño. El envío no paga Stripe.
 - Uber Direct: dueño = `0.90 × P − Stripe/2`. Plataforma = lo que el cliente pagó menos el pago del dueño. Stripe se parte a la mitad.
 - Recoger: comida = P′, envío $0; misma regla 15% que IANGEL.
-- IANGEL (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50** íntegros para el rider. Sin 3%. Sin Uber.
-- Rider ocupado en ese radio: sigue **$50**. Aviso 35–45 min. **Sin Express / Uber Direct.**
-- Uber Direct **4001–5500 m** (quote × 0.97), aunque el rider no lo encienda. Si lo enciende, también **0–4000 m**. **4501–5500 m:** mismo cobro y aviso de hasta 1 hora. **Más de 5500 m:** sin domicilio. Checkout: hasta 45 min en el resto de pedidos.
+- IANGEL en Centro (**0–4000 m**, turno 12:00–21:00, rider activo): envío **$50** íntegros para el rider. Sin 3%. Sin Uber.
+- Rider ocupado en ese radio de Centro: sigue **$50**. Aviso 35–45 min.
+- Centro **4001–6500 m**: «Gestionar pedido» $55. El envío se suma al pago del dueño. Solo tarjeta.
+- Norte y Sur, **0–6500 m**: siempre «Gestionar pedido». $50 de 0 a 4000 m y $55 de 4001 a 6500 m. Solo tarjeta. El envío y el resto de la comida van a Adrian. Angel se queda el 15% de P. No entra a la app del rider.
+- **4501–6500 m:** aviso de hasta 1 hora. **Más de 6500 m:** sin domicilio. Checkout: hasta 45 min en el resto de pedidos.
 - Ticket: **Comida + Envío**. Sin mínimo de carrito ni combo obligatorio.
 - Combos en el modal: chico luego grande, arriba; ninguno preseleccionado; “Sin combo” al final.
 ---

@@ -6,26 +6,24 @@ import { useRouter } from 'next/navigation';
 import { Bike, Store } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 import { Button } from '@/components/ui/button';
+import { BranchPicker } from '@/components/branch-picker';
+import { branchById, branchNextOpenLabel, isBranchOpen } from '@/lib/branches';
 import { useFulfillment } from '@/lib/fulfillment-context';
-import { getNextOpenLabel, getOpenStatus } from '@/lib/restaurant';
 import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const router = useRouter();
-  const { ready, setMode, enableBrowseMenu } = useFulfillment();
-  const [open, setOpen] = useState({ isOpen: false, label: 'Cerrado' });
-  const [nextHours, setNextHours] = useState('');
+  const { ready, branchId, setBranch, clearBranch, setMode, enableBrowseMenu } = useFulfillment();
+  const [clock, setClock] = useState(() => new Date());
 
   useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      setOpen(getOpenStatus(now));
-      setNextHours(getNextOpenLabel(now));
-    };
-    update();
-    const interval = setInterval(update, 30000);
+    const interval = setInterval(() => setClock(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const isOpen = branchId ? isBranchOpen(branchId, clock) : false;
+  const open = { isOpen, label: isOpen ? 'Abierto' : 'Cerrado' };
+  const nextHours = branchId ? branchNextOpenLabel(branchId, clock) : '';
 
   const choose = (mode: 'delivery' | 'pickup') => {
     if (!open.isOpen) return;
@@ -37,11 +35,26 @@ export default function HomePage() {
     return <div className="min-h-[50vh]" />;
   }
 
+  if (!branchId) {
+    return (
+      <BranchPicker
+        onSelect={(branch) => {
+          setBranch(branch.id);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-10">
       <BrandLogo className="h-20 sm:h-24" priority />
       <h1 className="mt-6 text-center text-2xl font-bold text-white sm:text-3xl">¿Cómo quieres tu pedido?</h1>
-      <p className="mt-2 text-center text-sm text-muted-foreground">Elige una opción para ver el menú.</p>
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        {branchById(branchId).shortName}. Elige una opción para ver el menú.
+      </p>
+      <button type="button" className="mt-2 text-sm font-semibold text-brand-500 hover:underline" onClick={clearBranch}>
+        Cambiar sucursal
+      </button>
 
       <div className="mt-8 grid w-full grid-cols-2 gap-3 sm:gap-4">
         <button

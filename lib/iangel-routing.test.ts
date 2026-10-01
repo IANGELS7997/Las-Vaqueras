@@ -237,4 +237,48 @@ assert(offlineNear.blocked, 'offline en turno → sin domicilio');
 const offlineUberOff = kinds(AT_15, 2000, false, false, false);
 assert(offlineUberOff.blocked && !offlineUberOff.allowUber, 'offline en turno + Uber OFF → sin domicilio');
 
+function branchKinds(branchId: 'norte' | 'sur', now: Date, meters: number) {
+  return resolveDeliveryRouting({
+    meters,
+    now,
+    riderActive: false,
+    riderBusy: false,
+    priceBaseTotal: CARTA,
+    branchId,
+  });
+}
+
+const norteNear = branchKinds('norte', AT_15, 2000);
+assert(norteNear.defaultKind === 'managed' && norteNear.options[0]?.customerFee === 50, 'Norte 2 km es gestionar $50');
+assert(!norteNear.allowSelf, 'Norte no entra a IANGEL');
+
+const norteFar = branchKinds('norte', AT_15, 5000);
+assert(norteFar.defaultKind === 'managed' && norteFar.options[0]?.customerFee === 55 && norteFar.farZone, 'Norte 5 km es gestionar $55');
+
+const norteClosed = branchKinds('norte', new Date('2026-09-15T12:30:00-06:00'), 1000);
+assert(norteClosed.blocked, 'Norte antes de la 1 pm no tiene domicilio');
+
+const surEdge = branchKinds('sur', new Date('2026-09-15T21:15:00-06:00'), 4000);
+assert(surEdge.defaultKind === 'managed' && surEdge.options[0]?.customerFee === 50, 'Sur a las 9:15 pm sigue abierto');
+
+const norteManaged50 = calcCheckoutSplit({
+  priceBaseTotal: CARTA,
+  fulfillment: 'delivery',
+  provider: 'managed',
+  deliveryFee: SELF_FEE_MXN,
+});
+assert(norteManaged50.deliveryFee === 50, 'gestionar de $50 se queda en $50');
+assert(
+  norteManaged50.restaurantPayout ===
+    Number(
+      (
+        calcWebPrice(CARTA) -
+        calcDeveloperFood(CARTA) -
+        norteManaged50.stripeShare +
+        50
+      ).toFixed(2)
+    ),
+  'Norte/Sur: Adrian recibe la comida menos el 15% y su Stripe, más el envío'
+);
+
 console.log('iangel-routing tests: ok');

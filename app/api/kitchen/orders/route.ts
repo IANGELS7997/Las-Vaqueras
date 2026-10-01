@@ -2,20 +2,21 @@ import { NextResponse } from 'next/server';
 import { advancePickupOrdersIfDue } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
-import { requireKitchenSession } from '@/lib/kitchen-guard';
+import { requireKitchenBranch } from '@/lib/kitchen-guard';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
-  const denied = await requireKitchenSession();
-  if (denied) return denied;
+  const branch = await requireKitchenBranch();
+  if (branch instanceof NextResponse) return branch;
 
   const supabase = createAdminSupabase();
   const history = new URL(req.url).searchParams.get('scope') === 'history';
   if (history) {
     const found = await supabase
       .from('orders')
-      .select('id, short_code, customer_name, status, fulfillment_type, created_at, total_charged, cash_food_due, pay_method, help_label')
+      .select('id, short_code, customer_name, status, fulfillment_type, created_at, total_charged, cash_food_due, pay_method, help_label, branch_id')
+      .eq('branch_id', branch)
       .neq('status', 'awaiting_payment')
       .order('created_at', { ascending: false })
       .limit(400);
@@ -37,6 +38,7 @@ export async function GET(req: Request) {
   const { data, error } = await supabase
     .from('orders')
     .select('*')
+    .eq('branch_id', branch)
     .neq('status', 'awaiting_payment')
     .order('created_at', { ascending: false })
     .limit(50);

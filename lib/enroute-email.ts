@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { branchMailLine } from '@/lib/branches';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
@@ -58,6 +59,7 @@ export async function sendEnrouteEmail(input: {
   customerName: string;
   orderId: string;
   token?: string | null;
+  branchId?: unknown;
 }) {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
@@ -70,7 +72,7 @@ export async function sendEnrouteEmail(input: {
 <p>Hola ${first},</p>
 <p>${esc(ENROUTE_LINE)}</p>
 ${customerMailButtons(track)}
-<p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
+<p>${branchMailLine(input.branchId)}</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -134,7 +136,7 @@ export async function notifyNextDoorEnroute(supabase: SupabaseClient) {
       .update({ enroute_email_at: new Date().toISOString() })
       .eq('id', next.id)
       .is('enroute_email_at', null)
-      .select('id, customer_name, customer_email, profile_login_token')
+      .select('id, customer_name, customer_email, profile_login_token, branch_id')
       .maybeSingle();
     if (claim.error || !claim.data) return;
 
@@ -150,6 +152,7 @@ export async function notifyNextDoorEnroute(supabase: SupabaseClient) {
         customerName: String(saved.customer_name || ''),
         orderId: saved.id,
         token: saved.profile_login_token,
+        branchId: (saved as { branch_id?: string | null }).branch_id,
       });
       if (!sent.ok) {
         await supabase.from('orders').update({ enroute_email_at: null }).eq('id', saved.id);

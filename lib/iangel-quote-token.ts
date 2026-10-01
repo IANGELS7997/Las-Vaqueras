@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
+import { isBranchId, type BranchId } from '@/lib/branches';
 import { QUOTE_TTL_MS, type DeliveryProvider } from '@/lib/iangel-constants';
 
 export type QuoteAssignment = {
@@ -10,6 +11,7 @@ export type QuoteAssignment = {
   uberFee: number;
   customerFee: number;
   exp: number;
+  branchId?: BranchId;
 };
 
 function quoteSecret() {
@@ -47,6 +49,7 @@ export async function readQuoteAssignment(token: string | undefined): Promise<Qu
   try {
     const parsed = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as QuoteAssignment;
     if (!parsed || typeof parsed.exp !== 'number' || parsed.exp <= Date.now()) return null;
+    if (parsed.branchId != null && !isBranchId(parsed.branchId)) return null;
     return parsed;
   } catch {
     return null;
@@ -61,6 +64,7 @@ export function assignmentFromRouting(input: {
   uberQuoteId?: string | null;
   uberFee?: number;
   customerFee: number;
+  branchId?: BranchId;
 }): QuoteAssignment {
   return {
     lat: input.lat,
@@ -70,6 +74,7 @@ export function assignmentFromRouting(input: {
     uberQuoteId: input.uberQuoteId || null,
     uberFee: input.uberFee || 0,
     customerFee: input.customerFee,
+    branchId: input.branchId,
     exp: Date.now() + QUOTE_TTL_MS,
   };
 }

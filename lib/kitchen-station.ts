@@ -1,4 +1,4 @@
-import { RESTAURANT_INFO } from '@/lib/restaurant';
+import { branchById, type BranchId } from '@/lib/branches';
 
 export const KITCHEN_STATION_ID = 'main';
 /** Sin heartbeat en este tiempo = señal perdida. El turno sigue hasta Salir. */
@@ -121,14 +121,20 @@ export function shiftNoticeKind(wasActive: boolean, nextActive: boolean): 'open'
   return null;
 }
 
-export async function sendKitchenShiftNotice(kind: 'open' | 'close'): Promise<{ sent: boolean }> {
+export async function sendKitchenShiftNotice(
+  kind: 'open' | 'close',
+  branchId: BranchId = 'centro'
+): Promise<{ sent: boolean }> {
   const when = new Date().toLocaleString('es-MX', { timeZone: 'America/Chihuahua' });
-  const place = RESTAURANT_INFO.address;
+  const branch = branchById(branchId);
+  const place = `${branch.shortName} · ${branch.address}`;
   const opened = kind === 'open';
-  const subject = opened ? 'Turno abierto · Las Vaqueras' : 'Turno cerrado · Las Vaqueras';
+  const subject = opened
+    ? `Turno abierto · ${branch.shortName}`
+    : `Turno cerrado · ${branch.shortName}`;
   const lead = opened
-    ? 'La cajera inició el turno en cocina.'
-    : 'La cajera cerró el turno en cocina.';
+    ? `La caja de ${branch.shortName} inició el turno.`
+    : `La caja de ${branch.shortName} cerró el turno.`;
   const text = [lead, '', `Hora: ${when}`, `Local: ${place}`].join('\n');
   const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.5;">
 <p>${lead}</p>
@@ -142,23 +148,23 @@ export async function sendKitchenOfflineAlert(args: {
   reason: 'closed' | 'stale' | 'order_while_offline';
   orderId?: string;
   shortCode?: string | null;
+  branchId?: BranchId;
 }): Promise<{ sent: boolean }> {
   const nowMs = Date.now();
   const when = new Date(nowMs).toLocaleString('es-MX', { timeZone: 'America/Chihuahua' });
-  const place = RESTAURANT_INFO.address;
+  const branch = branchById(args.branchId);
+  const place = `${branch.shortName} · ${branch.address}`;
 
-  let subject = 'Alerta cocina: panel cerrado · Las Vaqueras';
-  let lead =
-    'La pantalla de cocina (admin) dejó de estar activa. Mientras no la abran de nuevo con turno e impresión automática, los tickets de caja no van a salir solos.';
+  let subject = `Alerta cocina: panel cerrado · ${branch.shortName}`;
+  let lead = `La pantalla de ${branch.shortName} dejó de estar activa. Mientras no la abran de nuevo con turno e impresión automática, los tickets de esa sucursal no van a salir solos.`;
 
   if (args.reason === 'stale') {
-    subject = 'Alerta cocina: se perdió la señal del panel · Las Vaqueras';
-    lead =
-      'El turno de cocina sigue abierto, pero la señal dejó de llegar. Al volver a abrir la página, las comandas nuevas se imprimen. El servicio solo se cierra con Salir.';
+    subject = `Alerta cocina: se perdió la señal del panel · ${branch.shortName}`;
+    lead = `El turno de ${branch.shortName} sigue abierto, pero la pestaña dejó de responder. Al volver a abrir la página, las comandas nuevas se imprimen. El servicio solo se cierra con Salir.`;
   }
   if (args.reason === 'order_while_offline') {
-    subject = 'Urgente: pedido pagado y cocina offline · Las Vaqueras';
-    lead = `Un cliente ya pagó${args.shortCode ? ` (orden ${args.shortCode})` : args.orderId ? ` (orden ${args.orderId.slice(0, 8)})` : ''} y en este momento el panel de cocina no está activo. Hay que abrir cocina.lasvaqueras.com.mx, iniciar turno y confirmar la impresora.`;
+    subject = `Urgente: pedido pagado y cocina offline · ${branch.shortName}`;
+    lead = `Un cliente ya pagó en ${branch.shortName}${args.shortCode ? ` (orden ${args.shortCode})` : args.orderId ? ` (orden ${args.orderId.slice(0, 8)})` : ''} y el panel de esa sucursal no está activo. Hay que entrar con el usuario ${branch.username} en cocina.lasvaqueras.com.mx.`;
   }
 
   const text = [

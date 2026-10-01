@@ -1,3 +1,4 @@
+import { branchMailLine, orderBranchId } from '@/lib/branches';
 import type { CartItem } from '@/types';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
 import { formatMXN } from '@/lib/pricing';
@@ -63,7 +64,7 @@ export function buildTicketEmail(row: TicketOrder) {
 ${delivery > 0 ? `<p>Envío: ${escMail(money(delivery))}</p>` : ''}
 ${service > 0 ? `<p>Cuota de servicio: ${escMail(money(service))}</p>` : ''}
 ${customerMailButtons(orderUrl)}
-<p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
+<p>${branchMailLine(orderBranchId(row.branch_id))}</p>
 </div>`;
   const text = [
     `Tu ticket #${code}`,

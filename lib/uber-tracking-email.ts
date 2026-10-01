@@ -1,3 +1,4 @@
+import { branchMailLine } from '@/lib/branches';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 
 const SITE = 'https://lasvaqueras.com.mx';
@@ -40,6 +41,7 @@ export async function sendUberTrackingEmail(input: {
   orderId: string;
   trackingUrl: string;
   token?: string | null;
+  branchId?: unknown;
 }) {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
@@ -56,7 +58,7 @@ export async function sendUberTrackingEmail(input: {
 <a href="${esc(tracking)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Seguir con Uber Direct</a>
 </div>
 ${customerMailButtons(orderUrl)}
-<p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
+<p>${branchMailLine(input.branchId)}</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',

@@ -1,5 +1,7 @@
+import { isBranchId, type BranchId } from '@/lib/branches';
+
 export const KITCHEN_COOKIE = 'lv_kitchen';
-const TOKEN_PAYLOAD = 'las-vaqueras-kitchen';
+const TOKEN_PREFIX = 'las-vaqueras-kitchen:';
 
 export function getKitchenHost() {
   return (process.env.NEXT_PUBLIC_KITCHEN_HOST || 'cocina.lasvaqueras.com.mx').toLowerCase();
@@ -17,7 +19,9 @@ export function isLocalHostname(host: string) {
   return host === 'localhost' || host === '127.0.0.1';
 }
 
-export async function kitchenSessionToken(secret: string) {
+async function signBranch(branch: BranchId) {
+  const secret = process.env.KITCHEN_PASSWORD || '';
+  if (!secret) return '';
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),
@@ -28,23 +32,39 @@ export async function kitchenSessionToken(secret: string) {
   const signature = await crypto.subtle.sign(
     'HMAC',
     key,
-    new TextEncoder().encode(TOKEN_PAYLOAD)
+    new TextEncoder().encode(`${TOKEN_PREFIX}${branch}`)
   );
   return Array.from(new Uint8Array(signature))
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
 }
 
-export async function isValidKitchenSession(cookie: string | undefined) {
-  const secret = process.env.KITCHEN_PASSWORD;
-  if (!cookie || !secret) return false;
-  const expected = await kitchenSessionToken(secret);
-  if (cookie.length !== expected.length) return false;
+function sameToken(left: string, right: string) {
+  if (!left || left.length !== right.length) return false;
   let mismatch = 0;
-  for (let i = 0; i < cookie.length; i += 1) {
-    mismatch |= cookie.charCodeAt(i) ^ expected.charCodeAt(i);
+  for (let i = 0; i < left.length; i += 1) {
+    mismatch |= left.charCodeAt(i) ^ right.charCodeAt(i);
   }
   return mismatch === 0;
+}
+
+export async function kitchenSessionToken(branch: BranchId) {
+  const signature = await signBranch(branch);
+  return signature ? `${branch}.${signature}` : '';
+}
+
+export async function readKitchenBranch(cookie: string | undefined): Promise<BranchId | null> {
+  if (!cookie || !cookie.includes('.')) return null;
+  const dot = cookie.indexOf('.');
+  const branch = cookie.slice(0, dot);
+  const signature = cookie.slice(dot + 1);
+  if (!isBranchId(branch)) return null;
+  const expected = await signBranch(branch);
+  return sameToken(signature, expected) ? branch : null;
+}
+
+export async function isValidKitchenSession(cookie: string | undefined) {
+  return (await readKitchenBranch(cookie)) != null;
 }
 
 export function kitchenCookieOptions() {

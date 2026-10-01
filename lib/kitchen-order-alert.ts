@@ -1,5 +1,5 @@
+import { branchById, orderBranchId } from '@/lib/branches';
 import {
-  KITCHEN_STATION_ID,
   sendKitchenOfflineAlert,
   shouldSendOrderOfflineAlert,
   type KitchenStationRow,
@@ -8,15 +8,16 @@ import type { createAdminSupabase } from '@/lib/supabase-admin';
 
 type Client = ReturnType<typeof createAdminSupabase>;
 
-/** Si un pedido se paga y cocina no está lista, avisa a Angel y al dueño. */
+/** Si un pedido se paga y la caja de su sucursal no está lista, avisa a Angel y a Adrian. */
 export async function alertIfKitchenOfflineForOrder(
   supabase: Client,
-  order: { id: string; short_code?: string | null }
+  order: { id: string; short_code?: string | null; branch_id?: string | null }
 ) {
+  const branch = branchById(orderBranchId(order.branch_id));
   const { data } = await supabase
     .from('kitchen_station')
     .select('*')
-    .eq('id', KITCHEN_STATION_ID)
+    .eq('id', branch.stationId)
     .maybeSingle();
 
   const row = (data || null) as KitchenStationRow | null;
@@ -26,6 +27,7 @@ export async function alertIfKitchenOfflineForOrder(
     reason: 'order_while_offline',
     orderId: order.id,
     shortCode: order.short_code || null,
+    branchId: branch.id,
   });
 
   if (alert.sent) {
@@ -33,7 +35,7 @@ export async function alertIfKitchenOfflineForOrder(
     await supabase
       .from('kitchen_station')
       .update({ order_alert_sent_at: now, updated_at: now })
-      .eq('id', KITCHEN_STATION_ID);
+      .eq('id', branch.stationId);
   }
 
   return alert;

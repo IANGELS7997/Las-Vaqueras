@@ -12,7 +12,7 @@ import {
 } from '@/lib/loyalty-reward';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { isValidPickupAt } from '@/lib/pickup-slots';
-import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
+import { branchById, isBranchId, isBranchOpen } from '@/lib/branches';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -23,11 +23,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Entra a tu perfil para canjear' }, { status: 401 });
   }
 
-  if (!getOpenStatus().isOpen) {
-    return NextResponse.json({ error: 'El restaurante está cerrado' }, { status: 400 });
-  }
-
   const body = await req.json().catch(() => ({}));
+  const branch = branchById(isBranchId(body.branchId) ? body.branchId : 'centro');
+  if (!isBranchOpen(branch.id)) {
+    return NextResponse.json({ error: `${branch.shortName} está cerrada` }, { status: 400 });
+  }
   const items = Array.isArray(body.items) ? (body.items as CartItem[]) : [];
   const fulfillment = isFulfillmentMode(body.fulfillment) ? body.fulfillment : '';
   const pickupAt = typeof body.pickupAt === 'string' ? body.pickupAt : '';
@@ -66,7 +66,8 @@ export async function POST(req: Request) {
       customer_name: name,
       customer_phone: normalizePhone(String(profile.data.phone)),
       customer_email: String(profile.data.email || ''),
-      delivery_address: RESTAURANT_INFO.address,
+      delivery_address: branch.address,
+      branch_id: branch.id,
       delivery_references: 'PROMOCIÓN · Papas Jumbo de regalo',
       total_charged: 0,
       restaurant_payout: 0,
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
     fulfillment: 'pickup',
     pickupAt,
     totalCharged: 0,
+    branchId: branch.id,
   });
   await sendCustomerTicket({ ...(insert.data as DbOrderRow), profile_login_token: token });
 

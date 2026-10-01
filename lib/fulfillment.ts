@@ -1,8 +1,14 @@
+import { isBranchId, type BranchId } from '@/lib/branches';
 import { DELIVERY_FEE } from '@/lib/pricing';
 import type { FulfillmentMode } from '@/types';
 
 export const FULFILLMENT_STORAGE_KEY = 'lv_fulfillment';
 export const BROWSE_MENU_STORAGE_KEY = 'lv_browse_menu';
+export const BRANCH_STORAGE_KEY = 'lv_branch';
+
+export function readStoredBranch(value: string | null): BranchId | null {
+  return isBranchId(value) ? value : null;
+}
 
 export type { FulfillmentMode };
 

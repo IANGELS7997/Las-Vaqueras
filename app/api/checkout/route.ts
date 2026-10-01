@@ -23,7 +23,7 @@ import {
 } from '@/lib/loyalty-reward';
 import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
-import { getOpenStatus, RESTAURANT_INFO } from '@/lib/restaurant';
+import { branchById, isBranchId, isBranchOpen } from '@/lib/branches';
 import { getStripe } from '@/lib/stripe';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { resolvePaidDelivery } from '@/lib/iangel-checkout';
@@ -94,11 +94,12 @@ async function cashPriors(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale, payMethod: requestedPay, leaveAtDoor: requestedDoor } =
+    const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale, payMethod: requestedPay, leaveAtDoor: requestedDoor, branchId: requestedBranch } =
       body as {
         priceBaseTotal: number;
         stripeAccountId?: string;
         restaurantId?: string;
+        branchId?: string;
         fulfillment?: string;
         pickupAt?: string | null;
         acceptFinalSale?: boolean;
@@ -118,8 +119,9 @@ export async function POST(req: Request) {
         items?: CartItem[];
       };
 
-    if (!getOpenStatus().isOpen) {
-      return NextResponse.json({ error: 'El restaurante está cerrado' }, { status: 400 });
+    const branch = branchById(isBranchId(requestedBranch) ? requestedBranch : 'centro');
+    if (!isBranchOpen(branch.id)) {
+      return NextResponse.json({ error: `${branch.shortName} está cerrada` }, { status: 400 });
     }
     if (!isFulfillmentMode(fulfillment)) {
       return NextResponse.json({ error: 'Elige domicilio o recoger en tienda' }, { status: 400 });
@@ -156,7 +158,7 @@ export async function POST(req: Request) {
     const name = customer?.name?.trim() || '';
     const phone = customer?.phone?.trim() || '';
     const email = customer?.email?.trim().toLowerCase() || '';
-    const address = isPickup ? RESTAURANT_INFO.address : customer?.address?.trim() || '';
+    const address = isPickup ? branch.address : customer?.address?.trim() || '';
     const lat = typeof customer?.lat === 'number' ? customer.lat : Number.NaN;
     const lng = typeof customer?.lng === 'number' ? customer.lng : Number.NaN;
     const references = isPickup
@@ -187,9 +189,10 @@ export async function POST(req: Request) {
         lat,
         lng,
         street: address.split(',')[0] || address,
-        zip: /\b(\d{5})\b/.exec(address)?.[1] || '31210',
+        zip: /\b(\d{5})\b/.exec(address)?.[1] || branch.zipCode,
         phone,
         priceBaseTotal,
+        branchId: branch.id,
       });
       deliveryProvider = paid.kind;
       dispatchStatus = paid.dispatchStatus;
@@ -360,6 +363,7 @@ export async function POST(req: Request) {
           dropoff_lng: isPickup ? null : lng,
           delivery_provider: deliveryProvider,
           dispatch_status: paidStatus.dispatch_status,
+          branch_id: branch.id,
           pay_method: 'cash',
           cash_food_due: amounts.cashFoodDue,
           rider_paid_cash: false,
@@ -416,10 +420,11 @@ export async function POST(req: Request) {
             fulfillment: 'delivery',
             pickupAt: null,
             totalCharged: amounts.totalCharged,
+            branchId: branch.id,
           });
         }
       }
-      void alertIfKitchenOfflineForOrder(supabase, { id: orderRow.id, short_code: orderRow.short_code }).catch((err) => {
+      void alertIfKitchenOfflineForOrder(supabase, orderRow).catch((err) => {
         Sentry.captureException(err);
       });
       void sendDeveloperPurchaseNotice(orderRow).catch((err) => Sentry.captureException(err));
@@ -497,6 +502,7 @@ export async function POST(req: Request) {
         dropoff_lng: isPickup ? '' : String(lng),
         delivery_provider: deliveryProvider,
         uber_quote_id: uberQuoteId || '',
+        branch_id: branch.id,
       },
     });
 
@@ -534,6 +540,7 @@ export async function POST(req: Request) {
         dropoff_lng: isPickup ? null : lng,
         delivery_provider: deliveryProvider,
         dispatch_status: dispatchStatus,
+        branch_id: branch.id,
         pay_method: 'card',
         rider_paid_cash: false,
         kitchen_received_cash: false,

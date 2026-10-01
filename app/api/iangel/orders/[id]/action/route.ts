@@ -103,6 +103,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           orderId: params.id,
           token: typeof row.profile_login_token === 'string' ? row.profile_login_token : null,
           leaveAtDoor: Boolean(row.leave_at_door),
+          branchId: row.branch_id,
         });
       } catch (err) {
         Sentry.captureException(err);

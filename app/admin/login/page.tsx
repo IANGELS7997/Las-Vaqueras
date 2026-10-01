@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 
 export default function KitchenLoginPage() {
   const router = useRouter();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ export default function KitchenLoginPage() {
       const response = await fetch('/api/kitchen/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       if (!response.ok) {
         const data = (await response.json().catch(() => ({}))) as { error?: string };
@@ -41,6 +42,18 @@ export default function KitchenLoginPage() {
         <p className="mt-1 text-sm text-muted-foreground">Acceso solo para el personal</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-border/60 bg-card p-5">
+        <label className="block text-sm text-muted-foreground">
+          Usuario
+          <input
+            type="text"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-white outline-none focus:border-brand-500"
+            autoComplete="username"
+            autoCapitalize="characters"
+            required
+          />
+        </label>
         <label className="block text-sm text-muted-foreground">
           Contraseña
           <input

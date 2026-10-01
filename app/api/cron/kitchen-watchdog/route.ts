@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
+import { BRANCHES } from '@/lib/branches';
 import {
-  KITCHEN_STATION_ID,
   isKitchenStationOnline,
   sendKitchenOfflineAlert,
   shouldSendOfflineAlert,
@@ -25,35 +25,23 @@ export async function GET(req: Request) {
   }
 
   const supabase = createAdminSupabase();
-  const { data } = await supabase
-    .from('kitchen_station')
-    .select('*')
-    .eq('id', KITCHEN_STATION_ID)
-    .maybeSingle();
-
-  const row = (data || null) as KitchenStationRow | null;
   const nowMs = Date.now();
-  const online = isKitchenStationOnline(row, nowMs);
+  const alerts: string[] = [];
 
-  if (online || !row?.shift_active) {
-    return NextResponse.json({ ok: true, online, alerted: false });
-  }
-
-  if (!shouldSendOfflineAlert(row, nowMs)) {
-    return NextResponse.json({ ok: true, online: false, alerted: false, cooledDown: true });
-  }
-
-  const alert = await sendKitchenOfflineAlert({ reason: 'stale' });
-  if (alert.sent) {
+  for (const branch of BRANCHES) {
+    const { data } = await supabase.from('kitchen_station').select('*').eq('id', branch.stationId).maybeSingle();
+    const row = (data || null) as KitchenStationRow | null;
+    if (isKitchenStationOnline(row, nowMs) || !row?.shift_active) continue;
+    if (!shouldSendOfflineAlert(row, nowMs)) continue;
+    const alert = await sendKitchenOfflineAlert({ reason: 'stale', branchId: branch.id });
+    if (!alert.sent) continue;
+    alerts.push(branch.id);
     const now = new Date().toISOString();
     await supabase
       .from('kitchen_station')
-      .update({
-        offline_alert_sent_at: now,
-        updated_at: now,
-      })
-      .eq('id', KITCHEN_STATION_ID);
+      .update({ offline_alert_sent_at: now, updated_at: now })
+      .eq('id', branch.stationId);
   }
 
-  return NextResponse.json({ ok: true, online: false, alerted: alert.sent });
+  return NextResponse.json({ ok: true, alerted: alerts });
 }

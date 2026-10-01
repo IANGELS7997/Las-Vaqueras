@@ -1,4 +1,5 @@
 import type { CartItem } from '@/types';
+import { branchById, orderBranchId } from '@/lib/branches';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
 
@@ -55,14 +56,15 @@ export async function sendDeveloperPurchaseNotice(row: NoticeRow) {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+  const branch = branchById(orderBranchId(row.branch_id));
   const place =
     (row.fulfillment_type || '') === 'pickup'
-      ? 'Recoger en Rio de Janeiro 903, Panamericana'
+      ? `Recoger en ${branch.street}`
       : row.delivery_address || 'Sin dirección';
   const kitchen = 'https://cocina.lasvaqueras.com.mx';
   const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#111;line-height:1.45;">
 <p style="margin:0 0 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#9a3412;">Aviso interno · no es el ticket del cliente</p>
-<h1 style="font-size:22px;margin:0 0 8px;">Compra nueva #${esc(code)}</h1>
+<h1 style="font-size:22px;margin:0 0 8px;">Compra nueva #${esc(code)} · ${esc(branch.shortName)}</h1>
 <p style="margin:0 0 16px;">${esc(when)} · Chihuahua</p>
 <p><strong>Cliente:</strong> ${esc(row.customer_name)}<br/>
 <strong>Teléfono:</strong> ${esc(row.customer_phone)}<br/>
@@ -102,7 +104,7 @@ export async function sendDeveloperPurchaseNotice(row: NoticeRow) {
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [DEVELOPER_EMAIL, STORE_EMAIL],
-      subject: `Compra nueva · #${code} · Las Vaqueras`,
+      subject: `Compra nueva · #${code} · ${branch.shortName}`,
       html,
       text,
     }),

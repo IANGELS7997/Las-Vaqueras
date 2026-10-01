@@ -1,5 +1,5 @@
+import { metersFromBranch, type BranchId } from '@/lib/branches';
 import { COPY } from '@/lib/iangel-copy';
-import { metersFromStore } from '@/lib/iangel-geo';
 import { needsUberQuote, resolveDeliveryRouting, type RoutingResult } from '@/lib/iangel-routing';
 import { getRoutingRiderFlags } from '@/lib/iangel-state';
 import { createDeliveryQuote, isUberQuoteConfigured } from '@/lib/uber-direct';
@@ -12,6 +12,7 @@ export async function resolvePaidDelivery(input: {
   zip: string;
   phone: string;
   priceBaseTotal: number;
+  branchId?: BranchId;
 }): Promise<{
   meters: number;
   kind: Exclude<DeliveryProvider, 'pickup'>;
@@ -21,7 +22,7 @@ export async function resolvePaidDelivery(input: {
   dispatchStatus: string;
   routing: RoutingResult;
 }> {
-  const meters = Math.round(metersFromStore(input.lat, input.lng));
+  const meters = Math.round(metersFromBranch(input.branchId, input.lat, input.lng));
   const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
   const routingInput = {
     meters,
@@ -29,6 +30,7 @@ export async function resolvePaidDelivery(input: {
     riderBusy: riderBusy === true,
     uberDirectEnabled: uberDirectEnabled === true,
     priceBaseTotal: input.priceBaseTotal,
+    branchId: input.branchId,
   };
 
   let uberQuoteId: string | null = null;
@@ -50,7 +52,7 @@ export async function resolvePaidDelivery(input: {
     uberQuoteFee = quote.fee;
   }
 
-  const routing = resolveDeliveryRouting({ ...routingInput, uberQuoteFee });
+  const routing = resolveDeliveryRouting({ ...routingInput, uberQuoteFee, branchId: input.branchId });
   const option = routing.options.find((item) => item.kind === routing.defaultKind);
   if (routing.blocked || !routing.defaultKind || !option) {
     throw new Error(routing.blockedReason || COPY.inactive);
