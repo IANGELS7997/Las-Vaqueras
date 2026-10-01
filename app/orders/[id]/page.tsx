@@ -320,7 +320,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           </p>
         </div>
       </div>
-      {status !== 'awaiting_payment' ? <PwaInstallHint /> : null}
+      {status !== 'awaiting_payment' ? <PwaInstallHint orderId={params.id} /> : null}
     </div>
   );
 }
