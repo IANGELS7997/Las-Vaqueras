@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import Stripe from 'stripe';
+import { releaseCashPlatformHold } from '@/lib/cash-platform-fee-store';
 import { getStripe } from '@/lib/stripe';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -52,6 +53,8 @@ export async function POST(req: Request) {
     if (stillOpen.data && stillOpen.data.status !== 'awaiting_payment') {
       return NextResponse.json({ error: 'El pago con tarjeta ya se procesó' }, { status: 409 });
     }
+
+    await releaseCashPlatformHold(supabase, paymentIntentId);
 
     await supabase
       .from('loyalty_rewards')
