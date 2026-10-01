@@ -29,6 +29,12 @@ import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/b
 import { resolvePaidDelivery } from '@/lib/iangel-checkout';
 import { cashAbuseMessage, cashIdentityMessage, type CashPriorOrder } from '@/lib/cash-fraud';
 import { cashCheckoutAllowed, cashStoredAmounts } from '@/lib/iangel-cash';
+import { applyCashFeeToCard, cashDeveloperFeeCentavos } from '@/lib/cash-platform-fee';
+import {
+  attachCashPlatformHold,
+  releaseCashPlatformHold,
+  reserveCashPlatformFees,
+} from '@/lib/cash-platform-fee-store';
 import { paidOrderStatusFields } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { alertIfKitchenOfflineForOrder } from '@/lib/kitchen-order-alert';
@@ -92,6 +98,7 @@ async function cashPriors(
 }
 
 export async function POST(req: Request) {
+  let cashHoldId: string | null = null;
   try {
     const body = await req.json();
     const { priceBaseTotal, stripeAccountId, customer, items, restaurantId, fulfillment, pickupAt, acceptFinalSale, payMethod: requestedPay, leaveAtDoor: requestedDoor, branchId: requestedBranch } =
@@ -331,6 +338,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: abuse }, { status: 400 });
       }
       const amounts = cashStoredAmounts(split.subtotalWeb, fulfillment, routedDeliveryFee);
+      const cashFeeCentavos = cashDeveloperFeeCentavos(serverBase, split.subtotalWeb);
+      const ownerNet = Number(((Math.round(amounts.cashFoodDue * 100) - cashFeeCentavos) / 100).toFixed(2));
       const cashAdjust = pendingAdjustment(amounts.totalCharged, pending);
       const paidStatus = paidOrderStatusFields({ fulfillment, deliveryProvider });
       const profileLoginToken = crypto.randomUUID().replace(/-/g, '');
@@ -349,8 +358,10 @@ export async function POST(req: Request) {
           total_charged: amounts.totalCharged + cashAdjust.extra,
           leave_at_door: leaveAtDoor,
           pending_balance_ids: cashAdjust.settleIds.join(',') || null,
-          restaurant_payout: amounts.restaurantPayout,
-          platform_fee: amounts.platformFee,
+          restaurant_payout: ownerNet,
+          platform_fee: Number((cashFeeCentavos / 100).toFixed(2)),
+          cash_platform_fee_centavos: cashFeeCentavos,
+          cash_platform_locked_centavos: 0,
           customer_fee: 0,
           delivery_fee: amounts.deliveryFee,
           fulfillment_type: fulfillment,
@@ -462,18 +473,43 @@ export async function POST(req: Request) {
     }
 
     const cardAdjust = pendingAdjustment(split.totalCharged, pending);
-    const skipTransfer = waiveFood || split.restaurantPayoutCentavos <= 0;
+    const canSkimCash = !waiveFood && split.restaurantPayoutCentavos > 0;
+    const reservedCash = canSkimCash
+      ? await reserveCashPlatformFees(supabase, split.restaurantPayoutCentavos)
+      : { holdId: '', takenCentavos: 0 };
+    if (reservedCash.takenCentavos > 0) cashHoldId = reservedCash.holdId;
+    const cardCharge = applyCashFeeToCard({
+      totalCentavos: split.totalChargedCentavos,
+      applicationFeeCentavos: split.applicationFeeCentavos,
+      restaurantPayoutCentavos: split.restaurantPayoutCentavos,
+      pendingExtraCentavos: Math.round(cardAdjust.extra * 100),
+      cashFeeCentavos: reservedCash.takenCentavos,
+    });
+    const skipTransfer = waiveFood || cardCharge.skipTransfer;
+    if (
+      !skipTransfer &&
+      (cardCharge.applicationFeeCentavos <= 0 || cardCharge.applicationFeeCentavos >= cardCharge.amountCentavos)
+    ) {
+      if (cashHoldId) await releaseCashPlatformHold(supabase, cashHoldId);
+      cashHoldId = null;
+      return NextResponse.json(
+        { error: 'El split de Connect dejó una application_fee inválida' },
+        { status: 400 }
+      );
+    }
+    const ownerPayout = Number((cardCharge.payoutCentavos / 100).toFixed(2));
+    const platformFee = Number((split.platformFee + cardCharge.takenCentavos / 100).toFixed(2));
 
     const stripe = getStripe();
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.max(0, split.totalChargedCentavos + cardAdjust.extra * 100),
+      amount: cardCharge.amountCentavos,
       currency: 'mxn',
       automatic_payment_methods: { enabled: true },
       ...(skipTransfer
         ? {}
         : {
             transfer_data: { destination },
-            application_fee_amount: Math.max(0, split.applicationFeeCentavos + cardAdjust.extra * 100),
+            application_fee_amount: cardCharge.applicationFeeCentavos,
           }),
       metadata: {
         price_base_total: String(serverBase),
@@ -482,8 +518,9 @@ export async function POST(req: Request) {
         delivery_subsidy: String(split.deliverySubsidy),
         platillo_count: String(platilloCount),
         delivery_fee: String(split.deliveryFee),
-        restaurant_payout: String(split.restaurantPayout),
-        platform_fee: String(split.platformFee),
+        restaurant_payout: String(ownerPayout),
+        platform_fee: String(platformFee),
+        cash_platform_fee: String(Number((cardCharge.takenCentavos / 100).toFixed(2))),
         stripe_fee: String(split.stripeFee),
         stripe_share: String(split.stripeShare),
         customer_name: name.slice(0, 200),
@@ -505,6 +542,10 @@ export async function POST(req: Request) {
         branch_id: branch.id,
       },
     });
+    if (cashHoldId) {
+      await attachCashPlatformHold(supabase, cashHoldId, paymentIntent.id);
+      cashHoldId = null;
+    }
 
     if (canGiftJumbo && jumboReward) {
       await reserveJumboReward(supabase, jumboReward.id, existingCustomerId || '', paymentIntent.id);
@@ -526,8 +567,8 @@ export async function POST(req: Request) {
         total_charged: split.totalCharged + cardAdjust.extra,
         leave_at_door: leaveAtDoor,
         pending_balance_ids: cardAdjust.settleIds.join(',') || null,
-        restaurant_payout: split.restaurantPayout,
-        platform_fee: split.platformFee,
+        restaurant_payout: ownerPayout,
+        platform_fee: platformFee,
         customer_fee: split.customerFee,
         delivery_fee: split.deliveryFee,
         fulfillment_type: fulfillment,
@@ -549,6 +590,7 @@ export async function POST(req: Request) {
       .single();
 
     if (insert.error) {
+      await releaseCashPlatformHold(supabase, paymentIntent.id);
       return NextResponse.json({ error: insert.error.message }, { status: 500 });
     }
 
@@ -566,8 +608,8 @@ export async function POST(req: Request) {
         totalCharged: split.totalCharged + pendingMxn,
         pendingMxn,
         pendingLabel: pending.label,
-        restaurantPayout: split.restaurantPayout,
-        platformFee: split.platformFee,
+        restaurantPayout: ownerPayout,
+        platformFee: platformFee,
         foodFullWeb: split.foodFullWeb,
         foodDiscountPesos: split.foodDiscountPesos,
       },
@@ -585,6 +627,9 @@ export async function POST(req: Request) {
         : null,
     });
   } catch (error) {
+    if (cashHoldId) {
+      await releaseCashPlatformHold(createAdminSupabase(), cashHoldId).catch((err) => Sentry.captureException(err));
+    }
     Sentry.captureException(error);
     const message =
       error instanceof Stripe.errors.StripeError
