@@ -70,8 +70,9 @@ export function cashCheckoutAllowed(input: {
   fulfillment?: string | null;
   subtotalWeb: number;
 }): { ok: true } | { ok: false; error: string } {
-  if (!isIangelCashProvider(input.provider, input.fulfillment)) {
-    return { ok: false, error: 'El efectivo solo está en envío IANGEL' };
+  const pickup = String(input.fulfillment || '') === 'pickup';
+  if (!pickup && !isIangelCashProvider(input.provider, input.fulfillment)) {
+    return { ok: false, error: 'El efectivo no está disponible en este envío' };
   }
   const food = Number(input.subtotalWeb);
   if (!Number.isFinite(food) || food <= 0) {
@@ -84,13 +85,19 @@ export function cashCheckoutAllowed(input: {
 }
 
 /** Comida que se deja en la tienda. Los $50 no entran aquí. */
-export function cashStoredAmounts(subtotalWeb: number) {
+export function cashStoredAmounts(subtotalWeb: number, fulfillment?: string | null, routedFee?: number | null) {
   const cashFoodDue = Math.round(Number(subtotalWeb) * 100) / 100;
-  const doorDue = Number((cashFoodDue + SELF_FEE_MXN).toFixed(2));
+  const pickup = String(fulfillment || '') === 'pickup';
+  const deliveryFee = pickup
+    ? 0
+    : typeof routedFee === 'number' && Number.isFinite(routedFee) && routedFee > 0
+      ? Math.round(routedFee)
+      : SELF_FEE_MXN;
+  const doorDue = Number((cashFoodDue + deliveryFee).toFixed(2));
   return {
     cashFoodDue,
     doorDue,
-    deliveryFee: SELF_FEE_MXN,
+    deliveryFee,
     restaurantPayout: cashFoodDue,
     platformFee: 0,
     totalCharged: doorDue,

@@ -78,13 +78,17 @@ export function calcCheckoutSplit({
       : calcWebPrice(chargedBase);
   const customerFee = calcCustomerFee(subtotalWeb);
   const shareBase = ownerAbsorbsDiscount ? priceBaseTotal : chargedBase;
-  const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'uber';
+  const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'self';
   const foodShare = kind === 'pickup' || kind === 'self' || kind === 'wait_self';
-  const rawUber = uberFee ?? legacyDeliveryFee ?? 0;
+  const rawUber = uberFee ?? 0;
+  const routedFee =
+    typeof legacyDeliveryFee === 'number' && Number.isFinite(legacyDeliveryFee) && legacyDeliveryFee > 0
+      ? Math.round(legacyDeliveryFee)
+      : SELF_FEE_MXN;
 
   let delivery = { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 };
   if (kind === 'self' || kind === 'wait_self') {
-    delivery = { deliveryFee: SELF_FEE_MXN, deliveryDiscount: 0, uberFee: 0 };
+    delivery = { deliveryFee: routedFee, deliveryDiscount: 0, uberFee: 0 };
   } else if (kind === 'uber') {
     const priced = calcCustomerDeliveryFee({ uberFee: rawUber });
     delivery = { ...priced, uberFee: Math.round(rawUber * 100) / 100 };

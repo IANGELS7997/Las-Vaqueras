@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     const meters = Math.round(metersFromStore(lat, lng));
     const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
-    // 4001–5500 m cotiza Uber aunque el rider no lo encienda. 0–4000 m solo si hay emergencia.
+    // IANGEL: 0–4000 m a $50 y 4001–6500 m a $55. Ya no se cotiza Uber.
     const routingInput = {
       meters,
       riderActive: riderActive === true,

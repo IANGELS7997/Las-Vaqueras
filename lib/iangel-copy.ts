@@ -1,4 +1,4 @@
-import { SELF_FEE_MXN } from '@/lib/iangel-constants';
+import { OUTER_FEE_MXN, SELF_FEE_MXN } from '@/lib/iangel-constants';
 import { formatMXN } from '@/lib/pricing';
 
 export const COPY = {
@@ -9,12 +9,12 @@ export const COPY = {
     'El rider va en otro pedido. El tuyo puede tardar de 35 a 45 min. Conviene pedirlo con anticipación.',
   uberTitle: 'Envío a domicilio',
   uberBody: 'Envío con courier. Se aplica 3% de descuento sobre la cotización.',
-  outOfShift: 'Fuera de turno IANGEL (12:00–21:00). El envío se cotiza con courier.',
+  outOfShift: 'Fuera de turno IANGEL (12:00–21:00). Puedes recoger en tienda.',
   inactive: 'IANGEL no está en servicio ahora. Puedes recoger en tienda.',
-  tooFar: 'Domicilio hasta 5.5 km. Más lejos no hay envío; puedes recoger en tienda.',
+  tooFar: 'Domicilio hasta 6.5 km. Más lejos no hay envío; puedes recoger en tienda.',
   uberQuoteMissing: 'No se pudo cotizar el envío. Intenta de nuevo o recoger en tienda.',
   eta45:
     'El tiempo estimado para tu pedido es de hasta 45 minutos. Te pedimos realizarlo con anticipación.',
   etaFar:
-    'Por la distancia de tu domicilio, el envío se realiza con Uber Direct. El tiempo estimado es de hasta 1 hora y el costo de envío es mayor. Te pedimos realizar tu pedido con anticipación.',
+    `Por la distancia, el envío IANGEL es de ${formatMXN(OUTER_FEE_MXN)} y puede tardar hasta 1 hora. Te pedimos realizar tu pedido con anticipación.`,
 };

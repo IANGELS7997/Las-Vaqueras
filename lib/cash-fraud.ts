@@ -60,6 +60,7 @@ export function cashIdentityMessage(input: {
   phone: string;
   email: string;
   address: string;
+  fulfillment?: string | null;
 }) {
   if (!nameOk(input.firstName) || !nameOk(input.lastName)) {
     return 'Escribe nombre y apellido reales para pagar en efectivo.';
@@ -70,7 +71,7 @@ export function cashIdentityMessage(input: {
   if (!emailOk(input.email)) {
     return 'Usa un correo real. Ahí llega el ticket del pedido en efectivo.';
   }
-  if (input.address.trim().length < 8) {
+  if (String(input.fulfillment || '') !== 'pickup' && input.address.trim().length < 8) {
     return 'Falta la dirección de entrega para pagar en efectivo.';
   }
   return null;
@@ -132,10 +133,17 @@ export function cashOptionLock(input: {
   iangel: boolean;
   overCap: boolean;
   gift: boolean;
+  pickup?: boolean;
 }) {
   if (input.gift) return 'Este cupón no se paga en efectivo.';
   if (!input.identityReady) {
-    return 'Completa nombre, apellido, teléfono, correo y el punto en el mapa para elegir pago en efectivo.';
+    return input.pickup
+      ? 'Completa nombre, apellido, teléfono y correo para pagar en efectivo en la tienda.'
+      : 'Completa nombre, apellido, teléfono, correo y el punto en el mapa para elegir pago en efectivo.';
+  }
+  if (input.pickup) {
+    if (input.overCap) return `La comida pasa de ${formatMXN(CASH_FOOD_CAP_MXN)}. Solo tarjeta.`;
+    return null;
   }
   if (input.quoting || !input.quoted) return 'Espera un momento mientras cotizamos el envío.';
   if (!input.iangel) return 'El pago en efectivo solo está en envío IANGEL.';
@@ -143,8 +151,15 @@ export function cashOptionLock(input: {
   return null;
 }
 
-export function cashPaySummary(food: number) {
+export function cashPaySummary(food: number, fulfillment?: string | null, deliveryFee?: number | null) {
   const comida = Math.round(Number(food));
-  const puerta = comida + SELF_FEE_MXN;
-  return `El rider deja ${formatMXN(comida)} de comida en la tienda. En tu puerta pagas ${formatMXN(puerta)}: la comida y ${formatMXN(SELF_FEE_MXN)} de envío. Si no estás para recibirlo, el pedido no se entrega. Solo puedes tener un pedido en efectivo abierto.`;
+  if (String(fulfillment || '') === 'pickup') {
+    return `Pagas ${formatMXN(comida)} en el mostrador al recoger. No entra un rider. Solo puedes tener un pedido en efectivo abierto.`;
+  }
+  const envio =
+    typeof deliveryFee === 'number' && Number.isFinite(deliveryFee) && deliveryFee > 0
+      ? Math.round(deliveryFee)
+      : SELF_FEE_MXN;
+  const puerta = comida + envio;
+  return `El rider deja ${formatMXN(comida)} de comida en la tienda. En tu puerta pagas ${formatMXN(puerta)}: la comida y ${formatMXN(envio)} de envío. Si no estás para recibirlo, el pedido no se entrega. Solo puedes tener un pedido en efectivo abierto.`;
 }

@@ -1,4 +1,5 @@
 import { IANGEL_SLUG } from '@/lib/iangel-constants';
+import { getRiderPresence } from '@/lib/iangel-presence';
 import { getOrCreateRider, type RiderRow } from '@/lib/iangel-state';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -11,6 +12,7 @@ export type RiderProfilePublic = {
   avatarUrl: string | null;
   active: boolean;
   uberDirect: boolean;
+  email?: string | null;
 };
 
 export type RiderRatingRow = {
@@ -41,7 +43,7 @@ export function mapRiderProfile(rider: RiderRow & { avatar_path?: string | null;
   };
 }
 
-export async function listRiderCustomerRatings(limit = 40): Promise<{
+export async function listRiderCustomerRatings(limit = 40, riderKey?: string): Promise<{
   average: number | null;
   count: number;
   ratings: RiderRatingRow[];
@@ -61,7 +63,7 @@ export async function listRiderCustomerRatings(limit = 40): Promise<{
   const orderIds = Array.from(new Set(rows.map((row) => String(row.order_id))));
   const orders = await supabase
     .from('orders')
-    .select('id, short_code, customer_name, delivery_provider')
+    .select('id, short_code, customer_name, delivery_provider, iangel_rider_key')
     .in('id', orderIds)
     .in('delivery_provider', ['self', 'wait_self']);
 
@@ -72,6 +74,11 @@ export async function listRiderCustomerRatings(limit = 40): Promise<{
   for (const row of rows) {
     const order = byId.get(String(row.order_id));
     if (!order) continue;
+    if (riderKey) {
+      const owner = String(order.iangel_rider_key || '').trim();
+      const mine = owner ? owner === riderKey : riderKey === 'angel';
+      if (!mine) continue;
+    }
     ratings.push({
       id: String(row.id),
       orderId: String(row.order_id),
@@ -91,11 +98,28 @@ export async function listRiderCustomerRatings(limit = 40): Promise<{
   return { average, count, ratings };
 }
 
-export async function getRiderProfileBundle() {
+export async function getRiderProfileBundle(riderKey?: string) {
   const rider = await getOrCreateRider();
-  const ratings = await listRiderCustomerRatings();
+  const ratings = await listRiderCustomerRatings(40, riderKey);
+  const profile = mapRiderProfile(rider);
+  if (!riderKey) {
+    return { rider: profile, ratings, slug: IANGEL_SLUG };
+  }
+  const presence = await getRiderPresence(riderKey);
+  const row = presence as typeof presence & {
+    emoji?: string | null;
+    avatar_path?: string | null;
+    email?: string | null;
+  };
   return {
-    rider: mapRiderProfile(rider),
+    rider: {
+      ...profile,
+      name: presence.display_name || profile.name,
+      emoji: (row.emoji && String(row.emoji).trim()) || profile.emoji,
+      avatarUrl: row.avatar_path ? riderAvatarPublicUrl(row.avatar_path) : profile.avatarUrl,
+      active: presence.rider_active === true,
+      email: row.email || null,
+    },
     ratings,
     slug: IANGEL_SLUG,
   };

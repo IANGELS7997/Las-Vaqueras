@@ -47,9 +47,9 @@ async function main() {
   });
   assert(already === null, 'si ya hay delivery_id no se duplica');
 
-  const farLat = 28.72;
+  const farLat = 28.75;
   const farLng = -106.108617;
-  assert(metersFromStore(farLat, farLng) > SERVICE_MAX_M, 'el punto de prueba queda a más de 5.5 km');
+  assert(metersFromStore(farLat, farLng) > SERVICE_MAX_M, 'el punto de prueba queda a más de 6.5 km');
   const tooFar = await dispatchUberDirectAfterPayment({
     orderId: '00000000-0000-0000-0000-000000000004',
     fulfillment: 'delivery',
@@ -61,7 +61,7 @@ async function main() {
     customerName: 'Prueba',
     items: [],
   });
-  assert(tooFar?.dispatch_status === 'needs_n8n_uber', 'más de 5500 m no crea courier');
+  assert(tooFar?.dispatch_status === 'needs_n8n_uber', 'más de 6500 m no crea courier');
 
   console.log('uber-dispatch tests: ok');
 }

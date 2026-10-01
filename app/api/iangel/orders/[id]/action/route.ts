@@ -19,7 +19,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const denied = await requireIangel(req);
   if (denied) return denied;
   const riderKey = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
-  const body = (await req.json().catch(() => ({}))) as { action?: string; pin?: string };
+  const body = (await req.json().catch(() => ({}))) as { action?: string; pin?: string; hasDoorPhoto?: boolean };
   const supabase = createAdminSupabase();
   const found = await supabase.from('orders').select('*').eq('id', params.id).maybeSingle();
   if (!found.data) return iangelJson(req, { error: 'Pedido no encontrado' }, 404);
@@ -34,6 +34,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (actionName === 'incident') {
       return iangelJson(req, { error: 'Usa Ayuda para reportar. El viaje no se cierra desde aquí.' }, 400);
     }
+    if (actionName === 'deliver' && row.leave_at_door === true && body.hasDoorPhoto !== true) {
+      return iangelJson(req, { error: 'Toma la foto de la puerta antes de cerrar el viaje.' }, 400);
+    }
     const presence = await getRiderPresence(riderKey);
     const locked = String((presence as { help_lock_note?: string | null }).help_lock_note || '').trim();
     const claim = !owner && actionName !== 'paid_cash';
@@ -44,6 +47,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       patch.status = 'delivered';
       patch.dispatch_status = 'delivered';
       patch.rider_status = 'idle';
+      if (row.leave_at_door === true) patch.door_photo_at = new Date().toISOString();
     }
     if (!row.short_code) {
       patch.short_code = String(row.id).replace(/-/g, '').slice(0, 4).toUpperCase();

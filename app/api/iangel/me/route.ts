@@ -1,5 +1,5 @@
 import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
-import { mapRiderProfile, RIDER_EMOJIS } from '@/lib/iangel-profile';
+import { mapRiderProfile, riderAvatarPublicUrl, RIDER_EMOJIS } from '@/lib/iangel-profile';
 import { saveRiderPushSubscription } from '@/lib/iangel-push';
 import { activeRiderKeys, getRiderPresence, listRiderPresence, mirrorServiceActive, saveRiderPresence } from '@/lib/iangel-presence';
 import { getOrCreateRider } from '@/lib/iangel-state';
@@ -29,12 +29,21 @@ async function riderView(req: Request) {
   const key = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
   const [shared, presence] = await Promise.all([getOrCreateRider(), getRiderPresence(key)]);
   const view = mapRider(shared);
-  const lock = String((presence as { help_lock_note?: string | null }).help_lock_note || '').trim();
+  const row = presence as typeof presence & {
+    help_lock_note?: string | null;
+    emoji?: string | null;
+    avatar_path?: string | null;
+    email?: string | null;
+  };
+  const lock = String(row.help_lock_note || '').trim();
   return {
     ...view,
     active: lock ? false : presence.rider_active === true,
     name: presence.display_name || view.name,
-    uberDirectAllowed: key === ANGEL_RIDER_KEY,
+    emoji: (row.emoji && String(row.emoji).trim()) || view.emoji,
+    avatarUrl: row.avatar_path ? riderAvatarPublicUrl(row.avatar_path) : view.avatarUrl,
+    email: row.email || null,
+    uberDirectAllowed: false,
     helpLock: lock || null,
   };
 }
@@ -60,6 +69,7 @@ export async function PATCH(req: Request) {
     push_subscription?: unknown;
     display_name?: string;
     emoji?: string;
+    contact_email?: string;
   };
   const riderKey = riderKeyFromRequest(req) || ANGEL_RIDER_KEY;
   const rider = await getOrCreateRider();
@@ -90,7 +100,13 @@ export async function PATCH(req: Request) {
   if (typeof body.emoji === 'string') {
     const emoji = body.emoji.trim().slice(0, 8);
     if ((RIDER_EMOJIS as readonly string[]).includes(emoji) || emoji.length > 0) {
-      patch.emoji = emoji || '🛵';
+      await saveRiderPresence(riderKey, { emoji: emoji || '🛵' });
+    }
+  }
+  if (typeof body.contact_email === 'string') {
+    const email = body.contact_email.trim().toLowerCase().slice(0, 120);
+    if (email.includes('@') && email.includes('.')) {
+      await saveRiderPresence(riderKey, { email });
     }
   }
   if (body.push_subscription !== undefined) {

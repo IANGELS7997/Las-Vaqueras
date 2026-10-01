@@ -17,7 +17,7 @@ import {
   type HelpPay,
   type HelpStep,
 } from '@/lib/rider-help';
-import { sendHelpEmails } from '@/lib/help-email';
+import { sendDoorDecisionEmails, sendHelpEmails } from '@/lib/help-email';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 
 type OrderRow = Record<string, unknown>;
@@ -253,6 +253,73 @@ export async function payHelpAtRegister(supabase: SupabaseClient, orderId: strin
   return { ok: true, amount: Number(row.rider_due_mxn || 0) };
 }
 
+async function resolveDoorMissing(
+  supabase: SupabaseClient,
+  row: Record<string, unknown>,
+  decision: 'approved' | 'rejected'
+) {
+  const orderId = String(row.order_id || '');
+  const order = await supabase
+    .from('orders')
+    .select('total_charged, customer_email, customer_name, short_code, pay_method')
+    .eq('id', orderId)
+    .maybeSingle();
+  if (order.error) throw new Error(order.error.message);
+  const total = Math.max(0, Math.round(Number(order.data?.total_charged || 0)));
+  const debt = decision === 'approved' ? total : 0;
+  const lockText =
+    debt > 0
+      ? `Debes $${debt} porque el pedido no se dejó en la puerta. No puedes conectarte ni recibir pedidos nuevos hasta pagarlo. Paga ese monto en la tienda o por transferencia y avisa en este chat cuando esté pagado.`
+      : '';
+  const updated = await supabase
+    .from('rider_help_reports')
+    .update({
+      resolution: decision,
+      phase: 'resolved',
+      rider_due_mxn: debt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', String(row.id));
+  if (updated.error) throw new Error(updated.error.message);
+  if (debt > 0) {
+    await saveRiderPresence(String(row.rider_key), {
+      help_lock_note: lockText,
+      help_lock_order_id: orderId,
+      rider_active: false,
+    });
+    await supabase.from('order_messages').insert({
+      order_id: orderId,
+      actor: 'system',
+      kind: 'system',
+      body: lockText,
+    });
+    const short = String(order.data?.short_code || orderId.replace(/-/g, '').slice(0, 4)).toUpperCase();
+    void sendDoorDecisionEmails({
+      orderId,
+      shortCode: short,
+      amount: debt,
+      customerEmail: typeof order.data?.customer_email === 'string' ? order.data.customer_email : null,
+      customerName: String(order.data?.customer_name || ''),
+      payMethod: String(order.data?.pay_method || 'card'),
+    }).catch(() => undefined);
+  }
+  void notifyIangelHelp({
+    reportId: String(row.id),
+    externalId: orderId,
+    kind: 'door_missing',
+    label: 'No dejaron el pedido en la puerta',
+    phase: 'resolved',
+    payMethod: String(order.data?.pay_method || 'card'),
+    foodMxn: 0,
+    riderDueMxn: debt,
+    customerDueMxn: debt,
+    note: String(row.note || ''),
+    resolution: decision,
+    detail: lockText,
+  }).catch(() => undefined);
+  return { ok: true, decision, kitchenPay: 0, debt };
+}
+
 export async function resolveHelpReport(
   supabase: SupabaseClient,
   reportId: string,
@@ -262,6 +329,9 @@ export async function resolveHelpReport(
   if (found.error) throw new Error(found.error.message);
   if (!found.data) throw new Error('Reporte no encontrado');
   const row = found.data;
+  if (String(row.kind || '') === 'door_missing') {
+    return resolveDoorMissing(supabase, row, decision);
+  }
   const kind = String(row.kind || '') as HelpKind;
   const pay: HelpPay = row.pay_method === 'cash' ? 'cash' : 'card';
   const food = Number(row.food_mxn || 0);
