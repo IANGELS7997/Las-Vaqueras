@@ -1,3 +1,4 @@
+import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { GIFT_EMAIL_ARRIVAL, GIFT_EMAIL_FINAL } from '@/lib/gift-checkout';
 import { JUMBO_PRODUCT_NAME } from '@/lib/loyalty';
 import { formatMXN } from '@/lib/pricing';
@@ -14,9 +15,7 @@ export async function sendGiftOrderEmail(input: {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
   if (!key || !to) return { ok: false };
-  const track =
-    `https://lasvaqueras.com.mx/orders/${input.orderId}` +
-    (input.token ? `?s=${encodeURIComponent(input.token)}` : '');
+  const track = customerOrderUrl(input.orderId, input.token);
   const when =
     input.fulfillment === 'pickup' && input.pickupAt
       ? `Recoger en tienda · ${new Date(input.pickupAt).toLocaleString('es-MX', {
@@ -35,9 +34,7 @@ export async function sendGiftOrderEmail(input: {
 <p>${GIFT_EMAIL_FINAL}</p>
 <p style="font-weight:700;">${when}</p>
 <p>Orden #${input.orderId.slice(0, 8)} · ${total}</p>
-<div style="text-align:center;margin:20px 0;">
-<a href="${track}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Ver mi pedido</a>
-</div>
+${customerMailButtons(track)}
 <p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
@@ -51,7 +48,7 @@ export async function sendGiftOrderEmail(input: {
       to: [to],
       subject: 'Pedido de promoción confirmado · Las Vaqueras',
       html,
-      text: `Canjeaste ${JUMBO_PRODUCT_NAME} de regalo. ${GIFT_EMAIL_ARRIVAL} ${GIFT_EMAIL_FINAL} Pedido ${input.orderId.slice(0, 8)}. ${when} ${total}. Ver: ${track}`,
+      text: `Canjeaste ${JUMBO_PRODUCT_NAME} de regalo. ${GIFT_EMAIL_ARRIVAL} ${GIFT_EMAIL_FINAL} Pedido ${input.orderId.slice(0, 8)}. ${when} ${total}. ${customerMailLinksText(track)}`,
     }),
   });
   return { ok: response.ok };

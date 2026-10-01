@@ -179,8 +179,6 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           Ir al inicio
         </button>
       </div>
-      {status !== 'awaiting_payment' ? <PwaInstallHint /> : null}
-
       {status === 'awaiting_payment' ? (
         <div className="mt-8 rounded-2xl border border-border/60 bg-card p-6 text-center">
           <p className="text-lg font-bold text-white">Pago pendiente</p>
@@ -322,6 +320,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           </p>
         </div>
       </div>
+      {status !== 'awaiting_payment' ? <PwaInstallHint /> : null}
     </div>
   );
 }

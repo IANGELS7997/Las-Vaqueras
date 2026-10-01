@@ -1,3 +1,5 @@
+import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+
 const SITE = 'https://lasvaqueras.com.mx';
 
 export const UBER_TRACK_SUBJECT = 'Sigue tu pedido con Uber Direct · Las Vaqueras';
@@ -44,9 +46,7 @@ export async function sendUberTrackingEmail(input: {
   const to = input.to.trim();
   const tracking = uberTrackingHref(input.trackingUrl);
   if (!key || !to.includes('@') || !tracking) return { ok: false as const };
-  const orderUrl =
-    `${SITE}/orders/${input.orderId}` +
-    (input.token ? `?s=${encodeURIComponent(input.token)}` : '');
+  const orderUrl = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
 <img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
@@ -56,9 +56,7 @@ export async function sendUberTrackingEmail(input: {
 <div style="text-align:center;margin:20px 0;">
 <a href="${esc(tracking)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Seguir con Uber Direct</a>
 </div>
-<div style="text-align:center;margin:0 0 20px;">
-<a href="${esc(orderUrl)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Ver mi pedido</a>
-</div>
+${customerMailButtons(orderUrl)}
 <p>Las Vaqueras<br/>Rio de Janeiro 903, Panamericana, Chihuahua</p>
 </div>`;
   const response = await fetch('https://api.resend.com/emails', {
@@ -72,7 +70,7 @@ export async function sendUberTrackingEmail(input: {
       to: [to],
       subject: UBER_TRACK_SUBJECT,
       html,
-      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${UBER_TRACK_LINE} ${tracking}`,
+      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${UBER_TRACK_LINE} ${tracking}\n${customerMailLinksText(orderUrl)}`,
     }),
   });
   return { ok: response.ok };

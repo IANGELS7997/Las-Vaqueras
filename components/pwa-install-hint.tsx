@@ -8,45 +8,65 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
-export function PwaInstallHint() {
+function isInstalled() {
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  return window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true;
+}
+
+export function PwaInstallHint({ autoPrompt = false }: { autoPrompt?: boolean }) {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     const ua = window.navigator.userAgent;
-    setIsIos(/iPad|iPhone|iPod/.test(ua) && !('MSStream' in window));
+    const ios = /iPad|iPhone|iPod/.test(ua) && !('MSStream' in window);
+    setIsIos(ios);
+    if (isInstalled()) {
+      setInstalled(true);
+      return;
+    }
+    if (ios && autoPrompt) {
+      setNote('En iPhone: Compartir → Agregar a pantalla de inicio');
+    }
     const onPrompt = (event: Event) => {
       event.preventDefault();
-      setInstallEvent(event as BeforeInstallPromptEvent);
+      const promptEvent = event as BeforeInstallPromptEvent;
+      setInstallEvent(promptEvent);
+      if (autoPrompt) {
+        void promptEvent.prompt().finally(() => setInstallEvent(null));
+      }
     };
     window.addEventListener('beforeinstallprompt', onPrompt);
     return () => window.removeEventListener('beforeinstallprompt', onPrompt);
-  }, []);
+  }, [autoPrompt]);
+
+  if (installed) {
+    if (!autoPrompt) return null;
+    return <p className="text-sm text-muted-foreground">Las Vaqueras ya está en tu inicio.</p>;
+  }
 
   return (
-    <div className="mt-6 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-4 text-center">
-      <p className="text-sm font-semibold text-white">
-        Agrega la app a tu pantalla de inicio para seguir tus pedidos y promociones
-      </p>
-      {installEvent ? (
-        <Button
-          className="mt-3 bg-brand-500 text-white hover:bg-brand-600"
-          onClick={async () => {
-            await installEvent.prompt();
-            setInstallEvent(null);
-          }}
-        >
-          Agregar a inicio
-        </Button>
-      ) : isIos ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          En iPhone: Compartir → Agregar a pantalla de inicio
-        </p>
-      ) : (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Desde el menú del navegador, elige Agregar a la pantalla de inicio
-        </p>
-      )}
+    <div className="mt-4">
+      <Button
+        type="button"
+        className="w-full bg-brand-500 text-white hover:bg-brand-600"
+        onClick={() => {
+          if (installEvent) {
+            void installEvent.prompt().finally(() => setInstallEvent(null));
+            return;
+          }
+          setNote(
+            isIos
+              ? 'En iPhone: Compartir → Agregar a pantalla de inicio'
+              : 'Desde el menú del navegador, elige Agregar a la pantalla de inicio'
+          );
+        }}
+      >
+        Agregar app al inicio
+      </Button>
+      {note ? <p className="mt-2 text-center text-xs text-muted-foreground">{note}</p> : null}
     </div>
   );
 }

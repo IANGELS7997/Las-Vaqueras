@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { CartItem } from '@/types';
 import { readCustomerIdFromRequest } from '@/lib/customer-auth';
 import { sendGiftOrderEmail } from '@/lib/gift-order-email';
+import { sendCustomerTicket } from '@/lib/ticket-email';
 import { isFulfillmentMode } from '@/lib/fulfillment';
 import { resolveGiftCart } from '@/lib/gift-cart';
 import { normalizePhone } from '@/lib/loyalty';
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
     pickupAt,
     totalCharged: 0,
   });
+  await sendCustomerTicket({ ...(insert.data as DbOrderRow), profile_login_token: token });
 
   return NextResponse.json({
     order: mapDbOrder(insert.data as DbOrderRow),
