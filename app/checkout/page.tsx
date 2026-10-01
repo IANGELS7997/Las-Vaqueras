@@ -50,11 +50,18 @@ import {
   type LoyaltyKind,
 } from '@/lib/loyalty';
 import { generatePickupSlots, PICKUP_LEAD_MINUTES } from '@/lib/pickup-slots';
-import { FINAL_SALE_CONSENT } from '@/lib/final-sale';
+import { CASH_CONFIRM_BODY, FINAL_SALE_CONSENT } from '@/lib/final-sale';
 import { branchById, isBranchOpen } from '@/lib/branches';
 import type { Order } from '@/types';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const PENDING_KEY = 'lv_pending_checkout';
 const EMAIL_READY = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -134,6 +141,8 @@ export default function CheckoutPage() {
     percentLabel: string;
   } | null>(null);
   const [payChoice, setPayChoice] = useState<'card' | 'cash'>('card');
+  const [cashConfirmOpen, setCashConfirmOpen] = useState(false);
+  const [switchingPay, setSwitchingPay] = useState(false);
   const [giftMode, setGiftMode] = useState(() => readGiftRedeem() === 'jumbo');
 
   const priceBaseTotal = calcCartBaseTotal(items);
@@ -486,6 +495,46 @@ export default function CheckoutPage() {
       !(isPickup && pickupSlots.length === 0)
   );
 
+  const chooseCash = async () => {
+    if (!cashClickable || switchingPay) return;
+    if (paymentIntentId) {
+      setSwitchingPay(true);
+      setPayError('');
+      const response = await fetch('/api/checkout/abandon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      setSwitchingPay(false);
+      if (!response.ok) {
+        setPayError(payload.error || 'No se pudo cambiar a efectivo. El pago con tarjeta sigue abierto.');
+        return;
+      }
+      sessionStorage.removeItem(PENDING_KEY);
+      setClientSecret('');
+      setPaymentIntentId('');
+    }
+    setPayChoice('cash');
+  };
+
+  const reviewCashDetails = () => {
+    setCashConfirmOpen(false);
+    window.setTimeout(() => {
+      document.getElementById('datos-cliente')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 280);
+  };
+
+  const requestPayment = () => {
+    if (items.length === 0 || !mode || !canStartPayment) return;
+    if (!validate()) return;
+    if (cashClickable && payChoice === 'cash' && !isGiftCheckout) {
+      setCashConfirmOpen(true);
+      return;
+    }
+    void startPayment();
+  };
+
   const startPayment = async () => {
     if (items.length === 0 || !mode || !canStartPayment) return;
     if (!validate()) return;
@@ -737,7 +786,10 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/60 bg-card p-4">
+          <div
+            id="datos-cliente"
+            className="scroll-mt-[var(--lv-header-h,10.5rem)] rounded-2xl border border-border/60 bg-card p-4"
+          >
             <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-white">
               <User className="h-4 w-4 text-brand-500" />
               {isPickup ? 'Información de recoger' : 'Información de entrega'}
@@ -1006,7 +1058,54 @@ export default function CheckoutPage() {
             <p className="mb-4 rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-sm leading-relaxed text-muted-foreground">
               {farZone ? COPY.etaFar : COPY.eta45}
             </p>
-            {clientSecret ? (
+            {bagBlocked ? (
+              <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+                <p className="text-sm font-semibold text-amber-200">{BAG_LIMIT_TITLE}</p>
+                <p className="mt-1 text-sm leading-relaxed text-amber-100/90">{BAG_LIMIT_BODY}</p>
+              </div>
+            ) : null}
+            {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
+            {!isFreeGift ? (
+              <div className="mb-4 space-y-2">
+                <p className="text-sm font-semibold text-white">Cómo pagas</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPayChoice('card')}
+                    className={cn(
+                      'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
+                      payChoice === 'card'
+                        ? 'border-brand-500 bg-brand-500 text-white'
+                        : 'border-border bg-card text-muted-foreground'
+                    )}
+                  >
+                    Tarjeta
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!cashClickable || switchingPay}
+                    onClick={() => {
+                      void chooseCash();
+                    }}
+                    className={cn(
+                      'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50',
+                      payChoice === 'cash'
+                        ? 'border-brand-500 bg-brand-500 text-white'
+                        : 'border-border bg-card text-muted-foreground'
+                    )}
+                  >
+                    Pago en efectivo
+                  </button>
+                </div>
+                {cashLock ? <p className="text-xs leading-relaxed text-muted-foreground">{cashLock}</p> : null}
+                {cashClickable && payChoice === 'cash' ? (
+                  <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                    {cashPaySummary(split.subtotalWeb, mode, quotedFee)}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {clientSecret && payChoice === 'card' ? (
               <CheckoutPayment
                 clientSecret={clientSecret}
                 pending={{
@@ -1039,54 +1138,6 @@ export default function CheckoutPage() {
               />
             ) : (
               <div>
-                {bagBlocked ? (
-                  <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
-                    <p className="text-sm font-semibold text-amber-200">{BAG_LIMIT_TITLE}</p>
-                    <p className="mt-1 text-sm leading-relaxed text-amber-100/90">{BAG_LIMIT_BODY}</p>
-                  </div>
-                ) : null}
-                {payError && <p className="mb-3 text-sm text-red-400">{payError}</p>}
-                {!isFreeGift ? (
-                  <div className="mb-4 space-y-2">
-                    <p className="text-sm font-semibold text-white">Cómo pagas</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPayChoice('card')}
-                        className={cn(
-                          'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
-                          payChoice === 'card'
-                            ? 'border-brand-500 bg-brand-500 text-white'
-                            : 'border-border bg-card text-muted-foreground'
-                        )}
-                      >
-                        Tarjeta
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!cashClickable}
-                        onClick={() => {
-                          if (!cashClickable) return;
-                          setPayChoice('cash');
-                        }}
-                        className={cn(
-                          'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50',
-                          payChoice === 'cash'
-                            ? 'border-brand-500 bg-brand-500 text-white'
-                            : 'border-border bg-card text-muted-foreground'
-                        )}
-                      >
-                        Pago en efectivo
-                      </button>
-                    </div>
-                    {cashLock ? <p className="text-xs leading-relaxed text-muted-foreground">{cashLock}</p> : null}
-                    {cashClickable && payChoice === 'cash' ? (
-                      <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                        {cashPaySummary(split.subtotalWeb, mode, quotedFee)}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
                 <label className="mb-4 flex items-start gap-3 text-sm text-muted-foreground">
                   <Checkbox
                     checked={acceptFinalSale}
@@ -1099,7 +1150,6 @@ export default function CheckoutPage() {
                       });
                     }}
                     className="mt-0.5 border-border"
-                    disabled={Boolean(clientSecret)}
                   />
                   <span>
                     {isGiftCheckout
@@ -1115,7 +1165,7 @@ export default function CheckoutPage() {
                   <p className="mb-3 text-xs text-red-400">{errors.acceptFinalSale}</p>
                 )}
                 <Button
-                  onClick={startPayment}
+                  onClick={requestPayment}
                   disabled={creatingIntent || !canStartPayment}
                   className="w-full bg-brand-500 text-white hover:bg-brand-600"
                   size="lg"
@@ -1212,6 +1262,36 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+      <Dialog open={cashConfirmOpen} onOpenChange={setCashConfirmOpen}>
+        <DialogContent className="max-w-md rounded-2xl border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-white">Pago en efectivo</DialogTitle>
+            <DialogDescription className="text-base leading-relaxed">
+              {CASH_CONFIRM_BODY}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={reviewCashDetails}
+            >
+              Revisar datos
+            </Button>
+            <Button
+              type="button"
+              className="w-full bg-brand-500 text-white hover:bg-brand-600"
+              onClick={() => {
+                setCashConfirmOpen(false);
+                void startPayment();
+              }}
+            >
+              Sí, confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
