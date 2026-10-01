@@ -1,5 +1,5 @@
 import { calcCustomerDeliveryFee } from '@/lib/delivery-tarifa';
-import { SELF_FEE_MXN, type DeliveryProvider } from '@/lib/iangel-constants';
+import { OUTER_FEE_MXN, SELF_FEE_MXN, type DeliveryProvider } from '@/lib/iangel-constants';
 import {
   allocateFoodStripe,
   calcCustomerFee,
@@ -79,7 +79,7 @@ export function calcCheckoutSplit({
   const customerFee = calcCustomerFee(subtotalWeb);
   const shareBase = ownerAbsorbsDiscount ? priceBaseTotal : chargedBase;
   const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'self';
-  const foodShare = kind === 'pickup' || kind === 'self' || kind === 'wait_self';
+  const foodShare = kind === 'pickup' || kind === 'self' || kind === 'wait_self' || kind === 'managed';
   const rawUber = uberFee ?? 0;
   const routedFee =
     typeof legacyDeliveryFee === 'number' && Number.isFinite(legacyDeliveryFee) && legacyDeliveryFee > 0
@@ -87,7 +87,10 @@ export function calcCheckoutSplit({
       : SELF_FEE_MXN;
 
   let delivery = { deliveryFee: 0, deliveryDiscount: 0, uberFee: 0 };
-  if (kind === 'self' || kind === 'wait_self') {
+  if (kind === 'managed') {
+    const managedFee = routedFee > 0 && routedFee !== SELF_FEE_MXN ? routedFee : OUTER_FEE_MXN;
+    delivery = { deliveryFee: managedFee, deliveryDiscount: 0, uberFee: 0 };
+  } else if (kind === 'self' || kind === 'wait_self') {
     delivery = { deliveryFee: routedFee, deliveryDiscount: 0, uberFee: 0 };
   } else if (kind === 'uber') {
     const priced = calcCustomerDeliveryFee({ uberFee: rawUber });
@@ -103,7 +106,9 @@ export function calcCheckoutSplit({
     const ownerFood = Number(Math.max(0, subtotalWeb - developerGross).toFixed(2));
     const allocated = allocateFoodStripe(stripeFee, developerGross, ownerFood);
     stripeShare = allocated.ownerStripe;
-    restaurantPayout = Number(Math.max(0, ownerFood - allocated.ownerStripe).toFixed(2));
+    const ownerNet = Number(Math.max(0, ownerFood - allocated.ownerStripe).toFixed(2));
+    restaurantPayout =
+      kind === 'managed' ? Number((ownerNet + delivery.deliveryFee).toFixed(2)) : ownerNet;
   } else {
     const restaurantGross = calcRestaurantPayout(shareBase);
     stripeShare = calcStripeShare(totalCharged);

@@ -17,6 +17,10 @@ const base = {
 assert.equal(paidOrderStatusFields({ fulfillment: 'pickup' }).status, 'preparing');
 assert.equal(paidOrderStatusFields({ fulfillment: 'delivery' }).dispatch_status, 'self_iangel');
 assert.equal(
+  paidOrderStatusFields({ fulfillment: 'delivery', deliveryProvider: 'managed' }).dispatch_status,
+  'managed'
+);
+assert.equal(
   paidOrderStatusFields({ fulfillment: 'delivery', deliveryProvider: 'uber' }).dispatch_status,
   'needs_n8n_uber'
 );

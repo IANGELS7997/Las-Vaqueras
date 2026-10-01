@@ -59,6 +59,9 @@ export function paidOrderStatusFields(input: {
   if (input.deliveryProvider === 'uber') {
     return { status: 'preparing', dispatch_status: 'needs_n8n_uber' };
   }
+  if (input.deliveryProvider === 'managed') {
+    return { status: 'preparing', dispatch_status: 'managed' };
+  }
   return { status: 'preparing', dispatch_status: 'self_iangel' };
 }
 

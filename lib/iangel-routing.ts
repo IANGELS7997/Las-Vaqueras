@@ -2,7 +2,6 @@ import {
   FAR_NOTICE_MIN_M,
   OUTER_FEE_MXN,
   SELF_FEE_MXN,
-  SELF_MAX_M,
   SERVICE_MAX_M,
   UBER_MIN_M,
   type DeliveryProvider,
@@ -45,38 +44,47 @@ export type RoutingResult = {
   farZone: boolean;
 };
 
-function selfOption(fee = SELF_FEE_MXN): RoutingOption {
+function selfOption(): RoutingOption {
   return {
     kind: 'self',
-    customerFee: fee,
+    customerFee: SELF_FEE_MXN,
     uberFee: 0,
-    title: fee === SELF_FEE_MXN ? COPY.selfTitle : `Envío IANGEL · $${fee}`,
+    title: COPY.selfTitle,
     body: COPY.selfBody,
   };
 }
 
-function waitOption(fee = SELF_FEE_MXN): RoutingOption {
+function waitOption(): RoutingOption {
   return {
     kind: 'wait_self',
-    customerFee: fee,
+    customerFee: SELF_FEE_MXN,
     uberFee: 0,
-    title: fee === SELF_FEE_MXN ? COPY.waitTitle : `Envío IANGEL · $${fee}`,
+    title: COPY.waitTitle,
     body: COPY.waitBody,
   };
 }
 
+function managedOption(): RoutingOption {
+  return {
+    kind: 'managed',
+    customerFee: OUTER_FEE_MXN,
+    uberFee: 0,
+    title: COPY.managedTitle,
+    body: COPY.managedBody,
+  };
+}
+
 /**
- * IANGEL $50 en 0–4000 m y $55 en 4001–6500 m, en turno y con rider activo.
- * Ocupado: el mismo precio, con aviso de espera.
- * Fuera de turno o sin rider: solo recoger en tienda.
- * Más de 6500 m: sin domicilio.
+ * 0–4000 m: IANGEL $50, en turno y con rider activo.
+ * 4001–6500 m: envío $55 gestionado en cocina. No entra a la app y no depende del rider.
+ * Fuera de turno: solo recoger. Más de 6500 m: sin domicilio.
  */
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
   const meters = Math.max(0, Math.round(input.meters));
   const inShift = isIangelShift(input.now);
   const covered = meters <= SERVICE_MAX_M;
-  const fee = meters <= SELF_MAX_M ? SELF_FEE_MXN : OUTER_FEE_MXN;
-  const farZone = meters >= FAR_NOTICE_MIN_M && meters >= UBER_MIN_M;
+  const outer = meters >= UBER_MIN_M && meters <= SERVICE_MAX_M;
+  const farZone = meters >= FAR_NOTICE_MIN_M && outer;
 
   const base = {
     meters,
@@ -101,14 +109,27 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
 
   if (!covered) return blocked(COPY.tooFar);
   if (!inShift) return blocked(COPY.outOfShift);
+
+  if (outer) {
+    return {
+      ...base,
+      farZone,
+      defaultKind: 'managed',
+      options: [managedOption()],
+      allowSelf: false,
+      allowUber: false,
+      allowWait: false,
+    };
+  }
+
   if (!input.riderActive) return blocked(COPY.inactive);
 
   if (input.riderBusy) {
     return {
       ...base,
-      farZone,
+      farZone: false,
       defaultKind: 'wait_self',
-      options: [waitOption(fee)],
+      options: [waitOption()],
       allowSelf: false,
       allowUber: false,
       allowWait: true,
@@ -117,9 +138,9 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
 
   return {
     ...base,
-    farZone,
+    farZone: false,
     defaultKind: 'self',
-    options: [selfOption(fee)],
+    options: [selfOption()],
     allowSelf: true,
     allowUber: false,
     allowWait: false,

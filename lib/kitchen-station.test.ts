@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   isKitchenStationOnline,
+  shiftNoticeKind,
   shouldSendOfflineAlert,
   shouldSendOrderOfflineAlert,
   viewKitchenStation,
@@ -33,5 +34,10 @@ assert.equal(isKitchenStationOnline(offlineRow, now), false);
 assert.equal(viewKitchenStation(offlineRow, now).shiftActive, true);
 assert.equal(shouldSendOfflineAlert(offlineRow, now), true);
 assert.equal(shouldSendOrderOfflineAlert(offlineRow, now), true);
+
+assert.equal(shiftNoticeKind(false, true), 'open');
+assert.equal(shiftNoticeKind(true, false), 'close');
+assert.equal(shiftNoticeKind(true, true), null);
+assert.equal(shiftNoticeKind(false, false), null);
 
 console.log('kitchen-station.test.ts ok');

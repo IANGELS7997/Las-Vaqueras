@@ -60,3 +60,12 @@ export function customerMailLinksText(orderUrl: string) {
   const install = installUrlForOrderLink(orderUrl);
   return `Ver mi pedido: ${orderUrl}\nAgregar app al inicio: ${install}`;
 }
+
+export const DEVELOPER_ORDER_COPY = 'iangels7997@gmail.com';
+
+/** Copia interna de cada correo que recibe el cliente. */
+export function customerCopyBcc(to: string): string[] | undefined {
+  const dest = to.trim().toLowerCase();
+  if (!dest.includes('@') || dest === DEVELOPER_ORDER_COPY) return undefined;
+  return [DEVELOPER_ORDER_COPY];
+}

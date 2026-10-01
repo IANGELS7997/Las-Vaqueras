@@ -16,7 +16,7 @@ export default function TermsPage() {
     {
       title: '3. Precios y pagos',
       content:
-        'En recoger, el envío es $0. En domicilio de 0 a 4000 m y en turno IANGEL (12:00–21:00), el envío es $50. De 4001 a 6500 m el envío IANGEL es $55. Si el rider está ocupado, el precio es el mismo y el pedido puede esperar. Más de 6500 m no hay domicilio; puede recoger en tienda. Fuera de turno no hay domicilio. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista, salvo el efectivo en tienda o en envío IANGEL.',
+        'En recoger, el envío es $0. En domicilio de 0 a 4000 m y en horario 12:00–21:00, el envío es $50. De 4001 a 6500 m el envío es $55 y solo se paga con tarjeta. Si el rider está ocupado, en 0 a 4000 m el precio es el mismo y el pedido puede esperar. Más de 6500 m no hay domicilio; puede recoger en tienda. Fuera de ese horario no hay domicilio. Todos los precios están expresados en pesos mexicanos (MXN). El pago en línea es requisito para que el pedido exista, salvo el efectivo en tienda o en envío de 0 a 4000 m.',
     },
     {
       title: '4. Pedidos confirmados',

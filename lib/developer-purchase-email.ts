@@ -29,6 +29,7 @@ function money(value: number | string | null | undefined) {
 function whoDelivers(row: NoticeRow) {
   if ((row.fulfillment_type || '') === 'pickup') return 'Recoger en tienda';
   if (row.delivery_provider === 'uber') return 'Uber Direct';
+  if (row.delivery_provider === 'managed') return 'Gestionar pedido';
   return 'IANGEL';
 }
 
