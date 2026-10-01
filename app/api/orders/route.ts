@@ -44,12 +44,13 @@ function reportNoticeFailure(err: unknown) {
 function maybeNotifyPaidOrder(row: TicketOrder) {
   void sendDeveloperPurchaseNotice(row).catch(reportNoticeFailure);
   void sendCustomerTicket(row).catch(reportNoticeFailure);
+  if (String(row.status || '') === 'awaiting_payment') return;
+  void notifyIangelOpsOrder(row as DbOrderRow & IangelOpsRow).catch(reportNoticeFailure);
   if (String(row.dispatch_status || '') !== 'self_iangel') return;
   void notifyIangelNewOrder({
     code: row.short_code,
     customer: row.customer_name,
   }).catch(reportNoticeFailure);
-  void notifyIangelOpsOrder(row as DbOrderRow & IangelOpsRow).catch(reportNoticeFailure);
 }
 
 function isValidEmail(value: string): boolean {
