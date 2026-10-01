@@ -110,6 +110,11 @@ export function CustomerAccountSheet() {
 
   useEffect(() => {
     void restoreSession();
+    const onSession = () => {
+      void loadMe();
+    };
+    window.addEventListener('lv-customer-session', onSession);
+    return () => window.removeEventListener('lv-customer-session', onSession);
   }, []);
 
   useEffect(() => {
@@ -308,9 +313,14 @@ export function CustomerAccountSheet() {
             ) : null}
             {error ? <p className="text-sm text-red-400">{error}</p> : null}
             {isOpen ? (
-              <Button type="submit" className="w-full bg-brand-500 text-white hover:bg-brand-600" disabled={loading}>
-                {loading ? 'Buscando…' : 'Ver mi perfil'}
-              </Button>
+              <>
+                <Button type="submit" className="w-full bg-brand-500 text-white hover:bg-brand-600" disabled={loading}>
+                  {loading ? 'Buscando…' : 'Ver mi perfil'}
+                </Button>
+                <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                  Ingresa el nombre, apellido y teléfono de tu primer pedido para iniciar sesión.
+                </p>
+              </>
             ) : (
               <>
                 <Button
@@ -330,6 +340,9 @@ export function CustomerAccountSheet() {
                 >
                   Ya tengo perfil · entrar
                 </Button>
+                <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                  Ingresa el nombre, apellido y teléfono de tu primer pedido para iniciar sesión.
+                </p>
                 <p className="text-xs text-muted-foreground">
                   El pedido se habilita cuando abramos. Crear perfil no inicia un pedido.
                 </p>

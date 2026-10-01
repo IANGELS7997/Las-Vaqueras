@@ -19,10 +19,32 @@ export function customerOrderUrl(orderId: string, token?: string | null) {
   return `${CUSTOMER_SITE}/orders/${id}` + (secret ? `?s=${encodeURIComponent(secret)}` : '');
 }
 
+/** Mismo acceso del pedido, para que instalar entre con su perfil. */
+export function customerInstallUrl(orderId: string, token?: string | null) {
+  const id = String(orderId || '').trim();
+  const secret = String(token || '').trim();
+  const params = new URLSearchParams();
+  if (id) params.set('pedido', id);
+  if (secret) params.set('s', secret);
+  const query = params.toString();
+  return query ? `${INSTALL_APP_URL}?${query}` : INSTALL_APP_URL;
+}
+
+function installUrlForOrderLink(orderUrl: string) {
+  try {
+    const url = new URL(orderUrl);
+    const parts = url.pathname.split('/').filter(Boolean);
+    const id = parts[0] === 'orders' ? parts[1] || '' : '';
+    return customerInstallUrl(id, url.searchParams.get('s'));
+  } catch {
+    return INSTALL_APP_URL;
+  }
+}
+
 /** Los dos botones que van juntos en cada correo del cliente. */
 export function customerMailButtons(orderUrl: string) {
   const order = escMail(orderUrl);
-  const install = escMail(INSTALL_APP_URL);
+  const install = escMail(installUrlForOrderLink(orderUrl));
   return `<div style="text-align:center;margin:20px 0;">
 <a href="${order}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin:4px;">Ver mi pedido</a>
 <a href="${install}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin:4px;">Agregar app al inicio</a>
@@ -30,5 +52,6 @@ export function customerMailButtons(orderUrl: string) {
 }
 
 export function customerMailLinksText(orderUrl: string) {
-  return `Ver mi pedido: ${orderUrl}\nAgregar app al inicio: ${INSTALL_APP_URL}`;
+  const install = installUrlForOrderLink(orderUrl);
+  return `Ver mi pedido: ${orderUrl}\nAgregar app al inicio: ${install}`;
 }
