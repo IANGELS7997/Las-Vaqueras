@@ -68,7 +68,8 @@ export function postDevSignal(input: {
   device?: string;
   cart?: ReturnType<typeof summarizeCart>;
 }) {
-  if (typeof window === 'undefined' || isKitchenSurface()) return;
+  if (typeof window === 'undefined') return;
+  if (isKitchenSurface() && input.type !== 'client_error') return;
   const body = {
     source: 'las-vaqueras',
     type: input.type,
