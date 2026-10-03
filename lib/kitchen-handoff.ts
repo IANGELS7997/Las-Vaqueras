@@ -15,6 +15,27 @@ export const MANAGED_TRACK = [
   'El repartidor llegó a tu domicilio',
 ] as const;
 
+/** Ventana en la que un segundo toque no puede mover otro pedido. */
+export const HANDOFF_TAP_HOLD_MS = 800;
+
+export type HandoffTapLock = {
+  orderId: string;
+  until: number;
+};
+
+/** Acepta el toque de un pedido. Mientras el candado sigue, el otro pedido no entra. */
+export function acceptHandoffTap(
+  lock: HandoffTapLock | null,
+  orderId: string,
+  now: number,
+  holdMs = HANDOFF_TAP_HOLD_MS
+): { accept: boolean; lock: HandoffTapLock | null } {
+  const id = orderId.trim();
+  if (!id) return { accept: false, lock };
+  if (lock && now < lock.until) return { accept: false, lock };
+  return { accept: true, lock: { orderId: id, until: now + holdMs } };
+}
+
 export type KitchenHandoff = {
   visible: boolean;
   enabled: boolean;

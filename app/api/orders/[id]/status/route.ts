@@ -132,15 +132,27 @@ export async function PATCH(
     );
   }
 
-  const { data, error } = await supabase
-    .from('orders')
-    .update(patch)
-    .eq('id', params.id)
-    .select('*')
-    .single();
+  const orderId = params.id;
+  const updateOne = supabase.from('orders').update(patch).eq('id', orderId);
+  const scoped =
+    managedStep === 'depart'
+      ? updateOne.in('status', ['pending', 'preparing'])
+      : managedStep === 'arrive'
+        ? updateOne.eq('status', 'in_transit')
+        : updateOne;
+  const { data, error } = await scoped.select('*').maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!data) {
+    if (managedStep === 'depart') {
+      return NextResponse.json({ error: 'Este pedido ya va en camino' }, { status: 400 });
+    }
+    if (managedStep === 'arrive') {
+      return NextResponse.json({ error: 'Primero entrega el pedido para ponerlo en camino' }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
   }
 
   const prevDispatch = String(current.data.dispatch_status || '');
@@ -159,22 +171,38 @@ export async function PATCH(
     profile_login_token?: string | null;
     enroute_email_at?: string | null;
   };
-  if (managedStep === 'depart' && !current.data.enroute_email_at) {
-    const to = String(saved.customer_email || '').trim();
-    if (to.includes('@')) {
+  if (managedStep === 'depart') {
+    const claimedAt = new Date().toISOString();
+    const claim = await supabase
+      .from('orders')
+      .update({ enroute_email_at: claimedAt })
+      .eq('id', orderId)
+      .is('enroute_email_at', null)
+      .select('customer_email, customer_name, profile_login_token, branch_id')
+      .maybeSingle();
+    if (claim.error) Sentry.captureException(claim.error);
+    const claimed = claim.data as {
+      customer_email?: string | null;
+      customer_name?: string | null;
+      profile_login_token?: string | null;
+      branch_id?: string | null;
+    } | null;
+    const to = String(claimed?.customer_email || '').trim();
+    if (claimed && to.includes('@')) {
       try {
         const sent = await sendEnrouteEmail({
           to,
-          customerName: String(saved.customer_name || ''),
-          orderId: params.id,
-          token: saved.profile_login_token,
-          branchId: current.data.branch_id,
+          customerName: String(claimed.customer_name || ''),
+          orderId,
+          token: claimed.profile_login_token,
+          branchId: claimed.branch_id,
         });
-        if (sent.ok) {
-          await supabase.from('orders').update({ enroute_email_at: new Date().toISOString() }).eq('id', params.id);
+        if (!sent.ok) {
+          await supabase.from('orders').update({ enroute_email_at: null }).eq('id', orderId).eq('enroute_email_at', claimedAt);
         }
       } catch (err) {
         Sentry.captureException(err);
+        await supabase.from('orders').update({ enroute_email_at: null }).eq('id', orderId).eq('enroute_email_at', claimedAt);
       }
     }
   }
@@ -186,7 +214,7 @@ export async function PATCH(
           branchId: current.data.branch_id,
           to,
           customerName: String(saved.customer_name || ''),
-          orderId: params.id,
+          orderId,
           token: saved.profile_login_token,
           managed: true,
         });
