@@ -60,6 +60,13 @@ assert(
 
 assert(cashOptionLock({ identityReady: false, quoting: false, quoted: true, iangel: true, overCap: false, gift: false }) != null, 'sin datos no se puede elegir efectivo');
 assert(cashOptionLock({ identityReady: true, quoting: false, quoted: true, iangel: true, overCap: false, gift: false }) === null, 'con datos e IANGEL sí se puede');
+assert(cashOptionLock({ identityReady: true, quoting: false, quoted: true, iangel: true, overCap: true, gift: false }) != null, 'domicilio arriba de $500 sigue en tarjeta');
+assert(cashOptionLock({ identityReady: true, quoting: false, quoted: false, iangel: false, overCap: true, gift: false, pickup: true }) === null, 'recoger no bloquea por monto');
+assert(
+  cashAbuseMessage({ phone: person.phone, address: person.address, prior: [open], now, fulfillment: 'pickup' }) === null,
+  'recoger no bloquea por otro efectivo abierto'
+);
 assert(cashPaySummary(180).includes('230'), 'el resumen dice el total en la puerta');
+assert(!cashPaySummary(900, 'pickup').includes('abierto'), 'recoger no avisa un tope de pedidos en efectivo');
 
 console.log('cash-fraud ok');

@@ -41,6 +41,7 @@ const over = cashCheckoutAllowed({ provider: 'self', fulfillment: 'delivery', su
 assert(over.ok === false, '$501 rechaza efectivo');
 assert(cashCheckoutAllowed({ provider: 'uber', fulfillment: 'delivery', subtotalWeb: 180 }).ok === false, 'Uber no es efectivo');
 assert(cashCheckoutAllowed({ provider: 'pickup', fulfillment: 'pickup', subtotalWeb: 180 }).ok === true, 'recoger sí es efectivo');
+assert(cashCheckoutAllowed({ provider: 'pickup', fulfillment: 'pickup', subtotalWeb: 900 }).ok === true, 'recoger no tiene tope de $500');
 const pickupCash = cashStoredAmounts(180, 'pickup');
 assert(pickupCash.deliveryFee === 0 && pickupCash.totalCharged === 180, 'recoger en efectivo no cobra envío');
 
