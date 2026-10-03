@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 const ALERT_EVENT = 'lv-kitchen-alert';
+const ALERT_DONE_EVENT = 'lv-kitchen-alert-done';
 const SOUND_SRC = '/sounds/new-order.wav?v=3c';
+const ALERT_WAIT_MS = 12_000;
 const MOTIF = [
   { freq: 349, dur: 0.1, peak: 0.16 },
   { freq: 440, dur: 0.1, peak: 0.16 },
@@ -40,6 +42,15 @@ function playBeepTwice(ctx: AudioContext) {
   playBeep(ctx);
 }
 
+function beepMs() {
+  const step = MOTIF.reduce((sum, note) => sum + note.dur + 0.035, 0);
+  return Math.ceil((PHRASES * (step + PHRASE_REST) + 0.3) * 1000);
+}
+
+function signalAlertDone() {
+  window.dispatchEvent(new CustomEvent(ALERT_DONE_EVENT));
+}
+
 export function KitchenShift({
   restored = false,
   onShiftChange,
@@ -51,9 +62,16 @@ export function KitchenShift({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
 
-  const playFullAlert = () => {
+  const playFullAlert = (signalDone: boolean) => {
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (signalDone) signalAlertDone();
+    };
     const fallback = () => {
       if (ctxRef.current) playBeepTwice(ctxRef.current);
+      window.setTimeout(finish, beepMs());
     };
 
     const alertAudio = audioRef.current;
@@ -66,14 +84,21 @@ export function KitchenShift({
     alertAudio.onended = () => {
       if (repeatsLeft <= 0) {
         alertAudio.onended = null;
+        finish();
         return;
       }
       repeatsLeft -= 1;
       alertAudio.currentTime = 0;
-      void alertAudio.play().catch(fallback);
+      void alertAudio.play().catch(() => {
+        alertAudio.onended = null;
+        fallback();
+      });
     };
     alertAudio.currentTime = 0;
-    void alertAudio.play().catch(fallback);
+    void alertAudio.play().catch(() => {
+      alertAudio.onended = null;
+      fallback();
+    });
   };
 
   useEffect(() => {
@@ -83,7 +108,7 @@ export function KitchenShift({
   useEffect(() => {
     if (!isShiftActive) return;
     if (!audioRef.current) audioRef.current = new Audio(SOUND_SRC);
-    const onAlert = () => playFullAlert();
+    const onAlert = () => playFullAlert(true);
     window.addEventListener(ALERT_EVENT, onAlert);
     return () => window.removeEventListener(ALERT_EVENT, onAlert);
   }, [isShiftActive]);
@@ -154,7 +179,7 @@ export function KitchenShift({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <button
           type="button"
-          onClick={playFullAlert}
+          onClick={() => playFullAlert(false)}
           className="min-h-11 rounded-md border border-emerald-700 px-4 py-2 text-sm text-emerald-50 transition-colors hover:bg-emerald-900"
         >
           Probar alerta
@@ -171,6 +196,18 @@ export function KitchenShift({
   );
 }
 
-export function notifyKitchenNewOrder() {
-  window.dispatchEvent(new CustomEvent(ALERT_EVENT));
+export function notifyKitchenNewOrder(): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener(ALERT_DONE_EVENT, finish);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, ALERT_WAIT_MS);
+    window.addEventListener(ALERT_DONE_EVENT, finish);
+    window.dispatchEvent(new CustomEvent(ALERT_EVENT));
+  });
 }
