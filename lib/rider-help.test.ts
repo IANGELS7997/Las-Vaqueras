@@ -3,6 +3,8 @@ import {
   approvedMotoKitchenPay,
   closePlan,
   helpStepError,
+  customerRefundAmount,
+  customerRefundStatusMessage,
   incompleteRefundCredit,
   isOpenCustomerRefund,
   isRefundReview,
@@ -108,5 +110,22 @@ assert.equal(
   isOpenCustomerRefund({ kind: 'incomplete', customer_note: 'Faltó la salsa', resolution: 'credit', refund_credit_mxn: 160 }),
   false
 );
+assert.equal(
+  isOpenCustomerRefund({ kind: 'incomplete', customer_note: 'Faltó la salsa', resolution: 'refunded', refund_credit_mxn: null }),
+  false
+);
+assert.deepEqual(
+  customerRefundAmount({ pay: 'card', cashFood: 0, total: 180.4, delivery: 50, service: 0 }),
+  { kind: 'stripe', amount: 180 }
+);
+assert.deepEqual(
+  customerRefundAmount({ pay: 'cash', cashFood: 110, total: 160, delivery: 50, service: 0 }),
+  { kind: 'credit', amount: 160 }
+);
+assert.equal(
+  customerRefundStatusMessage({ resolution: 'refunded' }),
+  'Aceptado. El total se devolvió a tu tarjeta.'
+);
+assert.match(customerRefundStatusMessage({ resolution: null }), /correo/);
 
 console.log('rider-help tests: ok');

@@ -32,7 +32,7 @@ import { getOpenStatus } from '@/lib/restaurant';
 import type { Order } from '@/types';
 import { CustomerDoorReport } from '@/components/customer-door-report';
 import { CustomerIncompleteRefund } from '@/components/customer-incomplete-refund';
-import { isRefundReview, REFUND_REVIEW_LABEL } from '@/lib/rider-help';
+import { isRefundReview, profileRefundLabel } from '@/lib/rider-help';
 
 type CustomerProfile = {
   id: string;
@@ -729,7 +729,7 @@ function StepPeekDialog({
               <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {isRefundReview(order.helpLabel) ? REFUND_REVIEW_LABEL : customerStatusLabel(order.status, order.dispatchStatus)}
+              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus)}
             </p>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
               {order.items.slice(0, 4).map((item) => (
@@ -764,7 +764,7 @@ function OrderList({ orders, onOpen }: { orders: Order[]; onOpen: () => void }) 
             <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {isRefundReview(order.helpLabel) ? REFUND_REVIEW_LABEL : customerStatusLabel(order.status, order.dispatchStatus)}
+            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus)}
           </p>
         </Link>
       ))}

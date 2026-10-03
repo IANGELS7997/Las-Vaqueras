@@ -100,23 +100,6 @@ export function KitchenHelpDesk() {
     if (response.ok) await load();
   }
 
-  async function voteRefund(id: string, decision: 'approved' | 'rejected') {
-    const reason = decision === 'rejected' ? window.prompt('Motivo del rechazo') || '' : '';
-    if (decision === 'rejected' && reason.trim().length < 3) {
-      setNote('Escribe el motivo del rechazo');
-      return;
-    }
-    setNote('');
-    const response = await fetch('/api/kitchen/help-reports', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, decision, scope: 'refund', reason }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    setNote(response.ok ? (payload.creditMxn ? `Crédito ${payload.creditMxn}` : 'Voto registrado') : payload.error || 'No se pudo resolver');
-    if (response.ok) await load();
-  }
-
   return (
     <section className="mt-3 rounded-lg border border-border/60 bg-card p-3">
       <button type="button" className="text-sm font-semibold text-white" onClick={() => setOpen((value) => !value)}>
@@ -142,21 +125,9 @@ export function KitchenHelpDesk() {
               {report.note ? <p className="mt-1 text-xs">{report.note}</p> : null}
               {report.customerReason ? (
                 <p className="mt-1 text-xs">
-                  Cliente: {report.customerReason}. {report.customerNote}. Crédito de comida + envío en la próxima compra.
-                  {report.kitchenRefund ? ` Cocina: ${report.kitchenRefund}.` : ''}
-                  {report.adminRefund ? ` Admin: ${report.adminRefund}.` : ''}
+                  Cliente: {report.customerReason}. {report.customerNote}. Lo revisa admin.
                   {report.refundNote ? ` ${report.refundNote}` : ''}
                 </p>
-              ) : null}
-              {report.kind === 'incomplete' && report.customerNote && !report.refundCreditMxn && report.resolution !== 'rejected' && report.resolution !== 'credit' ? (
-                <div className="mt-2 flex gap-2">
-                  <button type="button" className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-black" disabled={report.kitchenRefund === 'approved'} onClick={() => void voteRefund(report.id, 'approved')}>
-                    Aceptar reembolso
-                  </button>
-                  <button type="button" className="rounded-md border border-white/30 px-2 py-1 text-xs" onClick={() => void voteRefund(report.id, 'rejected')}>
-                    Rechazar reembolso
-                  </button>
-                </div>
               ) : null}
               {report.resolution && (report.kind === 'moto' || report.kind === 'unsafe') ? (
                 <button type="button" className="mt-2 rounded-md border border-white/30 px-2 py-1 text-xs" onClick={() => void resolve(report.id, 'deposited')}>
