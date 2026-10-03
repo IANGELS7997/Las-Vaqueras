@@ -12,21 +12,9 @@ import {
   Phone,
   MapPin,
   Package,
-  Ban,
   PauseCircle,
   PlayCircle,
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useOrders } from '@/lib/orders-context';
@@ -108,7 +96,6 @@ async function postStation(body: {
 export default function KitchenDashboardPage() {
   const { outOfStockIds, toggleOutOfStock } = useOrders();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
   const [shiftActive, setShiftActive] = useState(false);
   const [shiftRestored, setShiftRestored] = useState(false);
@@ -477,28 +464,6 @@ export default function KitchenDashboardPage() {
     if (payload.order) patchOrderLocal(order.id, payload.order as Order);
   };
 
-  const handleCancelOrder = async () => {
-    if (!cancelOrderId) return;
-    const order = orders.find((item) => item.id === cancelOrderId);
-    if (order?.stripePaymentIntentId) {
-      await fetch('/api/refund', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentIntentId: order.stripePaymentIntentId }),
-      });
-    } else {
-      await fetch(`/api/orders/${cancelOrderId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'cancelled' }),
-      });
-    }
-    setOrders((prev) =>
-      prev.map((item) => (item.id === cancelOrderId ? { ...item, status: 'cancelled' } : item))
-    );
-    setCancelOrderId(null);
-  };
-
   const getTimeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
@@ -656,7 +621,7 @@ export default function KitchenDashboardPage() {
                     </div>
                   </div>
 
-                  {order.helpLabel ? <KitchenHelpPayout orderId={order.id} label={order.helpLabel} /> : null}
+                  {order.helpLabel && !reviewing ? <KitchenHelpPayout orderId={order.id} label={order.helpLabel} /> : null}
                   <div className="mb-3 flex items-start gap-2 text-xs text-muted-foreground">
                     <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
                     <div>
@@ -859,44 +824,6 @@ export default function KitchenDashboardPage() {
                       <Printer className="mr-1.5 h-3.5 w-3.5" />
                       Imprimir
                     </Button>
-                    {!reviewing ? (
-                    <AlertDialog
-                      open={cancelOrderId === order.id}
-                      onOpenChange={(open) => !open && setCancelOrderId(null)}
-                    >
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                          onClick={() => setCancelOrderId(order.id)}
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="border-border/60 bg-card">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-white">¿Cancelar pedido #{order.id}?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {order.payMethod === 'cash' || !order.stripePaymentIntentId
-                              ? 'El pedido queda cancelado. Este cobro no pasó por tarjeta.'
-                              : 'Se hará un reembolso Stripe (reverse_transfer + application fee) y el pedido quedará cancelado.'}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="border-border bg-card text-white">
-                            No, mantener
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleCancelOrder}
-                            className="bg-red-500 text-white hover:bg-red-600"
-                          >
-                            Sí, cancelar y reembolsar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    ) : null}
                   </div>
 
                   <ThermalTicket order={order} active={printingOrderId === order.id} />

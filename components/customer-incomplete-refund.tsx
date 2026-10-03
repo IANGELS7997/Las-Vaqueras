@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { isRefundReview, REFUND_ACCEPTED_LABEL, REFUND_REJECTED_LABEL, REFUND_WINDOW_MS } from '@/lib/rider-help';
+import { isRefundReview, REFUND_ACCEPTED_LABEL } from '@/lib/rider-help';
 import type { Order } from '@/types';
 
 const REASONS = ['Faltó un producto', 'Llegó equivocado', 'Llegó en mal estado', 'Faltó un extra', 'Otro'];
@@ -16,16 +16,14 @@ async function asDataUrl(file: File) {
   return data;
 }
 
-function eligible(order: Order, now: number) {
-  if (order.status !== 'delivered' || isRefundReview(order.helpLabel)) return false;
-  if (order.helpLabel === REFUND_ACCEPTED_LABEL || order.helpLabel === REFUND_REJECTED_LABEL) return false;
-  const started = Date.parse(order.createdAt);
-  return Number.isFinite(started) && now - started <= REFUND_WINDOW_MS;
+function eligible(order: Order) {
+  if (order.status === 'cancelled' || order.status === 'awaiting_payment') return false;
+  if (isRefundReview(order.helpLabel) || order.helpLabel === REFUND_ACCEPTED_LABEL) return false;
+  return true;
 }
 
 export function CustomerIncompleteRefund({ orders, onSent }: { orders: Order[]; onSent?: () => void }) {
-  const now = Date.now();
-  const open = orders.filter((order) => eligible(order, now));
+  const open = orders.filter((order) => eligible(order));
   const [orderId, setOrderId] = useState(open[0]?.id || '');
   const [reason, setReason] = useState(REASONS[0]);
   const [note, setNote] = useState('');
@@ -51,11 +49,14 @@ export function CustomerIncompleteRefund({ orders, onSent }: { orders: Order[]; 
     };
   }, [message]);
 
-  if (open.length === 0) return null;
+  const notices = Object.entries(statuses).filter(([, text]) => text);
+  if (open.length === 0 && notices.length === 0) return null;
   const selected = open.find((order) => order.id === orderId) || open[0];
-  const existing = statuses[selected.id];
+  const existing = selected ? statuses[selected.id] : '';
+  const locked = Boolean(existing) && !existing.startsWith('Rechazado');
 
   async function submit() {
+    if (!selected) return;
     setBusy(true);
     setMessage('');
     const response = await fetch('/api/customer/refund-request', {
@@ -73,9 +74,15 @@ export function CustomerIncompleteRefund({ orders, onSent }: { orders: Order[]; 
     <section className="rounded-xl border border-border/60 bg-card p-3">
       <h3 className="text-sm font-bold text-white">Solicitar reembolso</h3>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        Puedes pedirlo en un pedido ya entregado, dentro de 48 horas, aunque el repartidor no lo haya reportado. Hacen falta la foto de la comida, la foto del ticket y una descripción. El crédito es comida más envío en tu próxima compra, si cocina y admin aceptan.
+        Adjunta la foto de la comida y la foto del ticket, y describe qué pasó. Si el pago fue con tarjeta y se acepta, el total vuelve a tu tarjeta. Si fue en efectivo y se acepta, comida y envío quedan en tu próxima compra.
       </p>
-      {existing ? <p className="mt-2 text-xs text-orange-300">{existing}</p> : null}
+      {notices.map(([id, text]) => (
+        <p key={id} className="mt-2 text-xs text-orange-300">
+          #{orders.find((order) => order.id === id)?.shortCode || id.slice(0, 8)}: {text}
+        </p>
+      ))}
+      {open.length === 0 || !selected ? null : (
+      <>
       <label className="mt-3 block text-xs text-muted-foreground">
         Pedido
         <select className="mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-sm text-white" value={selected.id} onChange={(event) => setOrderId(event.target.value)}>
@@ -117,10 +124,12 @@ export function CustomerIncompleteRefund({ orders, onSent }: { orders: Order[]; 
           }} />
         </label>
       </div>
-      <button type="button" className="mt-3 w-full rounded-md bg-orange-500 px-3 py-2 text-sm font-semibold text-white" disabled={busy || Boolean(existing)} onClick={() => void submit()}>
+      <button type="button" className="mt-3 w-full rounded-md bg-orange-500 px-3 py-2 text-sm font-semibold text-white" disabled={busy || locked} onClick={() => void submit()}>
         Solicitar reembolso
       </button>
       {message ? <p className="mt-2 text-xs text-muted-foreground">{message}</p> : null}
+      </>
+      )}
     </section>
   );
 }

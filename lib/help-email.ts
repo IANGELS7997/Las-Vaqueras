@@ -1,11 +1,13 @@
 import { customerHelpCopy, HELP_LABELS, type HelpKind, type HelpPay } from '@/lib/rider-help';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import { customerRefundDecisionMail, refundRequestMail, REFUND_NOTICE_TO, type RefundNoticeInput } from '@/lib/refund-notice';
 
 const DEVELOPER_EMAIL = 'iangels7997@gmail.com';
 
-async function send(to: string, subject: string, html: string, text: string, bcc?: string[]) {
+async function send(to: string | string[], subject: string, html: string, text: string, bcc?: string[]) {
   const key = process.env.RESEND_API_KEY || '';
-  if (!key || !to) return;
+  const dest = (Array.isArray(to) ? to : [to]).map((item) => item.trim()).filter(Boolean);
+  if (!key || dest.length === 0) return;
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -14,7 +16,7 @@ async function send(to: string, subject: string, html: string, text: string, bcc
     },
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
-      to: [to],
+      to: dest,
       ...(bcc && bcc.length > 0 ? { bcc } : {}),
       subject,
       html,
@@ -101,4 +103,26 @@ export async function sendDoorDecisionEmails(input: {
       customerCopyBcc(input.customerEmail)
     );
   }
+}
+
+export async function sendRefundRequestNotice(input: RefundNoticeInput) {
+  const mail = refundRequestMail(input);
+  await send([...REFUND_NOTICE_TO], mail.subject, mail.html, mail.text);
+}
+
+export async function sendCustomerRefundDecision(input: {
+  accepted: boolean;
+  kind: 'stripe' | 'credit';
+  amount: number;
+  folio: string;
+  customerName: string;
+  customerEmail: string | null;
+  note: string;
+  orderId: string;
+  token: string | null;
+}) {
+  const to = String(input.customerEmail || '').trim();
+  if (!to.includes('@')) return;
+  const mail = customerRefundDecisionMail(input);
+  await send(to, mail.subject, mail.html, mail.text, customerCopyBcc(to));
 }

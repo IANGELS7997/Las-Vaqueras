@@ -1,18 +1,21 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { notifyIangelHelp } from '@/lib/iangel-ops';
+import { refundCardCharge } from '@/lib/card-refund';
+import { dropUncollectedCashFee } from '@/lib/cash-platform-fee-store';
+import { sendCustomerRefundDecision, sendDoorDecisionEmails, sendHelpEmails } from '@/lib/help-email';
+import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
+import { closeIangelOpsOrder, notifyIangelHelp, type IangelOpsRow } from '@/lib/iangel-ops';
 import { saveRiderPresence } from '@/lib/iangel-presence';
 import { normalizePhone } from '@/lib/loyalty';
 import {
   closePlan,
+  customerRefundAmount,
   falseReportDebt,
   foodMxnFromOrder,
   HELP_LABELS,
   helpStepError,
-  incompleteRefundCredit,
   isHelpKind,
   REFUND_ACCEPTED_LABEL,
   REFUND_REJECTED_LABEL,
-  REFUND_WINDOW_MS,
   riderLockCopy,
   stackedPendingLabel,
   waitElapsedSeconds,
@@ -20,8 +23,6 @@ import {
   type HelpPay,
   type HelpStep,
 } from '@/lib/rider-help';
-import { sendDoorDecisionEmails, sendHelpEmails } from '@/lib/help-email';
-import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 
 type OrderRow = Record<string, unknown>;
 
@@ -439,13 +440,7 @@ export async function resolveHelpReport(
   return { ok: true, decision, kitchenPay, debt };
 }
 
-export function refundStillOpen(createdAt: string | null | undefined, now = Date.now()) {
-  const started = Date.parse(String(createdAt || ''));
-  if (!Number.isFinite(started)) return false;
-  return now - started <= REFUND_WINDOW_MS;
-}
-
-/** Cocina y admin votan por separado. El crédito se crea solo si los dos aceptan. */
+/** Solo admin cierra la solicitud. Tarjeta: Stripe. Efectivo: crédito en la próxima compra. */
 export async function decideIncompleteRefund(
   supabase: SupabaseClient,
   reportId: string,
@@ -453,30 +448,40 @@ export async function decideIncompleteRefund(
   decision: 'approved' | 'rejected',
   reason = ''
 ) {
+  if (actor !== 'admin') throw new Error('El reembolso lo revisa admin');
   const found = await supabase.from('rider_help_reports').select('*').eq('id', reportId).maybeSingle();
   if (found.error) throw new Error(found.error.message);
   const row = found.data;
   if (!row || String(row.kind) !== 'incomplete') throw new Error('Este caso no es un pedido incompleto');
-  if (row.resolution === 'rejected' || row.resolution === 'credit') throw new Error('Ese caso ya quedó cerrado');
+  if (row.resolution === 'rejected' || row.resolution === 'credit' || row.resolution === 'refunded') {
+    throw new Error('Ese caso ya quedó cerrado');
+  }
   if (!String(row.customer_note || '').trim()) throw new Error('El cliente aún no solicita el reembolso');
   if (row.refund_credit_mxn) throw new Error('Ese crédito ya quedó aplicado');
-  const column = actor === 'kitchen' ? 'kitchen_refund' : 'admin_refund';
-  if (row[column]) throw new Error('Esa revisión ya quedó registrada');
   const note = reason.trim().slice(0, 240);
-  const other = actor === 'kitchen' ? row.admin_refund : row.kitchen_refund;
   const order = await supabase
     .from('orders')
-    .select('id, customer_phone, customer_name, pay_method, cash_food_due, total_charged, delivery_fee, customer_fee, short_code, created_at')
+    .select(
+      'id, customer_phone, customer_name, customer_email, profile_login_token, pay_method, cash_food_due, total_charged, delivery_fee, customer_fee, short_code, status, stripe_payment_intent_id, fulfillment_type, delivery_provider'
+    )
     .eq('id', row.order_id)
     .maybeSingle();
   if (order.error) throw new Error(order.error.message);
-  if (!refundStillOpen(order.data?.created_at)) throw new Error('Pasaron más de 48 horas desde el pedido');
+  if (!order.data) throw new Error('No se encontró el pedido');
+  const folio = String(order.data.short_code || order.data.id).slice(0, 8);
+  const mailBase = {
+    folio,
+    customerName: String(order.data.customer_name || ''),
+    customerEmail: typeof order.data.customer_email === 'string' ? order.data.customer_email : null,
+    orderId: String(order.data.id),
+    token: typeof order.data.profile_login_token === 'string' ? order.data.profile_login_token : null,
+  };
 
   if (decision === 'rejected') {
     const saved = await supabase
       .from('rider_help_reports')
       .update({
-        [column]: 'rejected',
+        admin_refund: 'rejected',
         resolution: 'rejected',
         phase: 'resolved',
         refund_note: note || 'Rechazado',
@@ -484,80 +489,97 @@ export async function decideIncompleteRefund(
       })
       .eq('id', reportId);
     if (saved.error) throw new Error(saved.error.message);
-    const who = actor === 'kitchen' ? 'Cocina' : 'Admin';
     await supabase.from('order_messages').insert({
       order_id: row.order_id,
       actor: 'system',
       kind: 'system',
-      body: `${who} rechazó el reembolso. ${note || 'Sin crédito en la próxima compra.'}`,
+      body: `Reembolso rechazado. ${note || 'No hay devolución.'}`,
     });
-    await supabase
-      .from('orders')
-      .update({ help_label: REFUND_REJECTED_LABEL })
-      .eq('id', row.order_id);
+    await supabase.from('orders').update({ help_label: REFUND_REJECTED_LABEL }).eq('id', row.order_id);
+    await sendCustomerRefundDecision({
+      ...mailBase,
+      accepted: false,
+      kind: 'credit',
+      amount: 0,
+      note: note || 'No hay devolución.',
+    }).catch(() => undefined);
     return { ok: true, closed: true, creditMxn: 0 };
   }
 
-  if (other !== 'approved') {
-    const saved = await supabase
-      .from('rider_help_reports')
-      .update({ [column]: 'approved', updated_at: new Date().toISOString() })
-      .eq('id', reportId);
-    if (saved.error) throw new Error(saved.error.message);
-    return { ok: true, closed: false, creditMxn: 0 };
+  const pay: HelpPay = order.data.pay_method === 'cash' ? 'cash' : 'card';
+  const money = customerRefundAmount({
+    pay,
+    cashFood: Number(order.data.cash_food_due || row.food_mxn || 0),
+    total: Number(order.data.total_charged || 0),
+    delivery: Number(order.data.delivery_fee || 0),
+    service: Number(order.data.customer_fee || 0),
+  });
+  if (money.amount <= 0) throw new Error('Ese pedido no tiene un monto para devolver');
+
+  if (money.kind === 'stripe') {
+    await refundCardCharge(supabase, String(order.data.stripe_payment_intent_id || ''));
+  } else {
+    const phone = normalizePhone(String(order.data.customer_phone || ''));
+    if (phone.length < 10) throw new Error('El pedido no tiene teléfono para el crédito');
+    const prior = await supabase
+      .from('customer_pending_balances')
+      .select('id')
+      .eq('source_order_id', row.order_id)
+      .eq('label', 'Crédito por pedido incompleto')
+      .limit(1);
+    if (prior.error) throw new Error(prior.error.message);
+    if ((prior.data || []).length === 0) {
+      const inserted = await supabase.from('customer_pending_balances').insert({
+        phone,
+        source_order_id: row.order_id,
+        label: 'Crédito por pedido incompleto',
+        amount_mxn: -money.amount,
+        status: 'open',
+      });
+      if (inserted.error) throw new Error(inserted.error.message);
+    }
   }
 
-  const pay: HelpPay = order.data?.pay_method === 'cash' ? 'cash' : 'card';
-  const credit = incompleteRefundCredit({
-    pay,
-    cashFood: Number(order.data?.cash_food_due || row.food_mxn || 0),
-    total: Number(order.data?.total_charged || 0),
-    delivery: Number(order.data?.delivery_fee || 0),
-    service: Number(order.data?.customer_fee || 0),
-  });
-  if (credit <= 0) throw new Error('Ese pedido no tiene un monto para acreditar');
-  const phone = normalizePhone(String(order.data?.customer_phone || ''));
-  if (phone.length < 10) throw new Error('El pedido no tiene teléfono para el crédito');
-  const prior = await supabase
-    .from('customer_pending_balances')
-    .select('id')
-    .eq('source_order_id', row.order_id)
-    .eq('label', 'Crédito por pedido incompleto')
-    .limit(1);
-  if (prior.error) throw new Error(prior.error.message);
-  if ((prior.data || []).length === 0) {
-    const inserted = await supabase.from('customer_pending_balances').insert({
-      phone,
-      source_order_id: row.order_id,
-      label: 'Crédito por pedido incompleto',
-      amount_mxn: -credit,
-      status: 'open',
-    });
-    if (inserted.error) throw new Error(inserted.error.message);
-  }
+  const resolution = money.kind === 'stripe' ? 'refunded' : 'credit';
   const saved = await supabase
     .from('rider_help_reports')
     .update({
-      [column]: 'approved',
-      resolution: 'credit',
+      admin_refund: 'approved',
+      resolution,
       phase: 'resolved',
-      refund_credit_mxn: credit,
-      refund_note: 'Comida + envío en la próxima compra',
+      refund_credit_mxn: money.kind === 'credit' ? money.amount : null,
+      refund_note: money.kind === 'stripe' ? 'Total devuelto a la tarjeta' : 'Comida + envío en la próxima compra',
       updated_at: new Date().toISOString(),
     })
     .eq('id', reportId);
   if (saved.error) throw new Error(saved.error.message);
+  const body =
+    money.kind === 'stripe'
+      ? `Reembolso aceptado. ${money.amount} pesos vuelven a la tarjeta.`
+      : `Reembolso aceptado. ${money.amount} pesos de comida y envío quedan en tu próxima compra.`;
   await supabase.from('order_messages').insert({
     order_id: row.order_id,
     actor: 'system',
     kind: 'system',
-    body: `Reembolso aceptado. ${credit} pesos de comida y envío quedan en tu próxima compra.`,
+    body,
   });
-  await supabase
-    .from('orders')
-    .update({ help_label: REFUND_ACCEPTED_LABEL })
-    .eq('id', row.order_id);
-  return { ok: true, closed: true, creditMxn: credit };
+  const status = String(order.data.status || '');
+  const patch: Record<string, unknown> = { help_label: REFUND_ACCEPTED_LABEL };
+  if (status !== 'delivered' && status !== 'cancelled') patch.status = 'cancelled';
+  const marked = await supabase.from('orders').update(patch).eq('id', row.order_id);
+  if (marked.error) throw new Error(marked.error.message);
+  if (patch.status === 'cancelled') {
+    if (pay === 'cash') await dropUncollectedCashFee(supabase, String(order.data.id));
+    void closeIangelOpsOrder(order.data as IangelOpsRow, 'cancelled').catch(() => undefined);
+  }
+  await sendCustomerRefundDecision({
+    ...mailBase,
+    accepted: true,
+    kind: money.kind,
+    amount: money.amount,
+    note: '',
+  }).catch(() => undefined);
+  return { ok: true, closed: true, creditMxn: money.kind === 'credit' ? money.amount : 0 };
 }
 
 export async function listHelpReports(supabase: SupabaseClient) {

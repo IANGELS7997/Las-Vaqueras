@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { orderBranchId } from '@/lib/branches';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
-import { listHelpReports, resolveHelpReport, decideIncompleteRefund } from '@/lib/rider-help-store';
+import { listHelpReports, resolveHelpReport } from '@/lib/rider-help-store';
 import { HELP_LABELS, isHelpKind, isOpenCustomerRefund, REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
@@ -76,18 +76,7 @@ export async function POST(req: Request) {
     reason?: string;
   };
   if (body.scope === 'refund') {
-    const vote = body.decision === 'approved' || body.decision === 'rejected' ? body.decision : null;
-    if (!body.id || !vote) return NextResponse.json({ error: 'Falta el caso o la decisión' }, { status: 400 });
-    if (!(await ownsReport(body.id, branch))) {
-      return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
-    }
-    try {
-      const saved = await decideIncompleteRefund(createAdminSupabase(), body.id, 'kitchen', vote, body.reason || '');
-      return NextResponse.json(saved);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo resolver';
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
+    return NextResponse.json({ error: 'Cocina no resuelve reembolsos' }, { status: 403 });
   }
   const decision = body.decision === 'approved' || body.decision === 'rejected' || body.decision === 'deposited' ? body.decision : null;
   if (!body.id || !decision) return NextResponse.json({ error: 'Falta el caso o la decisión' }, { status: 400 });

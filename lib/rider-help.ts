@@ -26,6 +26,11 @@ export function isRefundReview(label: string | null | undefined) {
   return label === REFUND_REVIEW_LABEL;
 }
 
+export function profileRefundLabel(label: string | null | undefined) {
+  if (label === REFUND_REVIEW_LABEL || label === REFUND_ACCEPTED_LABEL || label === REFUND_REJECTED_LABEL) return label;
+  return '';
+}
+
 export function isOpenCustomerRefund(row: {
   kind?: string | null;
   customer_note?: string | null;
@@ -36,7 +41,7 @@ export function isOpenCustomerRefund(row: {
   if (!String(row.customer_note || '').trim()) return false;
   if (row.refund_credit_mxn) return false;
   const resolution = String(row.resolution || '');
-  return resolution !== 'rejected' && resolution !== 'credit';
+  return resolution !== 'rejected' && resolution !== 'credit' && resolution !== 'refunded';
 }
 
 export const HELP_LABELS: Record<HelpKind, string> = {
@@ -66,7 +71,6 @@ export type ClosePlan = {
 };
 
 export const RIDER_LOCK_BANNER = 'Cuenta desactivada, porfavor cubre el monto pendiente';
-export const REFUND_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 /** Crédito del cliente: comida + envío. No toca los $50 del rider. */
 export function incompleteRefundCredit(input: {
@@ -83,6 +87,31 @@ export function incompleteRefundCredit(input: {
       ? Math.max(0, Math.round(input.cashFood))
       : Math.max(0, Math.round(input.total - delivery - service));
   return food + delivery;
+}
+
+/** Tarjeta: el total cobrado vuelve por Stripe. Efectivo: comida + envío en la próxima compra. */
+export function customerRefundAmount(input: {
+  pay: HelpPay;
+  cashFood: number;
+  total: number;
+  delivery: number;
+  service: number;
+}) {
+  if (input.pay === 'cash') return { kind: 'credit' as const, amount: incompleteRefundCredit(input) };
+  return { kind: 'stripe' as const, amount: Math.max(0, Math.round(input.total)) };
+}
+
+export function customerRefundStatusMessage(row: {
+  resolution?: string | null;
+  refund_note?: string | null;
+  refund_credit_mxn?: number | null;
+}) {
+  if (row.resolution === 'refunded') return 'Aceptado. El total se devolvió a tu tarjeta.';
+  if (row.refund_credit_mxn || row.resolution === 'credit') {
+    return `Aceptado. ${row.refund_credit_mxn || 0} pesos quedan en tu próxima compra.`;
+  }
+  if (row.resolution === 'rejected') return `Rechazado. ${row.refund_note || 'No hay devolución.'}`;
+  return 'Solicitud enviada. La revisamos y te avisamos por correo.';
 }
 
 export function returnPay(food: number) {

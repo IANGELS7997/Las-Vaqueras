@@ -35,6 +35,9 @@ export async function PATCH(
   if (status !== undefined && !KITCHEN_ORDER_STATUSES.includes(status as OrderStatus)) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 });
   }
+  if (status === 'cancelled') {
+    return NextResponse.json({ error: 'Cocina no cancela pedidos' }, { status: 400 });
+  }
   if (
     status === undefined &&
     cookHold === undefined &&
