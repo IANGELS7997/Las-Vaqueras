@@ -36,7 +36,7 @@ import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { ThermalTicket } from '@/components/thermal-ticket';
 import { MenuProductImage } from '@/components/menu-product-image';
-import { kitchenHandoff, MANAGED_TRACK } from '@/lib/kitchen-handoff';
+import { acceptHandoffTap, kitchenHandoff, MANAGED_TRACK, type HandoffTapLock } from '@/lib/kitchen-handoff';
 import { kitchenStatusLabel, viewFromOrder } from '@/lib/order-lifecycle';
 import { isRefundReview, REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 import { KitchenHelpDesk, KitchenHelpPayout } from '@/components/kitchen-help';
@@ -120,7 +120,9 @@ export default function KitchenDashboardPage() {
   const [opsProblems, setOpsProblems] = useState<
     { severity: string; label: string; detail: string }[]
   >([]);
+  const [managedBusyId, setManagedBusyId] = useState<string | null>(null);
   const printQueueRef = useRef<string[]>([]);
+  const handoffLockRef = useRef<HandoffTapLock | null>(null);
   const printingIdRef = useRef<string | null>(null);
   const announcedRef = useRef<Set<string>>(new Set());
   const shiftActiveRef = useRef(false);
@@ -197,8 +199,17 @@ export default function KitchenDashboardPage() {
       const payload = await response.json();
       const nextOrders = (payload.orders || []) as Order[];
       if (cancelled) return;
+      const publishOrders = (incoming: Order[]) => {
+        setOrders((prev) => {
+          const busyId = handoffLockRef.current?.orderId;
+          if (!busyId) return incoming;
+          const kept = prev.find((item) => item.id === busyId);
+          if (!kept) return incoming;
+          return incoming.map((item) => (item.id === busyId ? kept : item));
+        });
+      };
       if (!stationKnown) {
-        setOrders(nextOrders);
+        publishOrders(nextOrders);
         return;
       }
       const seen = readSeenIds();
@@ -219,7 +230,7 @@ export default function KitchenDashboardPage() {
           }
         });
       }
-      setOrders(nextOrders);
+      publishOrders(nextOrders);
     };
     void load();
     const interval = setInterval(load, 4000);
@@ -398,6 +409,38 @@ export default function KitchenDashboardPage() {
     });
     const payload = await response.json().catch(() => ({}));
     if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+  };
+
+  const tapManagedOrder = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const orderId = event.currentTarget.dataset.orderId || '';
+    const step = event.currentTarget.dataset.step === 'arrive' ? 'arrive' : event.currentTarget.dataset.step === 'depart' ? 'depart' : null;
+    if (!step) return;
+    const started = Date.now();
+    const decision = acceptHandoffTap(handoffLockRef.current, orderId, started);
+    if (!decision.accept || !decision.lock) return;
+    const held = decision.lock;
+    handoffLockRef.current = { orderId: held.orderId, until: Number.POSITIVE_INFINITY };
+    setManagedBusyId(held.orderId);
+    const target = orders.find((item) => item.id === held.orderId);
+    const release = () => {
+      const wait = Math.max(0, held.until - Date.now());
+      if (handoffLockRef.current?.orderId === held.orderId) {
+        handoffLockRef.current = wait > 0 ? { orderId: held.orderId, until: held.until } : null;
+      }
+      window.setTimeout(() => {
+        if (handoffLockRef.current?.orderId === held.orderId) {
+          handoffLockRef.current = null;
+        }
+        setManagedBusyId((current) => (current === held.orderId ? null : current));
+      }, wait);
+    };
+    if (!target) {
+      release();
+      return;
+    }
+    void handleManaged(target, step).finally(release);
   };
 
   const handleRelease = async (order: Order) => {
@@ -759,14 +802,20 @@ export default function KitchenDashboardPage() {
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <div className="flex flex-col gap-1">
                           <Button
-                            onClick={() => {
+                            type="button"
+                            data-order-id={
+                              handoff.effect === 'depart' || handoff.effect === 'arrive' ? order.id : undefined
+                            }
+                            data-step={
+                              handoff.effect === 'depart' || handoff.effect === 'arrive' ? handoff.effect : undefined
+                            }
+                            onClick={(event) => {
                               if (handoff.effect === 'release') void handleRelease(order);
-                              else if (handoff.effect === 'depart' || handoff.effect === 'arrive') {
-                                void handleManaged(order, handoff.effect);
-                              } else void handleEmergencyStatus(order, 'delivered');
+                              else if (handoff.effect === 'depart' || handoff.effect === 'arrive') tapManagedOrder(event);
+                              else void handleEmergencyStatus(order, 'delivered');
                             }}
                             size="sm"
-                            disabled={!handoff.enabled}
+                            disabled={!handoff.enabled || managedBusyId === order.id}
                             className="bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-muted disabled:text-muted-foreground"
                           >
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { kitchenHandoff } from '@/lib/kitchen-handoff';
+import { acceptHandoffTap, HANDOFF_TAP_HOLD_MS, kitchenHandoff } from '@/lib/kitchen-handoff';
 
 const base = {
   fulfillment: 'delivery',
@@ -49,5 +49,25 @@ assert.equal(
 );
 assert.equal(kitchenHandoff({ ...base, fulfillment: 'pickup', deliveryProvider: 'pickup' }).effect, 'deliver');
 assert.equal(kitchenHandoff({ ...base, status: 'delivered', pickupPhotoAt: 'x' }).visible, false);
+
+const norte = kitchenHandoff({ ...base, deliveryProvider: 'managed', status: 'preparing' });
+const sur = kitchenHandoff({ ...base, deliveryProvider: 'managed', status: 'in_transit' });
+assert.equal(norte.effect, 'depart');
+assert.equal(sur.effect, 'arrive');
+assert.notEqual(norte.effect, sur.effect);
+
+const started = 1_000;
+const tapNorte = acceptHandoffTap(null, 'norte-1', started);
+assert.equal(tapNorte.accept, true);
+assert.equal(tapNorte.lock?.orderId, 'norte-1');
+const tapSurWhileHeld = acceptHandoffTap(tapNorte.lock, 'sur-2', started + 300);
+assert.equal(tapSurWhileHeld.accept, false);
+assert.equal(tapSurWhileHeld.lock?.orderId, 'norte-1');
+const tapSameWhileHeld = acceptHandoffTap(tapNorte.lock, 'norte-1', started + 300);
+assert.equal(tapSameWhileHeld.accept, false);
+const tapSurAfter = acceptHandoffTap(tapNorte.lock, 'sur-2', started + HANDOFF_TAP_HOLD_MS);
+assert.equal(tapSurAfter.accept, true);
+assert.equal(tapSurAfter.lock?.orderId, 'sur-2');
+assert.equal(acceptHandoffTap(null, '  ', started).accept, false);
 
 console.log('kitchen-handoff tests: ok');
