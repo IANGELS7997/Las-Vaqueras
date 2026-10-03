@@ -34,6 +34,7 @@ import { MENU_ITEMS, CATEGORIES } from '@/lib/mock-data';
 import { formatMXN } from '@/lib/pricing';
 import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
+import { kitchenAlertPlan } from '@/lib/kitchen-alert';
 import { ThermalTicket } from '@/components/thermal-ticket';
 import { MenuProductImage } from '@/components/menu-product-image';
 import { acceptHandoffTap, kitchenHandoff, MANAGED_TRACK, type HandoffTapLock } from '@/lib/kitchen-handoff';
@@ -60,7 +61,6 @@ const STATUS_CONFIG: Record<
   cancelled: { icon: XCircle, color: 'text-red-400', bgColor: 'bg-red-500/15' },
 };
 
-const NEW_ORDER_STATUSES = new Set<OrderStatus>(['pending', 'preparing']);
 const SEEN_KEY = 'lv_kitchen_seen_ids';
 
 function readSeenIds(): Set<string> | null {
@@ -125,6 +125,7 @@ export default function KitchenDashboardPage() {
   const handoffLockRef = useRef<HandoffTapLock | null>(null);
   const printingIdRef = useRef<string | null>(null);
   const announcedRef = useRef<Set<string>>(new Set());
+  const alertChainRef = useRef(Promise.resolve());
   const shiftActiveRef = useRef(false);
   const autoPrintRef = useRef(true);
 
@@ -215,19 +216,31 @@ export default function KitchenDashboardPage() {
       const seen = readSeenIds();
       if (!seen) {
         writeSeenIds(new Set(nextOrders.map((order) => order.id)));
-      } else if (shiftActiveRef.current && autoPrintRef.current) {
+      } else if (shiftActiveRef.current) {
+        const alertThenPrint = (orderId: string, print: boolean) => {
+          alertChainRef.current = alertChainRef.current.then(async () => {
+            await notifyKitchenNewOrder();
+            if (print) {
+              enqueuePrint(orderId);
+              return;
+            }
+            const heard = readSeenIds() ?? new Set<string>();
+            heard.add(orderId);
+            writeSeenIds(heard);
+          }).catch(() => undefined);
+        };
         nextOrders.forEach((order) => {
           const queued = printingIdRef.current === order.id || printQueueRef.current.includes(order.id);
-          if (
-            !seen.has(order.id) &&
-            !queued &&
-            !announcedRef.current.has(order.id) &&
-            NEW_ORDER_STATUSES.has(order.status)
-          ) {
-            announcedRef.current.add(order.id);
-            notifyKitchenNewOrder();
-            enqueuePrint(order.id);
-          }
+          const plan = kitchenAlertPlan({
+            shiftActive: true,
+            autoPrint: autoPrintRef.current,
+            alreadySeen: seen.has(order.id),
+            alreadyAnnounced: announcedRef.current.has(order.id) || queued,
+            status: order.status,
+          });
+          if (!plan.sound) return;
+          announcedRef.current.add(order.id);
+          alertThenPrint(order.id, plan.print);
         });
       }
       publishOrders(nextOrders);
