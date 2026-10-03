@@ -469,7 +469,7 @@ export default function CheckoutPage() {
   const deliveryReady = isFreeGift || isPickup || (quotedFee != null && !quoting);
   const bagBlocked = !isPickup && iangelCarries(quotedKind) && !bagFits(items);
   const iangelDelivery = !isPickup && (quotedKind === 'self' || quotedKind === 'wait_self');
-  const cashOverCap = split.subtotalWeb > CASH_FOOD_CAP_MXN;
+  const cashOverCap = !isPickup && split.subtotalWeb > CASH_FOOD_CAP_MXN;
   const cashIdentityReady = Boolean(
     firstName.trim().length >= 2 && lastName.trim().length >= 2 && contactReady && (isPickup || addressReady)
   );

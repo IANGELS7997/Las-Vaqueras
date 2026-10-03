@@ -333,7 +333,7 @@ export async function POST(req: Request) {
         Sentry.captureException(err);
         return NextResponse.json({ error: 'No se pudo revisar el pago en efectivo. Intenta de nuevo.' }, { status: 400 });
       }
-      const abuse = cashAbuseMessage({ phone, address, prior: priors });
+      const abuse = cashAbuseMessage({ phone, address, prior: priors, fulfillment });
       if (abuse) {
         return NextResponse.json({ error: abuse }, { status: 400 });
       }

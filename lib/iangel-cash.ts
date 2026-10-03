@@ -78,7 +78,7 @@ export function cashCheckoutAllowed(input: {
   if (!Number.isFinite(food) || food <= 0) {
     return { ok: false, error: 'El carrito no tiene un subtotal válido' };
   }
-  if (food > CASH_FOOD_CAP_MXN) {
+  if (!pickup && food > CASH_FOOD_CAP_MXN) {
     return { ok: false, error: 'El efectivo no está disponible si la comida pasa de $500' };
   }
   return { ok: true };

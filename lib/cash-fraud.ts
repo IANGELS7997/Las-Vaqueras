@@ -97,7 +97,9 @@ export function cashAbuseMessage(input: {
   address: string;
   prior: CashPriorOrder[];
   now?: Date;
+  fulfillment?: string | null;
 }) {
+  if (String(input.fulfillment || '') === 'pickup') return null;
   const phone = normalizePhone(input.phone);
   const place = addressKey({ address: input.address });
   const start = chihuahuaDayStart(input.now || new Date());
@@ -141,10 +143,7 @@ export function cashOptionLock(input: {
       ? 'Completa nombre, apellido, teléfono y correo para pagar en efectivo en la tienda.'
       : 'Completa nombre, apellido, teléfono, correo y el punto en el mapa para elegir pago en efectivo.';
   }
-  if (input.pickup) {
-    if (input.overCap) return `La comida pasa de ${formatMXN(CASH_FOOD_CAP_MXN)}. Solo tarjeta.`;
-    return null;
-  }
+  if (input.pickup) return null;
   if (input.quoting || !input.quoted) return 'Espera un momento mientras cotizamos el envío.';
   if (!input.iangel) return 'En esta distancia el pago es solo con tarjeta.';
   if (input.overCap) return `La comida pasa de ${formatMXN(CASH_FOOD_CAP_MXN)}. Solo tarjeta.`;
@@ -154,7 +153,7 @@ export function cashOptionLock(input: {
 export function cashPaySummary(food: number, fulfillment?: string | null, deliveryFee?: number | null) {
   const comida = Math.round(Number(food));
   if (String(fulfillment || '') === 'pickup') {
-    return `Pagas ${formatMXN(comida)} en el mostrador al recoger. No entra un rider. Solo puedes tener un pedido en efectivo abierto.`;
+    return `Pagas ${formatMXN(comida)} en el mostrador al recoger. No entra un rider.`;
   }
   const envio =
     typeof deliveryFee === 'number' && Number.isFinite(deliveryFee) && deliveryFee > 0
