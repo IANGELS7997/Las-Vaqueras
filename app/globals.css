@@ -79,6 +79,23 @@
     background: #fff;
     padding: 2mm;
   }
+  #ticket-comanda .ticket-pay {
+    border: 3px solid #000;
+    margin: 2mm 0;
+    padding: 2mm 1mm;
+    text-align: center;
+  }
+  #ticket-comanda .ticket-pay-title {
+    font-size: 28px !important;
+    font-weight: 900;
+    letter-spacing: 1px;
+    line-height: 1.05;
+  }
+  #ticket-comanda .ticket-pay-line {
+    font-size: 14px !important;
+    font-weight: 700;
+    line-height: 1.2;
+  }
   @page {
     size: 80mm auto;
     margin: 0;
