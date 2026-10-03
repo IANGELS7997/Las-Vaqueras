@@ -1,5 +1,6 @@
 'use client';
 
+import { cajaTicketBanner } from '@/lib/caja-ticket';
 import { paymentCardLabel } from '@/lib/card-funding';
 import { loyaltyCajaTicketLines } from '@/lib/loyalty';
 import { formatMXN } from '@/lib/pricing';
@@ -24,6 +25,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
   };
   const promoLines = loyaltyCajaTicketLines(order.loyaltyKind);
   const branch = branchById(order.branchId);
+  const banner = cajaTicketBanner(order);
 
   return (
     <div
@@ -35,6 +37,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       }
     >
       <div className="text-center">
+        {banner ? <p className="font-bold">{banner}</p> : null}
         <p className="font-bold">{branch.name.toUpperCase()}</p>
         <p>{branch.address}</p>
         <p>Tel: {branch.phone}</p>
