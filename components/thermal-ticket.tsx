@@ -37,7 +37,11 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       }
     >
       <div className="text-center">
-        {banner ? <p className="font-bold">{banner}</p> : null}
+        {banner ? (
+          <div className="ticket-pay my-1 border-2 border-black px-1 py-1 text-center">
+            <p className="ticket-pay-title text-[28px] font-black leading-none tracking-wide">{banner}</p>
+          </div>
+        ) : null}
         <p className="font-bold">{branch.name.toUpperCase()}</p>
         <p>{branch.address}</p>
         <p>Tel: {branch.phone}</p>
