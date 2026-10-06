@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GIFT_FULFILLMENT_COPY, writeGiftRedeem } from '@/lib/gift-checkout';
 import { PwaInstallHint } from '@/components/pwa-install-hint';
+import { orderCanRequestInvoice } from '@/lib/billing-form';
 import { customerStatusLabel } from '@/lib/orders-map';
 import { formatMXN } from '@/lib/pricing';
 import {
@@ -30,6 +31,7 @@ import {
 } from '@/lib/customer-login-store';
 import { getOpenStatus } from '@/lib/restaurant';
 import type { Order } from '@/types';
+import { BillingFormLink } from '@/components/billing-form-link';
 import { CustomerDoorReport } from '@/components/customer-door-report';
 import { CustomerIncompleteRefund } from '@/components/customer-incomplete-refund';
 import { isRefundReview, profileRefundLabel } from '@/lib/rider-help';
@@ -753,20 +755,20 @@ function OrderList({ orders, onOpen }: { orders: Order[]; onOpen: () => void }) 
   return (
     <div className="space-y-2">
       {orders.map((order) => (
-        <Link
-          key={order.id}
-          href={`/orders/${order.id}`}
-          onClick={onOpen}
-          className="block rounded-xl border border-border/60 bg-card p-3"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-bold text-white">#{order.id.slice(0, 8)}</span>
-            <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus)}
-          </p>
-        </Link>
+        <div key={order.id} className="rounded-xl border border-border/60 bg-card p-3">
+          <Link href={`/orders/${order.id}`} onClick={onOpen} className="block">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-bold text-white">#{order.id.slice(0, 8)}</span>
+              <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus)}
+            </p>
+          </Link>
+          {orderCanRequestInvoice(order.status) ? (
+            <BillingFormLink className="mt-3 flex min-h-11 items-center justify-center rounded-lg border border-orange-500 text-sm font-bold text-orange-400" />
+          ) : null}
+        </div>
       ))}
     </div>
   );

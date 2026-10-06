@@ -96,6 +96,17 @@
     font-weight: 700;
     line-height: 1.2;
   }
+  #ticket-comanda .ticket-billing-qr {
+    display: block;
+    width: 28mm;
+    height: 28mm;
+    margin: 2mm auto;
+  }
+  #ticket-comanda .ticket-billing-url {
+    font-size: 8px;
+    line-height: 1.25;
+    word-break: break-all;
+  }
   @page {
     size: 80mm auto;
     margin: 0;
