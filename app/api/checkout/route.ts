@@ -23,6 +23,8 @@ import {
 } from '@/lib/loyalty-reward';
 import { resolveGiftCart } from '@/lib/gift-cart';
 import { calcCartBaseTotal } from '@/lib/pricing';
+import { cartStockError } from '@/lib/branch-stock';
+import { listOutOfStock } from '@/lib/branch-stock-db';
 import { branchById, isBranchId, isBranchOpen } from '@/lib/branches';
 import { getStripe } from '@/lib/stripe';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
@@ -141,6 +143,10 @@ export async function POST(req: Request) {
     }
 
     const cartItems = Array.isArray(items) ? items : [];
+    const stockError = cartStockError(cartItems, await listOutOfStock(branch.id));
+    if (stockError) {
+      return NextResponse.json({ error: stockError }, { status: 400 });
+    }
     const isPickup = fulfillment === 'pickup';
     let uberFee = 0;
     let uberQuoteId: string | null = null;

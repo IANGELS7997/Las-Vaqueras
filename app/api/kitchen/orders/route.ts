@@ -3,6 +3,7 @@ import { advancePickupOrdersIfDue } from '@/lib/order-auto-advance';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { REFUND_REVIEW_LABEL } from '@/lib/rider-help';
 import { createAdminSupabase } from '@/lib/supabase-admin';
+import { activeRiderKeys, listRiderPresence } from '@/lib/iangel-presence';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
 
 export const runtime = 'nodejs';
@@ -62,8 +63,10 @@ export async function GET(req: Request) {
   }
 
   const advanced = await advancePickupOrdersIfDue(supabase, Array.from(merged.values()));
+  const presence = await listRiderPresence();
 
   return NextResponse.json({
     orders: advanced.map((row) => mapDbOrder(row)),
+    liveRiderKeys: activeRiderKeys(presence),
   });
 }

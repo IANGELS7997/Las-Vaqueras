@@ -48,6 +48,16 @@ assert.equal(
   'Llegó el pedido al domicilio'
 );
 assert.equal(kitchenHandoff({ ...base, fulfillment: 'pickup', deliveryProvider: 'pickup' }).effect, 'deliver');
+const offline = kitchenHandoff({ ...base, riderConnected: false, pickupPhotoAt: null });
+assert.equal(offline.visible, true);
+assert.equal(offline.enabled, true);
+assert.equal(offline.effect, 'depart');
+assert.equal(offline.label, 'Entregar pedido');
+assert.equal(
+  kitchenHandoff({ ...base, riderConnected: false, status: 'in_transit' }).label,
+  'Llegó el pedido al domicilio'
+);
+assert.equal(kitchenHandoff({ ...base, riderConnected: true, pickupPhotoAt: null }).enabled, false);
 assert.equal(kitchenHandoff({ ...base, status: 'delivered', pickupPhotoAt: 'x' }).visible, false);
 
 const norte = kitchenHandoff({ ...base, deliveryProvider: 'managed', status: 'preparing' });

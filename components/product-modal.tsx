@@ -37,9 +37,10 @@ interface ProductModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (cartItem: CartItem) => void;
+  unavailableIds?: string[];
 }
 
-export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductModalProps) {
+export function ProductModal({ item, open, onOpenChange, onConfirm, unavailableIds = [] }: ProductModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState<CartItemSelection[]>([]);
   const [comboUpgradeId, setComboUpgradeId] = useState<string | undefined>(undefined);
@@ -82,14 +83,32 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
     setError('');
   };
 
+  const unavailable = new Set(unavailableIds);
+  const availableChoices = (choices: { id: string; name: string }[]) =>
+    choices.filter((choice) => !unavailable.has(choice.id));
+  const availableExtras = (item.extras || []).filter((extra) => !unavailable.has(extra.id));
+
   const handleConfirm = () => {
     for (const group of item.optionGroups || []) {
       const sel = selections.find((s) => s.optionGroupId === group.id);
-      const count = sel?.choices.length || 0;
-      if (count < group.min) {
-        setError(`Debes elegir al menos ${group.min} opción(es) en "${group.label}".`);
+      const choices = (sel?.choices || []).filter((choice) => !unavailable.has(choice));
+      if ((sel?.choices || []).some((choice) => unavailable.has(choice))) {
+        setError('Una opción elegida está agotada en esta sucursal.');
         return;
       }
+      if (choices.length < group.min) {
+        const left = availableChoices(group.choices);
+        setError(
+          left.length < group.min
+            ? `"${group.label}" está agotado en esta sucursal.`
+            : `Debes elegir al menos ${group.min} opción(es) en "${group.label}".`
+        );
+        return;
+      }
+    }
+    if (selectedExtras.some((extra) => unavailable.has(extra.id))) {
+      setError('Un extra elegido está agotado en esta sucursal.');
+      return;
     }
 
     const cartItem: CartItem = {
@@ -182,7 +201,7 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
                   </span>
                 </div>
                 <div className="grid gap-2">
-                  {group.choices.map((choice) => {
+                  {availableChoices(group.choices).map((choice) => {
                     const checked = sel?.choices.includes(choice.id) || false;
                     return (
                       <ProductOptionRow
@@ -201,11 +220,11 @@ export function ProductModal({ item, open, onOpenChange, onConfirm }: ProductMod
             );
           })}
 
-          {item.extras && item.extras.length > 0 && (
+          {availableExtras.length > 0 && (
             <div>
               <Label className="mb-2 block text-sm font-semibold text-white">Extras</Label>
               <div className="grid gap-2">
-                {item.extras.map((extra) => {
+                {availableExtras.map((extra) => {
                   const checked = selectedExtras.some((e) => e.id === extra.id);
                   return (
                     <ProductOptionRow

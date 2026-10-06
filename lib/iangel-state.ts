@@ -52,7 +52,7 @@ function isPingStale(lastPingAt: string | null | undefined) {
 
 /**
  * Flags usados en cotización / ruteo.
- * Activo permanece aunque el celular cierre la app. El GPS fresco solo dice si el pin está vivo.
+ * Conectado solo con el interruptor activo y un ping reciente. Si el celular se duerme, Centro pasa a Gestionar.
  * uberDirectEnabled es independiente: Vaqueras puede cotizar Uber aunque IANGEL esté offline.
  */
 export async function getRoutingRiderFlags() {
@@ -63,8 +63,7 @@ export async function getRoutingRiderFlags() {
     const dutyKeys = dutyRiderKeys(presence);
     const flaggedActive = dutyKeys.length > 0 || rider.rider_active === true;
     const pingStale = flaggedActive && liveKeys.length === 0 && isPingStale(rider.last_ping_at);
-    const legacyLive = presence.length === 0 && rider.rider_active === true && !isPingStale(rider.last_ping_at);
-    const riderActive = dutyKeys.length > 0 || legacyLive;
+    const riderActive = liveKeys.length > 0;
     const open = await createAdminSupabase()
       .from('orders')
       .select('iangel_rider_key, dispatch_status, status')
@@ -73,7 +72,7 @@ export async function getRoutingRiderFlags() {
     const openKeys = ((open.data || []) as { iangel_rider_key?: string | null; dispatch_status?: string | null; status?: string | null }[])
       .filter((row) => row.status !== 'delivered' && row.dispatch_status && ['assigned', 'picked_up', 'en_route', 'arrived', 'waiting_customer'].includes(row.dispatch_status))
       .map((row) => row.iangel_rider_key || null);
-    const busy = dutyKeys.length > 0 ? serviceIsBusy(dutyKeys, openKeys) : await isRiderBusy();
+    const busy = liveKeys.length > 0 ? serviceIsBusy(liveKeys, openKeys) : await isRiderBusy();
     return {
       rider,
       riderActive,

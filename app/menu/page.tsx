@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CATEGORIES, MENU_ITEMS } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
-import { useOrders } from '@/lib/orders-context';
 import { ProductCard } from '@/components/product-card';
 import { ProductModal } from '@/components/product-modal';
 import { FloatingCartBar } from '@/components/floating-cart-bar';
@@ -41,7 +40,24 @@ export default function MenuPage() {
   const [modalItem, setModalItem] = useState<MenuItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const { addItem } = useCart();
-  const { outOfStockIds } = useOrders();
+  const [outOfStockIds, setOutOfStockIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    const load = async () => {
+      const response = await fetch(`/api/menu/stock?branch=${branchId}`, { cache: 'no-store' });
+      if (!response.ok || cancelled) return;
+      const payload = (await response.json()) as { outOfStockIds?: string[] };
+      if (!cancelled) setOutOfStockIds(Array.isArray(payload.outOfStockIds) ? payload.outOfStockIds : []);
+    };
+    void load();
+    const interval = setInterval(load, 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [branchId]);
 
   useEffect(() => {
     const update = () => setIsOpen(branchId ? isBranchOpen(branchId) : false);
@@ -180,6 +196,7 @@ export default function MenuPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         onConfirm={addItem}
+        unavailableIds={outOfStockIds}
       />
 
       {!viewOnly && <FloatingCartBar />}

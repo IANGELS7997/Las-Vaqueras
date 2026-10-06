@@ -123,6 +123,7 @@ export interface Order {
   cookHold?: boolean;
   leaveAtDoor?: boolean;
   deliveryProvider?: string | null;
+  riderKey?: string | null;
   branchId?: 'centro' | 'norte' | 'sur';
   pickupPhotoAt?: string | null;
   kitchenReleasedAt?: string | null;

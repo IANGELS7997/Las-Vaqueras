@@ -23,7 +23,6 @@ const BONELESS_SAUCES: OptionChoice[] = [
   { id: 's-fresa-spicy', name: 'Fresa Spicy' },
   { id: 's-zarzamora-spicy', name: 'Zarzamora Spicy' },
   { id: 's-chipotle', name: 'Chipotle' },
-  { id: 's-tamarindo', name: 'Tamarindo' },
   { id: 's-lemon-pepper', name: 'Lemon Pepper' },
   { id: 's-bbq', name: 'BBQ' },
 ];
@@ -345,9 +344,17 @@ export const MENU_ITEMS: MenuItem[] = [
     image: '/menu/refrescos.jpg',
   },
   {
-    id: 'agua-fresca-500',
-    name: 'Agua Fresca 500ml',
-    description: 'Agua fresca de 500ml. Selecciona el sabor al confirmar.',
+    id: 'agua-de-limon',
+    name: 'Agua de limón',
+    description: 'Agua de limón, 500 ml.',
+    category: 'bebidas',
+    price_base: 34,
+    image: '',
+  },
+  {
+    id: 'agua-de-horchata',
+    name: 'Agua de horchata',
+    description: 'Agua de horchata, 500 ml.',
     category: 'bebidas',
     price_base: 34,
     image: '',
