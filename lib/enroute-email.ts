@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { branchMailLine } from '@/lib/branches';
+import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
@@ -54,6 +55,27 @@ function esc(value: unknown) {
     .join('&quot;');
 }
 
+export function buildEnrouteEmail(input: {
+  customerName: string;
+  orderId: string;
+  token?: string | null;
+  branchId?: unknown;
+}) {
+  const track = customerOrderUrl(input.orderId, input.token);
+  const first = esc(input.customerName.trim().split(' ')[0] || '');
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
+<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
+<h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu pedido va en camino</h1>
+<p>Hola ${first},</p>
+<p>${esc(ENROUTE_LINE)}</p>
+${customerMailButtons(track)}
+${billingMailButton()}
+<p>${branchMailLine(input.branchId)}</p>
+</div>`;
+  const text = `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${ENROUTE_LINE} ${customerMailLinksText(track)} ${billingMailText()}`;
+  return { subject: ENROUTE_SUBJECT, html, text };
+}
+
 export async function sendEnrouteEmail(input: {
   to: string;
   customerName: string;
@@ -64,16 +86,7 @@ export async function sendEnrouteEmail(input: {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
   if (!key || !to.includes('@')) return { ok: false as const };
-  const track = customerOrderUrl(input.orderId, input.token);
-  const first = esc(input.customerName.trim().split(' ')[0] || '');
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu pedido va en camino</h1>
-<p>Hola ${first},</p>
-<p>${esc(ENROUTE_LINE)}</p>
-${customerMailButtons(track)}
-<p>${branchMailLine(input.branchId)}</p>
-</div>`;
+  const message = buildEnrouteEmail(input);
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -84,9 +97,9 @@ ${customerMailButtons(track)}
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
       ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
-      subject: ENROUTE_SUBJECT,
-      html,
-      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${ENROUTE_LINE} ${customerMailLinksText(track)}`,
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
     }),
   });
   return { ok: response.ok };

@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Clock, MapPin, Package, Phone } from 'lucide-react';
+import { BillingFormLink } from '@/components/billing-form-link';
 import { MenuProductImage } from '@/components/menu-product-image';
 import { OrderRiderRating } from '@/components/order-rider-rating';
 import { PwaInstallHint } from '@/components/pwa-install-hint';
+import { orderCanRequestInvoice } from '@/lib/billing-form';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
@@ -319,6 +321,9 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
             Pedido confirmado. Venta final: no admite cancelación ni devolución.
           </p>
         </div>
+        {orderCanRequestInvoice(status) ? (
+          <BillingFormLink className="mt-4 flex min-h-11 items-center justify-center rounded-xl border border-orange-500 text-sm font-bold text-orange-400" />
+        ) : null}
       </div>
       {status !== 'awaiting_payment' ? <PwaInstallHint orderId={params.id} /> : null}
     </div>

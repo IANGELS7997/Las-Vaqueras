@@ -1,5 +1,6 @@
 import { branchMailLine, orderBranchId } from '@/lib/branches';
 import type { CartItem } from '@/types';
+import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
@@ -64,6 +65,7 @@ export function buildTicketEmail(row: TicketOrder) {
 ${delivery > 0 ? `<p>Envío: ${escMail(money(delivery))}</p>` : ''}
 ${service > 0 ? `<p>Cuota de servicio: ${escMail(money(service))}</p>` : ''}
 ${customerMailButtons(orderUrl)}
+${billingMailButton()}
 <p>${branchMailLine(orderBranchId(row.branch_id))}</p>
 </div>`;
   const text = [
@@ -73,6 +75,7 @@ ${customerMailButtons(orderUrl)}
     place,
     `Total ${money(row.total_charged)}`,
     customerMailLinksText(orderUrl),
+    billingMailText(),
   ].join('\n');
   return {
     subject: `Tu ticket · #${code} · Las Vaqueras`,

@@ -1,5 +1,6 @@
 'use client';
 
+import { BILLING_FORM_URL } from '@/lib/billing-form';
 import { cajaPayBanner, cajaTicketBanner } from '@/lib/caja-ticket';
 import { loyaltyCajaTicketLines } from '@/lib/loyalty';
 import { formatMXN } from '@/lib/pricing';
@@ -138,6 +139,18 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       <div className="my-1 border-t border-dashed border-black" />
       <div className="text-center">
         <p>Solo comida · sin envio ni comisiones</p>
+      </div>
+      <div className="my-1 border-t border-dashed border-black" />
+      <div className="text-center">
+        <p className="font-bold">FACTURACIÓN</p>
+        <img
+          src="/facturacion-qr.png"
+          alt="Facturación"
+          width={112}
+          height={112}
+          className="ticket-billing-qr"
+        />
+        <p className="ticket-billing-url">{BILLING_FORM_URL}</p>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { branchMailLine } from '@/lib/branches';
+import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 
 const SITE = 'https://lasvaqueras.com.mx';
@@ -33,8 +34,9 @@ export function shouldSendArrivalEmail(input: {
   return email.includes('@');
 }
 
-export async function sendArrivalEmail(input: {
-  to: string;
+export const ARRIVAL_SUBJECT = 'Tu repartidor llegó · Las Vaqueras';
+
+export function buildArrivalEmail(input: {
   customerName: string;
   orderId: string;
   token?: string | null;
@@ -43,9 +45,6 @@ export async function sendArrivalEmail(input: {
   managed?: boolean;
   branchId?: unknown;
 }) {
-  const key = process.env.RESEND_API_KEY || '';
-  const to = input.to.trim();
-  if (!key || !to.includes('@')) return { ok: false as const };
   const track = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
   const line = input.managed
@@ -57,8 +56,26 @@ export async function sendArrivalEmail(input: {
 <p>Hola ${first},</p>
 <p>${esc(line)}</p>
 ${customerMailButtons(track)}
+${billingMailButton()}
 <p>${branchMailLine(input.branchId)}</p>
 </div>`;
+  const text = `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${line} ${customerMailLinksText(track)} ${billingMailText()}`;
+  return { subject: ARRIVAL_SUBJECT, html, text };
+}
+
+export async function sendArrivalEmail(input: {
+  to: string;
+  customerName: string;
+  orderId: string;
+  token?: string | null;
+  leaveAtDoor?: boolean;
+  managed?: boolean;
+  branchId?: unknown;
+}) {
+  const key = process.env.RESEND_API_KEY || '';
+  const to = input.to.trim();
+  if (!key || !to.includes('@')) return { ok: false as const };
+  const message = buildArrivalEmail(input);
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -69,9 +86,9 @@ ${customerMailButtons(track)}
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
       ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
-      subject: 'Tu repartidor llegó · Las Vaqueras',
-      html,
-      text: `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${line} ${customerMailLinksText(track)}`,
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
     }),
   });
   return { ok: response.ok };
