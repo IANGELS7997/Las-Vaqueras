@@ -63,6 +63,7 @@ export type DbOrderRow = {
   loyalty_kind?: string | null;
   uber_tracking_url?: string | null;
   branch_id?: string | null;
+  iangel_rider_key?: string | null;
 };
 
 function toNumber(value: number | string): number {
@@ -104,6 +105,7 @@ export function mapDbOrder(row: DbOrderRow): Order {
     cookHold: Boolean(row.cook_hold),
     leaveAtDoor: Boolean(row.leave_at_door),
     deliveryProvider: row.delivery_provider || null,
+    riderKey: row.iangel_rider_key || null,
     pickupPhotoAt: row.pickup_photo_at || null,
     kitchenReleasedAt: row.kitchen_released_at || null,
     helpKind: row.help_kind || null,

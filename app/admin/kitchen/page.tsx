@@ -17,8 +17,8 @@ import {
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { useOrders } from '@/lib/orders-context';
-import { MENU_ITEMS, CATEGORIES } from '@/lib/mock-data';
+import { stockRows, type StockRow } from '@/lib/branch-stock';
+import { MENU_ITEMS } from '@/lib/mock-data';
 import { formatMXN } from '@/lib/pricing';
 import { formatPickupAt } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
@@ -94,8 +94,9 @@ async function postStation(body: {
 }
 
 export default function KitchenDashboardPage() {
-  const { outOfStockIds, toggleOutOfStock } = useOrders();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [liveRiderKeys, setLiveRiderKeys] = useState<string[] | null>(null);
+  const [outOfStockIds, setOutOfStockIds] = useState<string[]>([]);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
   const [shiftActive, setShiftActive] = useState(false);
   const [shiftRestored, setShiftRestored] = useState(false);
@@ -181,11 +182,43 @@ export default function KitchenDashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const loadStock = async () => {
+      const response = await fetch('/api/kitchen/stock', { cache: 'no-store', credentials: 'include' });
+      if (!response.ok || cancelled) return;
+      const payload = (await response.json()) as { outOfStockIds?: string[] };
+      if (!cancelled) setOutOfStockIds(Array.isArray(payload.outOfStockIds) ? payload.outOfStockIds : []);
+    };
+    void loadStock();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleOutOfStock = async (itemId: string) => {
+    const next = !outOfStockIds.includes(itemId);
+    setOutOfStockIds((prev) => (next ? [...prev, itemId] : prev.filter((id) => id !== itemId)));
+    const response = await fetch('/api/kitchen/stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ itemId, outOfStock: next }),
+    });
+    if (!response.ok) {
+      setOutOfStockIds((prev) => (next ? prev.filter((id) => id !== itemId) : [...prev, itemId]));
+      return;
+    }
+    const payload = (await response.json()) as { outOfStockIds?: string[] };
+    if (Array.isArray(payload.outOfStockIds)) setOutOfStockIds(payload.outOfStockIds);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       const response = await fetch('/api/kitchen/orders', { cache: 'no-store' });
       if (!response.ok) return;
       const payload = await response.json();
       const nextOrders = (payload.orders || []) as Order[];
+      setLiveRiderKeys(Array.isArray(payload.liveRiderKeys) ? payload.liveRiderKeys : []);
       if (cancelled) return;
       const publishOrders = (incoming: Order[]) => {
         setOrders((prev) => {
@@ -584,7 +617,14 @@ export default function KitchenDashboardPage() {
               const statusCfg = STATUS_CONFIG[order.status];
               const StatusIcon = statusCfg.icon;
               const statusLabel = reviewing ? REFUND_REVIEW_LABEL : kitchenStatusLabel(order.status, order.fulfillment);
-              const handoff = kitchenHandoff(order);
+              const owner = String(order.riderKey || '').trim();
+              const riderConnected =
+                liveRiderKeys == null
+                  ? undefined
+                  : owner
+                    ? liveRiderKeys.includes(owner)
+                    : liveRiderKeys.length > 0;
+              const handoff = kitchenHandoff({ ...order, riderConnected });
               return (
                 <div
                   key={order.id}
@@ -599,7 +639,7 @@ export default function KitchenDashboardPage() {
                     <p className="mb-3 text-sm font-bold uppercase tracking-wide text-amber-300">
                       {REFUND_REVIEW_LABEL}
                     </p>
-                  ) : order.deliveryProvider === 'managed' ? (
+                  ) : handoff.effect === 'depart' || handoff.effect === 'arrive' ? (
                     <p className="mb-3 text-sm font-bold uppercase tracking-wide text-amber-300">
                       Gestionar pedido
                     </p>
@@ -865,51 +905,75 @@ export default function KitchenDashboardPage() {
         </div>
       )}
 
-      {/* Out of stock management */}
-      <div>
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-white">
-          <Package className="h-5 w-5 text-brand-500" />
-          Control de inventario
-        </h2>
-        <div className="rounded-2xl border border-border/60 bg-card p-4">
-          <div className="mb-3 grid grid-cols-3 gap-2 text-xs font-semibold text-muted-foreground">
-            <span>Producto</span>
-            <span className="text-center">Categoría</span>
-            <span className="text-right">Agotado</span>
-          </div>
-          <div className="space-y-1">
-            {MENU_ITEMS.map((item) => {
-              const cat = CATEGORIES.find((c) => c.id === item.category);
-              const isOOS = outOfStockIds.includes(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg px-2 py-2 transition-colors',
-                    isOOS ? 'bg-red-500/5' : 'hover:bg-secondary/40'
-                  )}
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
-                      <MenuProductImage src={item.image} alt={item.name} sizes="32px" />
+      <KitchenStock outOfStockIds={outOfStockIds} onToggle={toggleOutOfStock} />
+    </div>
+  );
+}
+
+function KitchenStock({
+  outOfStockIds,
+  onToggle,
+}: {
+  outOfStockIds: string[];
+  onToggle: (itemId: string) => void;
+}) {
+  const groups: { title: string; kind: StockRow['kind'] }[] = [
+    { title: 'Productos', kind: 'product' },
+    { title: 'Salsas', kind: 'sauce' },
+    { title: 'Extras', kind: 'extra' },
+  ];
+  return (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <div key={group.kind}>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-white">
+            <Package className="h-5 w-5 text-brand-500" />
+            {group.title}
+          </h2>
+          <div className="rounded-2xl border border-border/60 bg-card p-4">
+            <div className="mb-3 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+              <span>{group.title}</span>
+              <span>Agotado</span>
+            </div>
+            <div className="space-y-1">
+              {stockRows()
+                .filter((row) => row.kind === group.kind)
+                .map((row) => {
+                  const isOOS = outOfStockIds.includes(row.id);
+                  const product = MENU_ITEMS.find((item) => item.id === row.id);
+                  return (
+                    <div
+                      key={row.id}
+                      className={cn(
+                        'flex items-center gap-2 rounded-lg px-2 py-2 transition-colors',
+                        isOOS ? 'bg-red-500/5' : 'hover:bg-secondary/40'
+                      )}
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        {product ? (
+                          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
+                            <MenuProductImage src={product.image} alt={row.name} sizes="32px" />
+                          </div>
+                        ) : null}
+                        <span className={cn('truncate text-sm', isOOS ? 'text-red-400 line-through' : 'text-white')}>
+                          {row.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
+                        {isOOS && <span className="text-xs font-semibold text-red-400">Agotado</span>}
+                        <Switch
+                          checked={isOOS}
+                          onCheckedChange={() => onToggle(row.id)}
+                          aria-label={`${isOOS ? 'Disponible' : 'Agotado'}: ${row.name}`}
+                        />
+                      </div>
                     </div>
-                    <span className={cn('truncate text-sm', isOOS ? 'text-red-400 line-through' : 'text-white')}>
-                      {item.name}
-                    </span>
-                  </div>
-                  <span className="hidden text-center text-xs text-muted-foreground sm:block sm:w-28">
-                    {cat?.name}
-                  </span>
-                  <div className="flex items-center justify-end gap-2">
-                    {isOOS && <span className="text-xs font-semibold text-red-400">Agotado</span>}
-                    <Switch checked={isOOS} onCheckedChange={() => toggleOutOfStock(item.id)} />
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+            </div>
           </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }

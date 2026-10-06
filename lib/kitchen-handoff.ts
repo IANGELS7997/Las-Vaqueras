@@ -7,6 +7,8 @@ export type KitchenHandoffOrder = {
   kitchenReceivedCash?: boolean;
   pickupPhotoAt?: string | null;
   kitchenReleasedAt?: string | null;
+  /** Falta solo en pedidos IANGEL. false = el rider de este pedido no tiene ping reciente. */
+  riderConnected?: boolean;
 };
 
 export const MANAGED_TRACK = [
@@ -84,6 +86,18 @@ export function kitchenHandoff(order: KitchenHandoffOrder): KitchenHandoff {
   }
 
   if (!isHouseIangel(order.deliveryProvider, order.fulfillment)) return hidden;
+
+  if (order.riderConnected === false) {
+    const onTheWay = order.status === 'in_transit';
+    return {
+      visible: true,
+      enabled: true,
+      effect: onTheWay ? 'arrive' : 'depart',
+      label: onTheWay ? 'Llegó el pedido al domicilio' : 'Entregar pedido',
+      hint: null,
+      trackIndex: onTheWay ? 1 : 0,
+    };
+  }
 
   if (order.kitchenReleasedAt) {
     return {
