@@ -640,7 +640,7 @@ export default function KitchenDashboardPage() {
                       {REFUND_REVIEW_LABEL}
                     </p>
                   ) : handoff.effect === 'depart' || handoff.effect === 'arrive' ? (
-                    <p className="mb-3 text-sm font-bold uppercase tracking-wide text-amber-300">
+                    <p className="mb-3 text-center text-2xl font-black uppercase tracking-wide text-amber-300">
                       Gestionar pedido
                     </p>
                   ) : null}

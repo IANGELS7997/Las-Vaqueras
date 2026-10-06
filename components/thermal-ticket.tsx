@@ -1,7 +1,6 @@
 'use client';
 
-import { cajaTicketBanner } from '@/lib/caja-ticket';
-import { paymentCardLabel } from '@/lib/card-funding';
+import { cajaPayBanner, cajaTicketBanner } from '@/lib/caja-ticket';
 import { loyaltyCajaTicketLines } from '@/lib/loyalty';
 import { formatMXN } from '@/lib/pricing';
 import { formatPickupAt } from '@/lib/pickup-slots';
@@ -26,6 +25,7 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
   const promoLines = loyaltyCajaTicketLines(order.loyaltyKind);
   const branch = branchById(order.branchId);
   const banner = cajaTicketBanner(order);
+  const pay = cajaPayBanner(order);
 
   return (
     <div
@@ -37,7 +37,11 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       }
     >
       <div className="text-center">
-        {banner ? <p className="font-bold">{banner}</p> : null}
+        {banner ? (
+          <div className="ticket-pay my-1 border-2 border-black px-1 py-1 text-center">
+            <p className="ticket-pay-title text-[28px] font-black leading-none tracking-wide">{banner}</p>
+          </div>
+        ) : null}
         <p className="font-bold">{branch.name.toUpperCase()}</p>
         <p>{branch.address}</p>
         <p>Tel: {branch.phone}</p>
@@ -48,8 +52,14 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
         <p>Orden: #{order.shortCode || order.id.slice(0, 8)}</p>
         <p>Fecha: {getDate(order.createdAt)}</p>
         <p>Hora: {getTime(order.createdAt)}</p>
-        <p className="font-bold">PAGADO EN LINEA — NO COBRAR</p>
-        <p className="font-bold">EN POS: TARJETA (YA PAGADA)</p>
+        <div className="ticket-pay my-1 border-2 border-black px-1 py-1 text-center">
+          <p className="ticket-pay-title text-[28px] font-black leading-none tracking-wide">{pay.title}</p>
+          {pay.lines.map((line) => (
+            <p key={line} className="ticket-pay-line mt-1 text-[14px] font-bold leading-tight">
+              {line}
+            </p>
+          ))}
+        </div>
         {order.fulfillment === 'pickup' ? (
           <p className="font-bold">
             RECOGER EN TIENDA
@@ -128,7 +138,6 @@ export function ThermalTicket({ order, active = false }: ThermalTicketProps) {
       <div className="my-1 border-t border-dashed border-black" />
       <div className="text-center">
         <p>Solo comida · sin envio ni comisiones</p>
-        <p>{order.payMethod === 'cash' ? 'Pago: Efectivo' : paymentCardLabel(order.cardFunding)}</p>
       </div>
     </div>
   );
