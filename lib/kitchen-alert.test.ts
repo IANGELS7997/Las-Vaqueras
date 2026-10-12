@@ -17,3 +17,13 @@ assert.deepEqual(kitchenAlertPlan({ ...fresh, alreadySeen: true }), { sound: fal
 assert.deepEqual(kitchenAlertPlan({ ...fresh, alreadyAnnounced: true }), { sound: false, print: false });
 assert.deepEqual(kitchenAlertPlan({ ...fresh, status: 'delivered' }), { sound: false, print: false });
 assert.deepEqual(kitchenAlertPlan({ ...fresh, status: 'in_transit' }), { sound: false, print: false });
+assert.deepEqual(
+  kitchenAlertPlan({ ...fresh, presentWhenShiftOpened: true }),
+  { sound: false, print: true },
+  'el pedido que ya estaba al abrir el turno no suena, y la comanda sí sale'
+);
+assert.deepEqual(
+  kitchenAlertPlan({ ...fresh, presentWhenShiftOpened: true, autoPrint: false }),
+  { sound: false, print: false },
+  'sin impresión automática, ese pedido tampoco suena'
+);

@@ -9,6 +9,8 @@ export function kitchenAlertPlan(input: {
   alreadySeen: boolean;
   alreadyAnnounced: boolean;
   status: OrderStatus;
+  /** Ya estaba en la lista cuando el turno pasó a activo. No suena; la comanda sí puede salir. */
+  presentWhenShiftOpened?: boolean;
 }): { sound: boolean; print: boolean } {
   if (!input.shiftActive || input.alreadySeen || input.alreadyAnnounced) {
     return { sound: false, print: false };
@@ -16,5 +18,5 @@ export function kitchenAlertPlan(input: {
   if (!ALERT_STATUSES.has(input.status)) {
     return { sound: false, print: false };
   }
-  return { sound: true, print: input.autoPrint };
+  return { sound: !input.presentWhenShiftOpened, print: input.autoPrint };
 }
