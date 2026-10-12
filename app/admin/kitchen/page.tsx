@@ -93,6 +93,9 @@ async function postStation(body: {
   }).catch(() => null);
 }
 
+/** Lista de pedidos. El primer fetch sigue siendo al abrir la página. */
+const ORDERS_POLL_MS = 15_000;
+
 export default function KitchenDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [liveRiderKeys, setLiveRiderKeys] = useState<string[] | null>(null);
@@ -266,7 +269,7 @@ export default function KitchenDashboardPage() {
       publishOrders(nextOrders);
     };
     void load();
-    const interval = setInterval(load, 4000);
+    const interval = setInterval(load, ORDERS_POLL_MS);
     const onVisible = () => {
       if (document.visibilityState === 'visible') void load();
     };
