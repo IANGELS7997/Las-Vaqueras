@@ -61,7 +61,7 @@ export async function dispatchUberDirectAfterPayment(input: {
   ) {
     return { dispatch_status: UBER_NEEDS_RETRY };
   }
-  const meters = Math.round(metersFromStore(input.lat, input.lng));
+  const meters = metersFromStore(input.lat, input.lng);
   if (meters > SERVICE_MAX_M) {
     return { dispatch_status: UBER_NEEDS_RETRY };
   }

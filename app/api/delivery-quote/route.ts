@@ -29,9 +29,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const meters = Math.round(metersFromBranch(branchId, lat, lng));
+    const meters = metersFromBranch(branchId, lat, lng);
     const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
-    // 0–4000 m IANGEL $50. 4001–6500 m envío $55 gestionado en cocina. Ya no se cotiza Uber.
+    // Círculo exacto: 0–2900 $39, 2900.1–4000 $49, 4000.1–5000 $55. Centro con rider: 0–4000 $50.
     const routingInput = {
       meters,
       riderActive: riderActive === true,

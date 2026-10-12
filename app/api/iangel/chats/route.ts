@@ -16,7 +16,7 @@ const SYSTEM_TEMPLATES = [
   {
     id: 'sys-welcome',
     title: 'Bienvenida IANGEL',
-    body: 'Conecta con el control de la izquierda para recibir pedidos de casa. Hasta 4 km son $50 y de ahí a 6.5 km son $55.',
+    body: 'Conecta con el control de la izquierda para recibir pedidos de casa. En Centro, hasta 4 km son $50 cuando estás en servicio. De ahí a 5 km lo gestiona la sucursal.',
   },
   {
     id: 'sys-safety',
