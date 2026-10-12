@@ -11,12 +11,12 @@ export default function TermsPage() {
     {
       title: '2. Servicio de entrega',
       content:
-        'El tiempo estimado de todo pedido es de hasta 45 minutos. Te pedimos realizarlo con anticipación. En domicilio de 4.5 a 6.5 km el tiempo estimado es de hasta 1 hora. Los tiempos pueden variar según el volumen de pedidos, el tráfico y el clima.',
+        'El tiempo estimado de todo pedido es de hasta 45 minutos. Te pedimos realizarlo con anticipación. En domicilio de 4.5 a 5 km el tiempo estimado es de hasta 1 hora. Los tiempos pueden variar según el volumen de pedidos, el tráfico y el clima.',
     },
     {
       title: '3. Precios y pagos',
       content:
-        'Hay tres sucursales: Centro (Rio de Janeiro 903, 12:15pm–9:15pm), Norte (C. Rey Hugo Capeto 17900, 1:00pm–9:30pm) y Sur (José Velázquez 2408, 1:00pm–9:15pm). El domicilio se mide desde la sucursal elegida, hasta 6500 m. En Centro, de 0 a 4000 m y en horario 12:00–21:00 el envío es $50 con el rider de la casa; de 4001 a 6500 m es $55 y solo tarjeta. En Norte y Sur todo el domicilio es gestionado por esa sucursal: $50 de 0 a 4000 m y $55 de 4001 a 6500 m, solo con tarjeta. Recoger es $0 y puede pagarse en efectivo o con tarjeta. Más de 6500 m no hay domicilio. Todos los precios están en pesos mexicanos (MXN).',
+        'Hay tres sucursales: Centro (Rio de Janeiro 903, 12:15pm–9:15pm), Norte (C. Rey Hugo Capeto 17900, 1:00pm–9:30pm) y Sur (José Velázquez 2408, 1:00pm–9:15pm). El domicilio se mide en línea recta desde la sucursal elegida, hasta 5000 m. De 0 a 2900 m el envío es $39, de 2901 a 4000 m es $49 y de 4001 a 5000 m es $55; ese envío lo gestiona la sucursal y se paga solo con tarjeta. En Centro, de 0 a 4000 m y en horario 12:00–21:00, si el rider de la casa está en servicio, el envío es $50. Si el rider no está en servicio, o ya pasaron las 21:00 y la tienda sigue abierta, Centro usa los mismos $39, $49 y $55. En Norte y Sur el domicilio sigue el horario de la sucursal. Recoger es $0 y puede pagarse en efectivo o con tarjeta. A más de 5000 m no hay domicilio. Todos los precios están en pesos mexicanos (MXN).',
     },
     {
       title: '4. Pedidos confirmados',

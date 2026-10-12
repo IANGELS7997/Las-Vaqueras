@@ -22,7 +22,7 @@ export async function resolvePaidDelivery(input: {
   dispatchStatus: string;
   routing: RoutingResult;
 }> {
-  const meters = Math.round(metersFromBranch(input.branchId, input.lat, input.lng));
+  const meters = metersFromBranch(input.branchId, input.lat, input.lng);
   const { riderActive, riderBusy, uberDirectEnabled } = await getRoutingRiderFlags();
   const routingInput = {
     meters,

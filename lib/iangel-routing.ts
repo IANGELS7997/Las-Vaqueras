@@ -3,8 +3,9 @@ import {
   FAR_NOTICE_MIN_M,
   OUTER_FEE_MXN,
   SELF_FEE_MXN,
+  SELF_MAX_M,
   SERVICE_MAX_M,
-  UBER_MIN_M,
+  managedCircleFee,
   type DeliveryProvider,
 } from '@/lib/iangel-constants';
 import { COPY } from '@/lib/iangel-copy';
@@ -42,7 +43,7 @@ export type RoutingResult = {
   allowSelf: boolean;
   allowUber: boolean;
   allowWait: boolean;
-  /** 4501–5500 m con envío disponible. El checkout cambia el aviso de 45 min por el de 1 hora. */
+  /** Desde 4501 m y hasta 5000 m. El checkout cambia el aviso de 45 min por el de 1 hora. */
   farZone: boolean;
 };
 
@@ -76,14 +77,18 @@ function managedOption(customerFee = OUTER_FEE_MXN): RoutingOption {
   };
 }
 
-function centroNearManaged(base: Omit<RoutingResult, 'defaultKind' | 'options' | 'allowSelf' | 'allowUber' | 'allowWait' | 'blocked' | 'blockedReason'>): RoutingResult {
+function managedResult(
+  base: Omit<RoutingResult, 'defaultKind' | 'options' | 'allowSelf' | 'allowUber' | 'allowWait' | 'blocked' | 'blockedReason' | 'farZone'>,
+  meters: number,
+  customerFee: number
+): RoutingResult {
   return {
     ...base,
     blocked: false,
     blockedReason: null,
-    farZone: false,
+    farZone: meters >= FAR_NOTICE_MIN_M,
     defaultKind: 'managed',
-    options: [managedOption(SELF_FEE_MXN)],
+    options: [managedOption(customerFee)],
     allowSelf: false,
     allowUber: false,
     allowWait: false,
@@ -91,21 +96,21 @@ function centroNearManaged(base: Omit<RoutingResult, 'defaultKind' | 'options' |
 }
 
 /**
- * Centro, 0–4000 m con rider activo: IANGEL $50 hasta las 21:00.
- * Centro, 0–4000 m sin rider, tienda abierta: «Gestionar pedido» $50, solo tarjeta, hasta el cierre (21:15).
- * Centro, 4001–6500 m: «Gestionar pedido» $55. No depende del rider y termina con el turno (21:00).
- * Norte y Sur: «Gestionar pedido» mientras la sucursal está abierta.
- * Más de 6500 m: sin domicilio.
+ * Círculo en línea recta desde la sucursal elegida. El metro no se redondea.
+ * 0–2900 m: $39. 2900.1–4000 m: $49. 4000.1–5000 m: $55. Más de 5000 m: sin envío.
+ * Centro, rider en servicio y turno 12:00–21:00: 0–4000 m sigue en iAngel a $50.
+ * Centro sin rider, o después de las 21:00 con la tienda abierta: la escala de la sucursal.
+ * Norte y Sur: esa escala mientras la sucursal está abierta.
  */
 export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
-  const meters = Math.max(0, Math.round(input.meters));
+  const meters = Math.max(0, input.meters);
   const branch = branchById(input.branchId);
   const inShift = branch.deliveryFollowsStoreHours
     ? isBranchOpen(branch.id, input.now)
     : isIangelShift(input.now);
   const covered = meters <= SERVICE_MAX_M;
-  const outer = meters >= UBER_MIN_M && meters <= SERVICE_MAX_M;
-  const farZone = meters >= FAR_NOTICE_MIN_M && covered;
+  const iangelZone = meters <= SELF_MAX_M;
+  const bandFee = managedCircleFee(meters);
 
   const base = {
     meters,
@@ -114,13 +119,13 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
     riderBusy: input.riderBusy,
     blocked: false as boolean,
     blockedReason: null as string | null,
-    farZone: false,
   };
 
   const blocked = (reason: string): RoutingResult => ({
     ...base,
     blocked: true,
     blockedReason: reason,
+    farZone: false,
     defaultKind: null,
     options: [],
     allowSelf: false,
@@ -136,38 +141,22 @@ export function resolveDeliveryRouting(input: RoutingInput): RoutingResult {
         `Fuera de horario de ${branch.shortName} (${branch.hoursLabel}). Puedes recoger en tienda.`
       );
     }
-    return {
-      ...base,
-      farZone: meters >= FAR_NOTICE_MIN_M,
-      defaultKind: 'managed',
-      options: [managedOption(outer ? OUTER_FEE_MXN : SELF_FEE_MXN)],
-      allowSelf: false,
-      allowUber: false,
-      allowWait: false,
-    };
+    return managedResult(base, meters, bandFee);
   }
 
   const storeOpen = isBranchOpen(branch.id, input.now);
-  const near = meters < UBER_MIN_M;
+  if (!iangelZone) {
+    if (!inShift && !storeOpen) return blocked(COPY.outOfShift);
+    return managedResult(base, meters, bandFee);
+  }
+
   if (!inShift) {
-    if (near && storeOpen) return centroNearManaged(base);
+    if (storeOpen) return managedResult(base, meters, bandFee);
     return blocked(COPY.outOfShift);
   }
 
-  if (outer) {
-    return {
-      ...base,
-      farZone,
-      defaultKind: 'managed',
-      options: [managedOption()],
-      allowSelf: false,
-      allowUber: false,
-      allowWait: false,
-    };
-  }
-
   if (!input.riderActive) {
-    if (storeOpen) return centroNearManaged(base);
+    if (storeOpen) return managedResult(base, meters, bandFee);
     return blocked(COPY.inactive);
   }
 

@@ -13,7 +13,7 @@ export const COPY = {
   uberBody: 'Envío con courier. Se aplica 3% de descuento sobre la cotización.',
   outOfShift: 'Fuera de horario de domicilio (12:00–21:00). Puedes recoger en tienda.',
   inactive: 'En esta zona el envío no está disponible ahora. Puedes recoger en tienda.',
-  tooFar: 'Domicilio hasta 6.5 km. Más lejos no hay envío; puedes recoger en tienda.',
+  tooFar: 'No hay envío a esta distancia. Solo puedes pedir para recoger en tienda.',
   uberQuoteMissing: 'No se pudo cotizar el envío. Intenta de nuevo o recoger en tienda.',
   eta45:
     'El tiempo estimado para tu pedido es de hasta 45 minutos. Te pedimos realizarlo con anticipación.',
