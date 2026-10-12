@@ -3,7 +3,7 @@ import { OUTER_FEE_MXN, SELF_FEE_MXN, type DeliveryProvider } from '@/lib/iangel
 import {
   allocateFoodStripe,
   calcCustomerFee,
-  calcDeveloperFood,
+  calcDeveloperOnChargedFood,
   calcRestaurantPayout,
   calcStripeFee,
   calcStripeShare,
@@ -105,8 +105,9 @@ export function calcCheckoutSplit({
   let stripeShare: number;
   let restaurantPayout: number;
   if (foodShare) {
-    const developerGross = Math.min(calcDeveloperFood(shareBase), subtotalWeb);
-    const ownerFood = Number(Math.max(0, subtotalWeb - developerGross).toFixed(2));
+    const chargedFood = Number((subtotalWeb + customerFee).toFixed(2));
+    const developerGross = Math.min(calcDeveloperOnChargedFood(chargedFood), chargedFood);
+    const ownerFood = Number(Math.max(0, chargedFood - developerGross).toFixed(2));
     const allocated = allocateFoodStripe(stripeFee, developerGross, ownerFood);
     stripeShare = allocated.ownerStripe;
     const ownerNet = Number(Math.max(0, ownerFood - allocated.ownerStripe).toFixed(2));

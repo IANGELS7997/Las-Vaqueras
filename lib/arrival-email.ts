@@ -1,6 +1,6 @@
 import { branchMailLine } from '@/lib/branches';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
-import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 
 const SITE = 'https://lasvaqueras.com.mx';
 
@@ -85,7 +85,6 @@ export async function sendArrivalEmail(input: {
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
-      ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
       subject: message.subject,
       html: message.html,
       text: message.text,

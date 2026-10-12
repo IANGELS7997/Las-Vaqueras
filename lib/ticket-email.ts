@@ -1,7 +1,7 @@
 import { branchMailLine, orderBranchId } from '@/lib/branches';
 import type { CartItem } from '@/types';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
-import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
 
@@ -98,7 +98,6 @@ export async function sendCustomerTicket(row: TicketOrder) {
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
-      ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
       subject: message.subject,
       html: message.html,
       text: message.text,

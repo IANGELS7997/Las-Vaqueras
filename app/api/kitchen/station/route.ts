@@ -8,6 +8,7 @@ import {
 } from '@/lib/kitchen-station';
 import { kitchenCookieOptions, kitchenSessionToken, KITCHEN_COOKIE } from '@/lib/kitchen-auth';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
+import { notifyKitchenWatch } from '@/lib/iangel-ops';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -82,6 +83,13 @@ export async function POST(req: Request) {
   if (notice) {
     await sendKitchenShiftNotice(notice, branch.id);
   }
+
+  void notifyKitchenWatch({
+    branchId: branch.id,
+    shiftActive: Boolean(row.shift_active),
+    autoPrint: Boolean(row.auto_print),
+    lastSeenAt: row.last_seen_at,
+  }).catch(() => undefined);
 
   const response = NextResponse.json({
     station: viewKitchenStation(row as KitchenStationRow),

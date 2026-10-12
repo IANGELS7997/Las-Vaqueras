@@ -1,5 +1,5 @@
 import { branchMailLine } from '@/lib/branches';
-import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { GIFT_EMAIL_ARRIVAL, GIFT_EMAIL_FINAL } from '@/lib/gift-checkout';
 import { JUMBO_PRODUCT_NAME } from '@/lib/loyalty';
 import { formatMXN } from '@/lib/pricing';
@@ -48,7 +48,6 @@ ${customerMailButtons(track)}
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
       to: [to],
-      ...(customerCopyBcc(to) ? { bcc: customerCopyBcc(to) } : {}),
       subject: 'Pedido de promoción confirmado · Las Vaqueras',
       html,
       text: `Canjeaste ${JUMBO_PRODUCT_NAME} de regalo. ${GIFT_EMAIL_ARRIVAL} ${GIFT_EMAIL_FINAL} Pedido ${input.orderId.slice(0, 8)}. ${when} ${total}. ${customerMailLinksText(track)}`,

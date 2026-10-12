@@ -4,9 +4,9 @@ function assert(cond: unknown, message: string) {
   if (!cond) throw new Error(message);
 }
 
-assert(cashDeveloperFeeCentavos(99, 109) === 1485, 'tradicional en efectivo anota $14.85');
-assert(cashDeveloperFeeCentavos(99, 10) === 1000, 'el 15% no pasa de la comida cobrada');
-assert(cashDeveloperFeeCentavos(0, 109) === 0, 'sin carta no hay comisión');
+assert(cashDeveloperFeeCentavos(109) === 1635, 'tradicional en efectivo anota el 15% de $109');
+assert(cashDeveloperFeeCentavos(10) === 150, 'el 15% sale de la comida cobrada');
+assert(cashDeveloperFeeCentavos(0) === 0, 'sin comida cobrada no hay comisión');
 
 const both = allocateCashFees(8721, [
   { id: 'a', openCentavos: 1485 },

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { branchById } from '@/lib/branches';
 import { KITCHEN_COOKIE } from '@/lib/kitchen-auth';
+import { notifyKitchenWatch } from '@/lib/iangel-ops';
 import { sendKitchenShiftNotice } from '@/lib/kitchen-station';
 import { requireKitchenBranch } from '@/lib/kitchen-guard';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -16,7 +17,7 @@ export async function POST() {
       const supabase = createAdminSupabase();
       const previous = await supabase
         .from('kitchen_station')
-        .select('shift_active')
+        .select('shift_active, last_seen_at')
         .eq('id', branch.stationId)
         .maybeSingle();
       await supabase.from('kitchen_station').upsert(
@@ -32,6 +33,12 @@ export async function POST() {
       if (previous.data?.shift_active) {
         await sendKitchenShiftNotice('close', branch.id);
       }
+      void notifyKitchenWatch({
+        branchId: branch.id,
+        shiftActive: false,
+        autoPrint: false,
+        lastSeenAt: previous.data?.last_seen_at || null,
+      }).catch(() => undefined);
     } catch {
       /* Salir cierra la sesión aunque la estación no responda. */
     }

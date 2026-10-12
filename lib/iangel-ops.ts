@@ -218,6 +218,22 @@ async function postOps(body: Record<string, unknown>) {
   }
 }
 
+/** Avisa al panel si la pantalla de cocina está en turno. Un fallo no frena la cocina. */
+export async function notifyKitchenWatch(input: {
+  branchId: string;
+  shiftActive: boolean;
+  autoPrint: boolean;
+  lastSeenAt: string | null;
+}) {
+  await postOps({
+    action: 'kitchen-watch',
+    branchId: input.branchId,
+    shiftActive: input.shiftActive,
+    autoPrint: input.autoPrint,
+    lastSeenAt: input.lastSeenAt,
+  });
+}
+
 /** Avisa al panel cuando nace un pedido pagado. Un fallo no frena el cobro. */
 export async function notifyIangelOpsOrder(row: IangelOpsRow) {
   const notice = buildIangelOpsOrder(row);

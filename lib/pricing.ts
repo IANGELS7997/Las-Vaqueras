@@ -1,7 +1,7 @@
 /**
  * Carta económica = `price_base` (P).
  * Cliente paga P′ = redondeo al peso de P × WEB_MARKUP.
- * Recoger e IANGEL: desarrollador = 15% de P. Dueño = P′ − ese 15%.
+ * Recoger, IANGEL y gestionar: desarrollador = 15% de la comida cobrada (P′ ya con descuento). El envío no entra. Dueño = esa comida menos ese 15%.
  * Stripe de ese cobro se reparte según esa comida. El envío de $50 no entra.
  * Uber Direct conserva dueño = 0.90 × P − Stripe/2.
  */
@@ -9,7 +9,7 @@ export const WEB_MARKUP = 1.1;
 export const SERVICE_FEE_RATE = 0;
 /** Uber Direct only: share of carta base P (not of the customer web price). */
 export const RESTAURANT_PAYOUT_RATE = 0.9;
-/** Recoger e IANGEL: share of carta base P for the developer. */
+/** Recoger, IANGEL y gestionar: 15% de la comida que sí se cobra, no de la carta. */
 export const DEVELOPER_FOOD_RATE = 0.15;
 export const PLATFORM_SHARE_OF_BASE = DEVELOPER_FOOD_RATE;
 /** 3% of Uber Direct quote, taken from the platform share. Never applied to IANGEL $50. */
@@ -34,10 +34,10 @@ export function calcRestaurantPayout(mBase: number): number {
   return Math.round(mBase * RESTAURANT_PAYOUT_RATE * 100) / 100;
 }
 
-/** Recoger e IANGEL: 15% of the full carta base, rounded to cents. */
-export function calcDeveloperFood(priceBase: number): number {
-  if (!Number.isFinite(priceBase) || priceBase <= 0) return 0;
-  return Math.round(priceBase * DEVELOPER_FOOD_RATE * 100) / 100;
+/** 15% de la comida cobrada al cliente, sin envío, redondeado a centavos. */
+export function calcDeveloperOnChargedFood(foodCharged: number): number {
+  if (!Number.isFinite(foodCharged) || foodCharged <= 0) return 0;
+  return Math.round(foodCharged * DEVELOPER_FOOD_RATE * 100) / 100;
 }
 
 /**

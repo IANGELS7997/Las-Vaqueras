@@ -344,7 +344,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: abuse }, { status: 400 });
       }
       const amounts = cashStoredAmounts(split.subtotalWeb, fulfillment, routedDeliveryFee);
-      const cashFeeCentavos = cashDeveloperFeeCentavos(serverBase, split.subtotalWeb);
+      const cashFeeCentavos = cashDeveloperFeeCentavos(split.subtotalWeb);
       const ownerNet = Number(((Math.round(amounts.cashFoodDue * 100) - cashFeeCentavos) / 100).toFixed(2));
       const cashAdjust = pendingAdjustment(amounts.totalCharged, pending);
       const paidStatus = paidOrderStatusFields({ fulfillment, deliveryProvider });

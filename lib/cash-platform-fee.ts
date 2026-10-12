@@ -1,4 +1,4 @@
-import { calcDeveloperFood } from '@/lib/pricing';
+import { calcDeveloperOnChargedFood } from '@/lib/pricing';
 
 /** Reserva que nadie confirmó. El siguiente cobro con tarjeta la suelta. */
 export const CASH_FEE_HOLD_MS = 20 * 60 * 1000;
@@ -13,14 +13,9 @@ export type CashFeeTake = {
   centavos: number;
 };
 
-/**
- * 15% de la carta, en centavos, sin comisión de tarjeta.
- * No puede pasar de la comida que el cliente sí pagó.
- */
-export function cashDeveloperFeeCentavos(priceBase: number, foodWeb: number): number {
-  const food = Math.round(Number(foodWeb) * 100) / 100;
-  if (!Number.isFinite(priceBase) || priceBase <= 0 || !Number.isFinite(food) || food <= 0) return 0;
-  const owed = Math.min(calcDeveloperFood(priceBase), food);
+/** 15% de la comida cobrada, en centavos. El envío no entra. */
+export function cashDeveloperFeeCentavos(foodCharged: number): number {
+  const owed = calcDeveloperOnChargedFood(foodCharged);
   return Math.max(0, Math.round(owed * 100));
 }
 

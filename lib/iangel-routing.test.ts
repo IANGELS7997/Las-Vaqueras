@@ -2,7 +2,7 @@ import { metersFromStore } from './iangel-geo';
 import { isIangelShift } from './iangel-shift';
 import { resolveDeliveryRouting, needsUberQuote } from './iangel-routing';
 import { calcCheckoutSplit } from './checkout-split';
-import { calcDeveloperFood, calcRestaurantPayout, calcWebPrice } from './pricing';
+import { calcDeveloperOnChargedFood, calcRestaurantPayout, calcWebPrice } from './pricing';
 import { chargedFoodWeb } from './gift-cart';
 import { SELF_FEE_MXN } from './iangel-constants';
 
@@ -126,7 +126,7 @@ assert(selfSplit.deliveryFee === 50, 'self cobra $50 al cliente');
 assert(selfSplit.deliveryDiscount === 0, 'IANGEL sin 3%');
 assert(
   selfSplit.restaurantPayout ===
-    Number((calcWebPrice(CARTA) - calcDeveloperFood(CARTA) - selfSplit.stripeShare).toFixed(2)),
+    Number((calcWebPrice(CARTA) - calcDeveloperOnChargedFood(calcWebPrice(CARTA)) - selfSplit.stripeShare).toFixed(2)),
   'IANGEL: dueño se queda la comida menos el 15% y su Stripe'
 );
 
@@ -163,19 +163,19 @@ const burgerDelivery = calcCheckoutSplit({
 assert(burgerDelivery.totalCharged === 159, 'tradicional a domicilio cobra 159');
 assert(burgerDelivery.deliveryFee === 50, 'el envío de 50 no cambia');
 assert(burgerDelivery.stripeFee === 10.12, `Stripe del 159 es 10.12, got ${burgerDelivery.stripeFee}`);
-assert(burgerDelivery.stripeShare === 8.74, `Stripe del dueño 8.74, got ${burgerDelivery.stripeShare}`);
-assert(burgerDelivery.restaurantPayout === 85.41, `dueño domicilio 85.41, got ${burgerDelivery.restaurantPayout}`);
+assert(burgerDelivery.stripeShare === 8.6, `Stripe del dueño 8.60, got ${burgerDelivery.stripeShare}`);
+assert(burgerDelivery.restaurantPayout === 84.05, `dueño domicilio 84.05, got ${burgerDelivery.restaurantPayout}`);
 assert(
-  Number((burgerDelivery.platformFee - burgerDelivery.stripeFee - burgerDelivery.deliveryFee).toFixed(2)) === 13.47,
-  'desarrollador domicilio queda en 13.47 después de su Stripe'
+  Number((burgerDelivery.platformFee - burgerDelivery.stripeFee - burgerDelivery.deliveryFee).toFixed(2)) === 14.83,
+  'desarrollador domicilio queda en 14.83 después de su Stripe'
 );
 const burgerPickup = calcCheckoutSplit({
   priceBaseTotal: 99,
   foodWebTotal: 109,
   fulfillment: 'pickup',
 });
-assert(burgerPickup.stripeShare === 6.94, `Stripe del dueño en recoger 6.94, got ${burgerPickup.stripeShare}`);
-assert(burgerPickup.restaurantPayout === 87.21, `dueño recoger 87.21, got ${burgerPickup.restaurantPayout}`);
+assert(burgerPickup.stripeShare === 6.83, `Stripe del dueño en recoger 6.83, got ${burgerPickup.stripeShare}`);
+assert(burgerPickup.restaurantPayout === 85.82, `dueño recoger 85.82, got ${burgerPickup.restaurantPayout}`);
 const lineFood = chargedFoodWeb([
   { uid: 'a', menuItemId: 'x', price_base: 4, quantity: 3 },
 ]);
@@ -232,7 +232,7 @@ assert(
     Number(
       (
         calcWebPrice(CARTA) -
-        calcDeveloperFood(CARTA) -
+        calcDeveloperOnChargedFood(calcWebPrice(CARTA)) -
         managedSplit.stripeShare +
         managedSplit.deliveryFee
       ).toFixed(2)
@@ -267,7 +267,7 @@ assert(
     Number(
       (
         calcWebPrice(CARTA) -
-        calcDeveloperFood(CARTA) -
+        calcDeveloperOnChargedFood(calcWebPrice(CARTA)) -
         nearManagedSplit.stripeShare +
         nearManagedSplit.deliveryFee
       ).toFixed(2)
@@ -311,7 +311,7 @@ assert(
     Number(
       (
         calcWebPrice(CARTA) -
-        calcDeveloperFood(CARTA) -
+        calcDeveloperOnChargedFood(calcWebPrice(CARTA)) -
         norteManaged50.stripeShare +
         50
       ).toFixed(2)
