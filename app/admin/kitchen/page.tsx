@@ -119,9 +119,14 @@ export default function KitchenDashboardPage() {
   const alertChainRef = useRef(Promise.resolve());
   const shiftActiveRef = useRef(false);
   const autoPrintRef = useRef(true);
+  const ordersRef = useRef<Order[]>([]);
+  const shiftOpenRef = useRef(false);
+  const openingBoardRef = useRef<Set<string>>(new Set());
+  const openingBoardReadyRef = useRef(false);
 
   shiftActiveRef.current = shiftActive;
   autoPrintRef.current = autoPrint;
+  ordersRef.current = orders;
 
   const handleShiftChange = (active: boolean) => {
     if (!active && shiftActiveRef.current) {
@@ -217,12 +222,27 @@ export default function KitchenDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      if (shiftActiveRef.current && !shiftOpenRef.current) {
+        shiftOpenRef.current = true;
+        const present = ordersRef.current.map((order) => order.id);
+        openingBoardRef.current = new Set(present);
+        openingBoardReadyRef.current = present.length > 0;
+      }
+      if (!shiftActiveRef.current && shiftOpenRef.current) {
+        shiftOpenRef.current = false;
+        openingBoardReadyRef.current = false;
+        openingBoardRef.current = new Set();
+      }
       const response = await fetch('/api/kitchen/orders', { cache: 'no-store' });
       if (!response.ok) return;
       const payload = await response.json();
       const nextOrders = (payload.orders || []) as Order[];
       setLiveRiderKeys(Array.isArray(payload.liveRiderKeys) ? payload.liveRiderKeys : []);
       if (cancelled) return;
+      if (shiftActiveRef.current && shiftOpenRef.current && !openingBoardReadyRef.current) {
+        openingBoardRef.current = new Set(nextOrders.map((order) => order.id));
+        openingBoardReadyRef.current = true;
+      }
       const publishOrders = (incoming: Order[]) => {
         setOrders((prev) => {
           const busyId = handoffLockRef.current?.orderId;
@@ -260,9 +280,14 @@ export default function KitchenDashboardPage() {
             alreadySeen: seen.has(order.id),
             alreadyAnnounced: announcedRef.current.has(order.id) || queued,
             status: order.status,
+            presentWhenShiftOpened: openingBoardRef.current.has(order.id),
           });
-          if (!plan.sound) return;
+          if (!plan.sound && !plan.print) return;
           announcedRef.current.add(order.id);
+          if (!plan.sound) {
+            enqueuePrint(order.id);
+            return;
+          }
           alertThenPrint(order.id, plan.print);
         });
       }

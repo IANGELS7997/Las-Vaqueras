@@ -51,6 +51,35 @@ function signalAlertDone() {
   window.dispatchEvent(new CustomEvent(ALERT_DONE_EVENT));
 }
 
+/** El clic del turno autoriza audio. No reproduce el aviso de pedido. */
+async function unlockAlertAudio(ctx: AudioContext, alertAudio: HTMLAudioElement) {
+  if (ctx.state === 'suspended') await ctx.resume();
+  const buffer = ctx.createBuffer(1, 1, 22050);
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(ctx.destination);
+  source.start();
+
+  const previousVolume = alertAudio.volume;
+  alertAudio.muted = true;
+  alertAudio.volume = 0;
+  try {
+    alertAudio.currentTime = 0;
+    await alertAudio.play();
+  } catch {
+    /* Sin archivo: el buffer mudo ya autorizó el AudioContext. */
+  }
+  alertAudio.pause();
+  alertAudio.onended = null;
+  try {
+    alertAudio.currentTime = 0;
+  } catch {
+    /* ignore */
+  }
+  alertAudio.muted = false;
+  alertAudio.volume = previousVolume || 1;
+}
+
 export function KitchenShift({
   restored = false,
   onShiftChange,
@@ -113,6 +142,18 @@ export function KitchenShift({
     return () => window.removeEventListener(ALERT_EVENT, onAlert);
   }, [isShiftActive]);
 
+  const stopAlertAudio = () => {
+    const alertAudio = audioRef.current;
+    if (alertAudio) {
+      alertAudio.pause();
+      alertAudio.onended = null;
+      alertAudio.currentTime = 0;
+    }
+    const ctx = ctxRef.current;
+    ctxRef.current = null;
+    if (ctx) void ctx.close().catch(() => undefined);
+  };
+
   const handleStartShift = () => {
     setIsShiftActive(true);
     onShiftChange?.(true);
@@ -124,16 +165,12 @@ export function KitchenShift({
           (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const ctx = ctxRef.current ?? new Ctx();
         ctxRef.current = ctx;
-        if (ctx.state === 'suspended') await ctx.resume();
+        const alertAudio = audioRef.current ?? new Audio(SOUND_SRC);
+        audioRef.current = alertAudio;
+        await unlockAlertAudio(ctx, alertAudio);
       } catch {
         /* El turno ya arrancó aunque el navegador bloquee audio. */
       }
-
-      const alertAudio = new Audio(SOUND_SRC);
-      audioRef.current = alertAudio;
-      void alertAudio.play().catch(() => {
-        /* Sin archivo o autoplay: usamos el timbre de AudioContext. */
-      });
     })();
   };
 
@@ -143,12 +180,7 @@ export function KitchenShift({
     );
     if (!confirmed) return;
 
-    const alertAudio = audioRef.current;
-    if (alertAudio) {
-      alertAudio.pause();
-      alertAudio.onended = null;
-      audioRef.current = null;
-    }
+    stopAlertAudio();
     setIsShiftActive(false);
     onShiftChange?.(false);
   };
