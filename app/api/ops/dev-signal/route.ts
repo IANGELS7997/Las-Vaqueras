@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { iangelAllowedOrigins } from '@/lib/iangel-auth';
 import { decideDevSignal, forwardDevSignal, type DevSignalInput } from '@/lib/dev-signal';
+import { saveOpsSignal } from '@/lib/iangel-ops';
 
 export const runtime = 'nodejs';
 
@@ -47,7 +48,11 @@ export async function POST(req: Request) {
     ip: clientIp(req),
   });
   if (decision.forward && decision.payload) {
-    await forwardDevSignal(decision.payload);
+    const payload = decision.payload;
+    await Promise.all([
+      forwardDevSignal(payload),
+      saveOpsSignal(payload).catch(() => undefined),
+    ]);
   }
   return NextResponse.json(
     { ok: true, ignored: decision.forward ? undefined : decision.reason },
