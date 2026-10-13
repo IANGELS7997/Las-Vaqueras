@@ -218,6 +218,11 @@ async function postOps(body: Record<string, unknown>) {
   }
 }
 
+/** Guarda visita, carrito o error en el panel. Un fallo no frena el aviso por correo. */
+export async function saveOpsSignal(payload: Record<string, unknown>) {
+  await postOps({ action: 'signal', signal: payload });
+}
+
 /** Avisa al panel si la pantalla de cocina está en turno. Un fallo no frena la cocina. */
 export async function notifyKitchenWatch(input: {
   branchId: string;
