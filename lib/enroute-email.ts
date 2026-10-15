@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { branchMailLine } from '@/lib/branches';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 
@@ -60,6 +61,7 @@ export function buildEnrouteEmail(input: {
   orderId: string;
   token?: string | null;
   branchId?: unknown;
+  guide?: LoyaltyMailGuide | null;
 }) {
   const track = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
@@ -68,11 +70,20 @@ export function buildEnrouteEmail(input: {
 <h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu pedido va en camino</h1>
 <p>Hola ${first},</p>
 <p>${esc(ENROUTE_LINE)}</p>
+${input.guide?.html || ''}
 ${customerMailButtons(track)}
 ${billingMailButton()}
 <p>${branchMailLine(input.branchId)}</p>
 </div>`;
-  const text = `Hola ${input.customerName.trim().split(' ')[0] || ''}. ${ENROUTE_LINE} ${customerMailLinksText(track)} ${billingMailText()}`;
+  const text = [
+    `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
+    ENROUTE_LINE,
+    input.guide?.text || '',
+    customerMailLinksText(track),
+    billingMailText(),
+  ]
+    .filter(Boolean)
+    .join('\n');
   return { subject: ENROUTE_SUBJECT, html, text };
 }
 
@@ -86,7 +97,8 @@ export async function sendEnrouteEmail(input: {
   const key = process.env.RESEND_API_KEY || '';
   const to = input.to.trim();
   if (!key || !to.includes('@')) return { ok: false as const };
-  const message = buildEnrouteEmail(input);
+  const guide = await loadLoyaltyMailGuide({ orderId: input.orderId });
+  const message = buildEnrouteEmail({ ...input, guide });
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

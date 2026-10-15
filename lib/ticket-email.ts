@@ -2,6 +2,7 @@ import { branchMailLine, orderBranchId } from '@/lib/branches';
 import type { CartItem } from '@/types';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
 
@@ -47,9 +48,16 @@ function whenLine(row: TicketOrder) {
   return row.delivery_address ? `A domicilio · ${row.delivery_address}` : 'A domicilio';
 }
 
-export function buildTicketEmail(row: TicketOrder) {
+export function purchaseThanksLine(customerName: string) {
+  const first = String(customerName || '').trim().split(/\s+/)[0] || '';
+  if (!first) return 'Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.';
+  return `Gracias por tu compra, ${first}. En Las Vaqueras preparamos tu pedido con gusto.`;
+}
+
+export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | null) {
   const code = row.short_code || row.id.replace(/-/g, '').slice(0, 4).toUpperCase();
-  const first = String(row.customer_name || '').trim().split(' ')[0] || '';
+  const first = String(row.customer_name || '').trim().split(/\s+/)[0] || '';
+  const thanks = purchaseThanksLine(row.customer_name || '');
   const orderUrl = customerOrderUrl(row.id, row.profile_login_token);
   const place = whenLine(row);
   const delivery = Number(row.delivery_fee || 0);
@@ -58,12 +66,14 @@ export function buildTicketEmail(row: TicketOrder) {
 <img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
 <h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu ticket · #${escMail(code)}</h1>
 <p>Hola ${escMail(first)},</p>
+<p>${escMail(thanks)}</p>
 <p>Recibimos tu pedido. Venta final: no admite cancelación ni devolución.</p>
 <p style="font-weight:700;">${escMail(place)}</p>
 <ul>${itemLines(row.items)}</ul>
 <p><strong>Total:</strong> ${escMail(money(row.total_charged))}</p>
 ${delivery > 0 ? `<p>Envío: ${escMail(money(delivery))}</p>` : ''}
 ${service > 0 ? `<p>Cuota de servicio: ${escMail(money(service))}</p>` : ''}
+${guide?.html || ''}
 ${customerMailButtons(orderUrl)}
 ${billingMailButton()}
 <p>${branchMailLine(orderBranchId(row.branch_id))}</p>
@@ -71,12 +81,16 @@ ${billingMailButton()}
   const text = [
     `Tu ticket #${code}`,
     `Hola ${first}.`,
+    thanks,
     'Recibimos tu pedido. Venta final: no admite cancelación ni devolución.',
     place,
     `Total ${money(row.total_charged)}`,
+    guide?.text || '',
     customerMailLinksText(orderUrl),
     billingMailText(),
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
   return {
     subject: `Tu ticket · #${code} · Las Vaqueras`,
     html,
@@ -88,7 +102,8 @@ export async function sendCustomerTicket(row: TicketOrder) {
   const key = process.env.RESEND_API_KEY || '';
   const to = String(row.customer_email || '').trim();
   if (!key || !to.includes('@') || !row?.id) return { ok: false as const };
-  const message = buildTicketEmail(row);
+  const guide = await loadLoyaltyMailGuide({ orderId: row.id, customerId: row.customer_id });
+  const message = buildTicketEmail(row, guide);
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
