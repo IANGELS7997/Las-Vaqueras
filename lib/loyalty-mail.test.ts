@@ -2,7 +2,7 @@ import { buildArrivalEmail } from './arrival-email';
 import { buildEnrouteEmail } from './enroute-email';
 import { buildGiftOrderEmail } from './gift-order-email';
 import { loyaltyGuideForOrder, loyaltyGuideFromPaidOrders, loyaltyMailGuide } from './loyalty-mail';
-import { buildTicketEmail, purchaseThanksLine } from './ticket-email';
+import { buildTicketEmail } from './ticket-email';
 
 function check(ok: boolean, message: string) {
   if (!ok) throw new Error(message);
@@ -78,14 +78,7 @@ const noProfile = loyaltyGuideForOrder({
 });
 check(noProfile.text.includes('Vas en el pedido 1.'), 'sin perfil este pedido es el 1');
 
-check(
-  purchaseThanksLine('Ana Lopez') === 'Gracias por tu compra, Ana. En Las Vaqueras preparamos tu pedido con gusto.',
-  'el agradecimiento usa el nombre'
-);
-check(
-  purchaseThanksLine('   ') === 'Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.',
-  'sin nombre el agradecimiento no deja un hueco'
-);
+const thanks = 'Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.';
 
 const ticket = buildTicketEmail(
   {
@@ -110,9 +103,10 @@ const ticket = buildTicketEmail(
   },
   third
 );
-check(ticket.html.indexOf('Hola Ana') < ticket.html.indexOf('Gracias por tu compra, Ana.'), 'el agradecimiento va después del saludo');
+check(ticket.html.indexOf('Hola Ana') < ticket.html.indexOf(thanks), 'el agradecimiento va después del saludo');
+check(!ticket.html.includes('Gracias por tu compra, Ana'), 'el agradecimiento no repite el nombre');
 check(ticket.html.indexOf('Total:') < ticket.html.indexOf('Tu guía de pedidos'), 'la guía va debajo de los datos del ticket');
-check(ticket.text.includes('Gracias por tu compra, Ana.'), 'el texto del ticket agradece por el nombre');
+check(ticket.text.includes(thanks), 'el texto del ticket agradece sin repetir el nombre');
 beforeButtons(ticket.html, 'ticket');
 
 const enroute = buildEnrouteEmail({

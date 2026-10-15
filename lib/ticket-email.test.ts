@@ -50,7 +50,9 @@ check(ticket.html.includes('2× Papas'), 'el ticket lista el platillo');
 check(!ticket.html.includes('Pago al restaurante'), 'el ticket no muestra el pago al restaurante');
 check(!ticket.html.includes('Fee de plataforma'), 'el ticket no muestra el fee interno');
 check(ticket.text.includes(INSTALL_APP_URL), 'el texto incluye instalar');
-check(ticket.html.includes('Gracias por tu compra, Ana.'), 'el ticket agradece a Ana');
-check(ticket.text.includes('Gracias por tu compra, Ana.'), 'el texto del ticket agradece a Ana');
+check(ticket.html.includes('Hola Ana'), 'el ticket saluda a Ana');
+check(ticket.html.includes('Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.'), 'el ticket agradece sin repetir el nombre');
+check(!ticket.html.includes('Gracias por tu compra, Ana'), 'el agradecimiento no repite el nombre');
+check(ticket.text.includes('Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.'), 'el texto agradece sin repetir el nombre');
 
 console.log('ticket-email tests: ok');

@@ -48,16 +48,11 @@ function whenLine(row: TicketOrder) {
   return row.delivery_address ? `A domicilio · ${row.delivery_address}` : 'A domicilio';
 }
 
-export function purchaseThanksLine(customerName: string) {
-  const first = String(customerName || '').trim().split(/\s+/)[0] || '';
-  if (!first) return 'Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.';
-  return `Gracias por tu compra, ${first}. En Las Vaqueras preparamos tu pedido con gusto.`;
-}
+export const PURCHASE_THANKS = 'Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.';
 
 export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | null) {
   const code = row.short_code || row.id.replace(/-/g, '').slice(0, 4).toUpperCase();
   const first = String(row.customer_name || '').trim().split(/\s+/)[0] || '';
-  const thanks = purchaseThanksLine(row.customer_name || '');
   const orderUrl = customerOrderUrl(row.id, row.profile_login_token);
   const place = whenLine(row);
   const delivery = Number(row.delivery_fee || 0);
@@ -66,7 +61,7 @@ export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | nu
 <img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
 <h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu ticket · #${escMail(code)}</h1>
 <p>Hola ${escMail(first)},</p>
-<p>${escMail(thanks)}</p>
+<p>${escMail(PURCHASE_THANKS)}</p>
 <p>Recibimos tu pedido. Venta final: no admite cancelación ni devolución.</p>
 <p style="font-weight:700;">${escMail(place)}</p>
 <ul>${itemLines(row.items)}</ul>
@@ -81,7 +76,7 @@ ${billingMailButton()}
   const text = [
     `Tu ticket #${code}`,
     `Hola ${first}.`,
-    thanks,
+    PURCHASE_THANKS,
     'Recibimos tu pedido. Venta final: no admite cancelación ni devolución.',
     place,
     `Total ${money(row.total_charged)}`,
