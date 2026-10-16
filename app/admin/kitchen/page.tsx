@@ -110,7 +110,9 @@ async function postStation(body: {
 }
 
 /** Lista de pedidos. El primer fetch sigue siendo al abrir la página. */
-const ORDERS_POLL_MS = 15_000;
+const ORDERS_POLL_MS = 60_000;
+/** Dentro de la ventana de 3 min en que la estación sigue «en línea». */
+const KITCHEN_HEARTBEAT_MS = 60_000;
 
 export default function KitchenDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -313,14 +315,25 @@ export default function KitchenDashboardPage() {
       publishOrders(nextOrders);
     };
     void load();
-    const interval = setInterval(load, ORDERS_POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') void load();
+    let interval = 0;
+    const start = () => {
+      window.clearInterval(interval);
+      if (document.visibilityState === 'hidden') return;
+      interval = window.setInterval(load, ORDERS_POLL_MS);
     };
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') {
+        window.clearInterval(interval);
+        return;
+      }
+      void load();
+      start();
+    };
+    start();
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [shiftActive, autoPrint, stationKnown]);
@@ -361,7 +374,7 @@ export default function KitchenDashboardPage() {
     };
 
     void beat();
-    const interval = window.setInterval(beat, 15000);
+    const interval = window.setInterval(beat, KITCHEN_HEARTBEAT_MS);
     const onVisible = () => {
       if (document.visibilityState === 'visible') void beat();
     };

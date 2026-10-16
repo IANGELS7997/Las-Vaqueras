@@ -15,6 +15,9 @@ import Image from 'next/image';
 import { isBranchOpen } from '@/lib/branches';
 import { useFulfillment } from '@/lib/fulfillment-context';
 
+/** El agotado puede tardar este tiempo en el menú. El cobro vuelve a leer el inventario. */
+const MENU_STOCK_POLL_MS = 3 * 60_000;
+
 const HERO_PROMOS = [
   { src: '/hero/hero-1.jpg', alt: 'Qué tal una torta' },
   { src: '/hero/hero-2.jpg', alt: 'Una burger' },
@@ -45,17 +48,35 @@ export default function MenuPage() {
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
+    let interval = 0;
     const load = async () => {
-      const response = await fetch(`/api/menu/stock?branch=${branchId}`, { cache: 'no-store' });
+      const response = await fetch(`/api/menu/stock?branch=${branchId}`);
       if (!response.ok || cancelled) return;
       const payload = (await response.json()) as { outOfStockIds?: string[] };
       if (!cancelled) setOutOfStockIds(Array.isArray(payload.outOfStockIds) ? payload.outOfStockIds : []);
     };
+    const start = () => {
+      window.clearInterval(interval);
+      if (document.visibilityState === 'hidden') return;
+      interval = window.setInterval(() => {
+        void load();
+      }, MENU_STOCK_POLL_MS);
+    };
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') {
+        window.clearInterval(interval);
+        return;
+      }
+      void load();
+      start();
+    };
     void load();
-    const interval = setInterval(load, 20000);
+    start();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [branchId]);
 

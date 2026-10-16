@@ -15,6 +15,9 @@ import { CUSTOMER_STEPS, viewFromOrder } from '@/lib/order-lifecycle';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
+/** Respaldo si el aviso en vivo de Supabase no llega. El canal sigue al momento. */
+const ORDER_STATUS_POLL_MS = 60_000;
+
 function isOrderStatus(value: unknown): value is OrderStatus {
   return (
     typeof value === 'string' &&
@@ -49,9 +52,24 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     };
 
     void load();
-    const poll = window.setInterval(() => {
+    let poll = 0;
+    const startPoll = () => {
+      window.clearInterval(poll);
+      if (document.visibilityState === 'hidden') return;
+      poll = window.setInterval(() => {
+        void load();
+      }, ORDER_STATUS_POLL_MS);
+    };
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') {
+        window.clearInterval(poll);
+        return;
+      }
       void load();
-    }, 4000);
+      startPoll();
+    };
+    startPoll();
+    document.addEventListener('visibilitychange', onVisible);
 
     const token = new URLSearchParams(window.location.search).get('s');
     if (token) {
@@ -67,6 +85,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
       return () => {
         cancelled = true;
         window.clearInterval(poll);
+        document.removeEventListener('visibilitychange', onVisible);
       };
     }
 
@@ -110,6 +129,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     return () => {
       cancelled = true;
       window.clearInterval(poll);
+      document.removeEventListener('visibilitychange', onVisible);
       void realtime.removeChannel(channel);
     };
   }, [lastOrder, params.id]);
