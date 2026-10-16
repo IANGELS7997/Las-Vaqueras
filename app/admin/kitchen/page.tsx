@@ -79,18 +79,34 @@ type StationView = {
   lastPrintAt: string | null;
 };
 
+let kitchenLeft = false;
+
+function leaveKitchen() {
+  if (kitchenLeft || typeof window === 'undefined') return;
+  kitchenLeft = true;
+  window.location.replace('/admin/login');
+}
+
+function kitchenDenied(response: Response | null) {
+  if (response?.status !== 401) return false;
+  leaveKitchen();
+  return true;
+}
+
 async function postStation(body: {
   shiftActive: boolean;
   autoPrint: boolean;
   event?: 'heartbeat' | 'print' | 'close' | 'end_shift';
 }) {
-  await fetch('/api/kitchen/station', {
+  const response = await fetch('/api/kitchen/station', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     credentials: 'include',
     keepalive: body.event === 'close' || body.event === 'end_shift',
   }).catch(() => null);
+  if (kitchenDenied(response)) return null;
+  return response;
 }
 
 /** Lista de pedidos. El primer fetch sigue siendo al abrir la página. */
@@ -169,7 +185,8 @@ export default function KitchenDashboardPage() {
     const restore = async () => {
       try {
         const status = await fetch('/api/kitchen/station', { cache: 'no-store', credentials: 'include' });
-        if (!status.ok || cancelled) return;
+        if (kitchenDenied(status) || cancelled) return;
+        if (!status.ok) return;
         const payload = await status.json();
         if (typeof payload.branchName === 'string') setBranchName(payload.branchName);
         const saved = payload.station as StationView | undefined;
@@ -222,6 +239,7 @@ export default function KitchenDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      if (kitchenLeft) return;
       if (shiftActiveRef.current && !shiftOpenRef.current) {
         shiftOpenRef.current = true;
         const present = ordersRef.current.map((order) => order.id);
@@ -234,6 +252,7 @@ export default function KitchenDashboardPage() {
         openingBoardRef.current = new Set();
       }
       const response = await fetch('/api/kitchen/orders', { cache: 'no-store' });
+      if (kitchenDenied(response) || kitchenLeft) return;
       if (!response.ok) return;
       const payload = await response.json();
       const nextOrders = (payload.orders || []) as Order[];
@@ -326,13 +345,16 @@ export default function KitchenDashboardPage() {
 
     let cancelled = false;
     const beat = async () => {
+      if (kitchenLeft) return;
       await postStation({
         shiftActive: true,
         autoPrint: autoPrintRef.current,
         event: 'heartbeat',
       });
+      if (kitchenLeft) return;
       const status = await fetch('/api/kitchen/station', { cache: 'no-store', credentials: 'include' });
-      if (!status.ok || cancelled) return;
+      if (kitchenDenied(status) || cancelled) return;
+      if (!status.ok) return;
       const payload = await status.json();
       if (typeof payload.branchName === 'string') setBranchName(payload.branchName);
       if (payload.station) setStation(payload.station as StationView);
@@ -380,11 +402,13 @@ export default function KitchenDashboardPage() {
   useEffect(() => {
     let cancelled = false;
     const loadOps = async () => {
+      if (kitchenLeft) return;
       const response = await fetch('/api/kitchen/ops-status', {
         cache: 'no-store',
         credentials: 'include',
       });
-      if (!response.ok || cancelled) return;
+      if (kitchenDenied(response) || cancelled) return;
+      if (!response.ok) return;
       const payload = await response.json();
       if (cancelled) return;
       setOpsOk(Boolean(payload.ok));

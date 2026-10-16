@@ -4,8 +4,10 @@ import {
   hostnameOf,
   isKitchenHostname,
   isLocalHostname,
-  isValidKitchenSession,
   KITCHEN_COOKIE,
+  readKitchenSession,
+  sessionGenerationMatches,
+  storedSessionGeneration,
 } from '@/lib/kitchen-auth';
 
 function isPublicAsset(pathname: string) {
@@ -31,6 +33,13 @@ function isKitchenAuthPath(pathname: string) {
   return pathname === '/admin/login' || pathname === '/api/kitchen/login';
 }
 
+function denyKitchen(request: NextRequest, pathname: string) {
+  if (pathname.startsWith('/api/kitchen') && !isKitchenAuthPath(pathname)) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+  return NextResponse.redirect(new URL('/admin/login', request.url));
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (isPublicAsset(pathname)) return NextResponse.next();
@@ -38,7 +47,12 @@ export async function middleware(request: NextRequest) {
   const host = hostnameOf(request.headers.get('host'));
   const onKitchenHost = isKitchenHostname(host);
   const onLocal = isLocalHostname(host);
-  const hasSession = await isValidKitchenSession(request.cookies.get(KITCHEN_COOKIE)?.value);
+  const session = await readKitchenSession(request.cookies.get(KITCHEN_COOKIE)?.value);
+  let hasSession = session != null;
+  if (onKitchenHost && session) {
+    const stored = await storedSessionGeneration(session.branch);
+    if (!sessionGenerationMatches(session.generation, stored)) hasSession = false;
+  }
 
   if (onKitchenHost) {
     if (pathname === '/') {
@@ -52,7 +66,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (isKitchenAuthPath(pathname)) return NextResponse.next();
-    if (!hasSession) return NextResponse.redirect(new URL('/admin/login', request.url));
+    if (!hasSession) return denyKitchen(request, pathname);
     return NextResponse.next();
   }
 
@@ -61,7 +75,7 @@ export async function middleware(request: NextRequest) {
       return new NextResponse('Not Found', { status: 404 });
     }
     if (isKitchenAuthPath(pathname)) return NextResponse.next();
-    if (!hasSession) return NextResponse.redirect(new URL('/admin/login', request.url));
+    if (!hasSession) return denyKitchen(request, pathname);
   }
 
   return NextResponse.next();

@@ -20,6 +20,8 @@ export type KitchenStationRow = {
   closed_at: string | null;
   offline_alert_sent_at: string | null;
   order_alert_sent_at: string | null;
+  admin_enabled?: boolean;
+  session_generation?: number;
   updated_at: string;
 };
 

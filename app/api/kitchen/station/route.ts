@@ -45,6 +45,9 @@ export async function POST(req: Request) {
 
   const supabase = createAdminSupabase();
   const previous = await loadStation(supabase, branch.stationId);
+  if (previous?.admin_enabled === false) {
+    return NextResponse.json({ error: 'Cocina apagada desde administración' }, { status: 401 });
+  }
   const now = new Date().toISOString();
   const event = body.event || 'heartbeat';
   const endingShift = event === 'close' || event === 'end_shift';
@@ -68,17 +71,39 @@ export async function POST(req: Request) {
     patch.last_print_at = now;
   }
 
-  const saved = await supabase
-    .from('kitchen_station')
-    .upsert({ id: branch.stationId, ...patch }, { onConflict: 'id' })
-    .select('*')
-    .single();
+  const gated = supabase.from('kitchen_station').update(patch).eq('id', branch.stationId);
+  const saved = endingShift
+    ? await gated.select('*').maybeSingle()
+    : await gated.eq('admin_enabled', true).select('*').maybeSingle();
 
   if (saved.error) {
     return NextResponse.json({ error: saved.error.message }, { status: 500 });
   }
 
-  const row = saved.data as KitchenStationRow;
+  let row = (saved.data || null) as KitchenStationRow | null;
+  if (!row && !endingShift) {
+    const again = await loadStation(supabase, branch.stationId);
+    if (again) {
+      return NextResponse.json({ error: 'Cocina apagada desde administración' }, { status: 401 });
+    }
+    const inserted = await supabase
+      .from('kitchen_station')
+      .insert({ id: branch.stationId, admin_enabled: true, session_generation: 0, ...patch })
+      .select('*')
+      .single();
+    if (inserted.error || !inserted.data) {
+      const lost = await loadStation(supabase, branch.stationId);
+      if (lost?.admin_enabled === false) {
+        return NextResponse.json({ error: 'Cocina apagada desde administración' }, { status: 401 });
+      }
+      return NextResponse.json({ error: inserted.error?.message || 'No se guardó la estación' }, { status: 500 });
+    }
+    row = inserted.data as KitchenStationRow;
+  }
+
+  if (!row) {
+    return NextResponse.json({ error: 'No se guardó la estación' }, { status: 500 });
+  }
   const notice = shiftNoticeKind(Boolean(previous?.shift_active), Boolean(row.shift_active));
   if (notice) {
     await sendKitchenShiftNotice(notice, branch.id);
@@ -97,7 +122,11 @@ export async function POST(req: Request) {
     branchId: branch.id,
   });
   if (!endingShift) {
-    const token = await kitchenSessionToken(branch.id);
+    const generation = row.session_generation;
+    const token = await kitchenSessionToken(
+      branch.id,
+      typeof generation === 'number' && Number.isInteger(generation) && generation >= 0 ? generation : 0
+    );
     if (token) {
       response.cookies.set(KITCHEN_COOKIE, token, kitchenCookieOptions());
     }

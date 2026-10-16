@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 import { branchByUsername } from '@/lib/branches';
 import { kitchenCookieOptions, kitchenSessionToken, KITCHEN_COOKIE } from '@/lib/kitchen-auth';
+import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
 
@@ -24,7 +25,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Usuario o contraseña incorrectos' }, { status: 401 });
   }
 
-  const token = await kitchenSessionToken(branch.id);
+  const supabase = createAdminSupabase();
+  const station = await supabase
+    .from('kitchen_station')
+    .select('admin_enabled, session_generation')
+    .eq('id', branch.stationId)
+    .maybeSingle();
+  if (station.error) {
+    return NextResponse.json({ error: 'No se pudo entrar' }, { status: 500 });
+  }
+  if (station.data?.admin_enabled === false) {
+    return NextResponse.json({ error: 'Cocina apagada desde administración' }, { status: 403 });
+  }
+  const generation = station.data?.session_generation;
+  const token = await kitchenSessionToken(
+    branch.id,
+    typeof generation === 'number' && Number.isInteger(generation) && generation >= 0 ? generation : 0
+  );
   if (!token) {
     return NextResponse.json({ error: 'Cocina no configurada' }, { status: 503 });
   }

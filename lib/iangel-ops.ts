@@ -229,14 +229,17 @@ export async function notifyKitchenWatch(input: {
   shiftActive: boolean;
   autoPrint: boolean;
   lastSeenAt: string | null;
+  adminEnabled?: boolean;
 }) {
-  await postOps({
+  const saved = await postOps({
     action: 'kitchen-watch',
     branchId: input.branchId,
     shiftActive: input.shiftActive,
     autoPrint: input.autoPrint,
     lastSeenAt: input.lastSeenAt,
+    ...(typeof input.adminEnabled === 'boolean' ? { adminEnabled: input.adminEnabled } : {}),
   });
+  return Boolean(saved?.ok);
 }
 
 /** Avisa al panel cuando nace un pedido pagado. Un fallo no frena el cobro. */
