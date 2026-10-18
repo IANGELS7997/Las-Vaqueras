@@ -1,5 +1,9 @@
 'use client';
 
+import { BRANCHES } from '@/lib/branches';
+import { readCheckoutDraft } from '@/lib/checkout-draft';
+import { BRANCH_STORAGE_KEY, FULFILLMENT_STORAGE_KEY, readStoredBranch } from '@/lib/fulfillment';
+import { shapeSignalCustomer, type SignalCustomer } from '@/lib/signal-customer';
 import type { CartItem } from '@/types';
 
 export type StoreSignalType = 'visit' | 'cart' | 'payment_failed' | 'dead_click' | 'client_error';
@@ -59,6 +63,48 @@ export function summarizeCart(items: CartItem[]) {
   }));
 }
 
+function readStoredCart() {
+  try {
+    const raw = localStorage.getItem('lv_cart');
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return summarizeCart(parsed as CartItem[]);
+  } catch {
+    return [];
+  }
+}
+
+export function readSignalCustomer(): SignalCustomer {
+  const draft = readCheckoutDraft();
+  let branch = '';
+  let how = '';
+  try {
+    const stored = readStoredBranch(sessionStorage.getItem(BRANCH_STORAGE_KEY));
+    branch = BRANCHES.find((item) => item.id === stored)?.shortName || '';
+    const mode = sessionStorage.getItem(FULFILLMENT_STORAGE_KEY) || '';
+    if (mode === 'delivery' || mode === 'pickup') how = mode;
+  } catch {
+    branch = '';
+    how = '';
+  }
+  return shapeSignalCustomer({
+    firstName: draft?.firstName,
+    lastName: draft?.lastName,
+    phone: draft?.phone,
+    email: draft?.email,
+    branch,
+    how,
+    street: draft?.street,
+    extNumber: draft?.extNumber,
+    intNumber: draft?.intNumber,
+    colonia: draft?.colonia,
+    postalCode: draft?.postalCode,
+    references: draft?.references,
+    pickupAt: draft?.pickupAt,
+  });
+}
+
 export function postDevSignal(input: {
   type: StoreSignalType;
   message?: string;
@@ -67,9 +113,11 @@ export function postDevSignal(input: {
   at?: string;
   device?: string;
   cart?: ReturnType<typeof summarizeCart>;
+  customer?: SignalCustomer;
 }) {
   if (typeof window === 'undefined') return;
   if (isKitchenSurface() && input.type !== 'client_error') return;
+  const problem = input.type === 'payment_failed' || input.type === 'client_error';
   const body = {
     source: 'las-vaqueras',
     type: input.type,
@@ -79,7 +127,8 @@ export function postDevSignal(input: {
     at: input.at || new Date().toISOString(),
     session: devSessionId(),
     device: input.device || '',
-    cart: input.cart,
+    cart: input.cart ?? (problem ? readStoredCart() : undefined),
+    customer: problem ? input.customer || readSignalCustomer() : undefined,
   };
   void fetch('/api/ops/dev-signal', {
     method: 'POST',
