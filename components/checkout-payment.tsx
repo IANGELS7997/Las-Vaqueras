@@ -52,6 +52,7 @@ function PaymentForm({
           billing_details: {
             name: pending.customer.name,
             phone: pending.customer.phone,
+            email: pending.customer.email.trim(),
           },
         },
       },
