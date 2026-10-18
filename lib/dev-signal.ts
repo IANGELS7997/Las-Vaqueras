@@ -26,6 +26,7 @@ export type DevSignalInput = {
   session?: unknown;
   device?: unknown;
   cart?: unknown;
+  customer?: unknown;
 };
 
 export type DevSignalDecision = {
@@ -70,6 +71,23 @@ function sourceOf(value: unknown) {
   if (source === 'iangel-rider') return 'iangel-rider';
   if (!source || source === 'las-vaqueras') return 'las-vaqueras';
   return '';
+}
+
+function customerOf(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const row = value as Record<string, unknown>;
+  const field = (key: string, max: number) => clip(stripCard(clip(row[key], max)), max);
+  return {
+    firstName: field('firstName', 160),
+    lastName: field('lastName', 160),
+    phone: field('phone', 30),
+    email: field('email', 160),
+    branch: field('branch', 80),
+    how: field('how', 40),
+    address: field('address', 300),
+    references: field('references', 160),
+    pickupAt: field('pickupAt', 80),
+  };
 }
 
 function cartLines(value: unknown) {
@@ -137,7 +155,9 @@ export function decideDevSignal(
     device: clip(input.device, 300),
   };
   const cart = cartLines(input.cart);
-  if (cart && (type === 'cart' || type === 'payment_failed')) payload.cart = cart;
+  if (cart && (type === 'cart' || type === 'payment_failed' || type === 'client_error')) payload.cart = cart;
+  const customer = customerOf(input.customer);
+  if (customer && (type === 'payment_failed' || type === 'client_error')) payload.customer = customer;
   if (errorKey) {
     recentErrors.set(errorKey, now);
     if (recentErrors.size > 2000) {
