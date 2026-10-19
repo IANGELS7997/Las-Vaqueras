@@ -133,6 +133,11 @@ export function isBranchOpen(branchId: unknown, date: Date = new Date()): boolea
   return openOnClock(branchById(branchId), getRestaurantWallClock(date));
 }
 
+export function anyBranchOpen(date: Date = new Date()): boolean {
+  const wall = getRestaurantWallClock(date);
+  return BRANCHES.some((branch) => openOnClock(branch, wall));
+}
+
 export function branchTodayHours(branchId: unknown, date: Date = new Date()): string {
   const branch = branchById(branchId);
   const wall = getRestaurantWallClock(date);
