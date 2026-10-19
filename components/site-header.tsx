@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { MapPin, Clock, Phone, Mail, Bike, Store } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { branchById, branchTodayHours, isBranchOpen } from '@/lib/branches';
+import { anyBranchOpen, branchById, branchTodayHours, isBranchOpen } from '@/lib/branches';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
 import { CustomerAccountSheet } from '@/components/customer-account-sheet';
@@ -17,9 +17,11 @@ export function SiteHeader() {
   const { mode, setMode, ready, branchId, clearBranch } = useFulfillment();
   const branch = branchId ? branchById(branchId) : null;
   const headerRef = useRef<HTMLElement>(null);
-  const [status, setStatus] = useState({ isOpen: false, label: 'Cerrado' });
-  const [todayHours, setTodayHours] = useState('');
+  const [now, setNow] = useState(() => new Date());
   const hideHeader = pathname.startsWith('/admin') || pathname.startsWith('/connect');
+  const openNow = branchId ? isBranchOpen(branchId, now) : anyBranchOpen(now);
+  const status = { isOpen: openNow, label: openNow ? 'Abierto' : 'Cerrado' };
+  const todayHours = branchId ? branchTodayHours(branchId, now) : '';
 
   useLayoutEffect(() => {
     if (hideHeader) {
@@ -42,16 +44,9 @@ export function SiteHeader() {
   }, [hideHeader, pathname, ready, mode, status.isOpen, todayHours]);
 
   useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      const openNow = branchId ? isBranchOpen(branchId, now) : false;
-      setStatus({ isOpen: openNow, label: openNow ? 'Abierto' : 'Cerrado' });
-      setTodayHours(branchId ? branchTodayHours(branchId, now) : '');
-    };
-    update();
-    const interval = setInterval(update, 60000);
+    const interval = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(interval);
-  }, [branchId]);
+  }, []);
 
   if (hideHeader) return null;
 

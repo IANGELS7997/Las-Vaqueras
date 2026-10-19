@@ -53,37 +53,23 @@ export type RestaurantWallClock = {
   dayOfMonth: number;
 };
 
-export function getRestaurantWallClock(date: Date = new Date()): RestaurantWallClock {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: RESTAURANT_TZ,
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value || '';
-  const weekday = get('weekday');
-  const dayMap: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
+/** Instant whose UTC fields are the Chihuahua wall clock. The offset does not change. */
+export function chihuahuaWallInstant(date: Date = new Date()): Date {
+  const match = /^([+-])(\d{2}):(\d{2})$/.exec(RESTAURANT_UTC_OFFSET);
+  const sign = match?.[1] === '+' ? 1 : -1;
+  const minutes = match ? Number(match[2]) * 60 + Number(match[3]) : 6 * 60;
+  return new Date(date.getTime() + sign * minutes * 60 * 1000);
+}
 
+export function getRestaurantWallClock(date: Date = new Date()): RestaurantWallClock {
+  const wall = chihuahuaWallInstant(date);
   return {
-    day: dayMap[weekday] ?? date.getDay(),
-    hour: Number(get('hour')),
-    minute: Number(get('minute')),
-    year: Number(get('year')),
-    month: Number(get('month')),
-    dayOfMonth: Number(get('day')),
+    day: wall.getUTCDay(),
+    hour: wall.getUTCHours(),
+    minute: wall.getUTCMinutes(),
+    year: wall.getUTCFullYear(),
+    month: wall.getUTCMonth() + 1,
+    dayOfMonth: wall.getUTCDate(),
   };
 }
 

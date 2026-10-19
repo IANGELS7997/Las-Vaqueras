@@ -1,4 +1,4 @@
-import { RESTAURANT_TZ } from '@/lib/restaurant';
+import { chihuahuaWallInstant } from '@/lib/restaurant';
 import { SHIFT_END_SEC, SHIFT_START_SEC, SHIFT_WARN_HOUR, SHIFT_WARN_MINUTE } from '@/lib/iangel-constants';
 
 export type ChihuahuaClock = {
@@ -9,18 +9,10 @@ export type ChihuahuaClock = {
 };
 
 export function getChihuahuaClock(date: Date = new Date()): ChihuahuaClock {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: RESTAURANT_TZ,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((part) => part.type === type)?.value || 0);
-  const hour = get('hour');
-  const minute = get('minute');
-  const second = get('second');
+  const wall = chihuahuaWallInstant(date);
+  const hour = wall.getUTCHours();
+  const minute = wall.getUTCMinutes();
+  const second = wall.getUTCSeconds();
   return {
     hour,
     minute,

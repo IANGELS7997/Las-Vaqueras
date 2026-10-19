@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { arrivalCustomerLine, shouldSendArrivalEmail } from './arrival-email';
 import { ENROUTE_LINE, nextDoorForEnroute } from './enroute-email';
-import { getOpenStatus, getTodayHours } from './restaurant';
+import { anyBranchOpen, isBranchOpen } from './branches';
+import { getOpenStatus, getRestaurantWallClock, getTodayHours } from './restaurant';
 
 assert.equal(
   shouldSendArrivalEmail({
@@ -58,6 +59,27 @@ assert.equal(getOpenStatus(wedAfter).isOpen, false);
 assert.equal(getOpenStatus(thuEarly).isOpen, false);
 assert.match(getTodayHours(wedOpen), /Miércoles: 12:15pm - 9:15pm/);
 assert.match(getTodayHours(thuEarly), /Jueves: 12:15pm - 9:15pm/);
+
+const afternoon = new Date('2026-10-19T14:47:00-06:00');
+const onlyCentro = new Date('2026-10-19T12:30:00-06:00');
+const onlyNorte = new Date('2026-10-19T21:20:00-06:00');
+const allClosed = new Date('2026-10-19T21:31:00-06:00');
+
+assert.equal(getRestaurantWallClock(afternoon).hour, 14);
+assert.equal(getRestaurantWallClock(afternoon).minute, 47);
+assert.equal(isBranchOpen('centro', afternoon), true);
+assert.equal(isBranchOpen('norte', afternoon), true);
+assert.equal(isBranchOpen('sur', afternoon), true);
+assert.equal(anyBranchOpen(afternoon), true);
+assert.equal(isBranchOpen('centro', onlyCentro), true);
+assert.equal(isBranchOpen('norte', onlyCentro), false);
+assert.equal(isBranchOpen('sur', onlyCentro), false);
+assert.equal(anyBranchOpen(onlyCentro), true);
+assert.equal(isBranchOpen('centro', onlyNorte), false);
+assert.equal(isBranchOpen('norte', onlyNorte), true);
+assert.equal(isBranchOpen('sur', onlyNorte), false);
+assert.equal(anyBranchOpen(onlyNorte), true);
+assert.equal(anyBranchOpen(allClosed), false);
 
 assert.equal(
   arrivalCustomerLine(false),
