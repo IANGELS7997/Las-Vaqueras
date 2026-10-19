@@ -2,11 +2,12 @@
 
 import { BRANCHES } from '@/lib/branches';
 import { readCheckoutDraft } from '@/lib/checkout-draft';
+import { readStoredCustomerLogin } from '@/lib/customer-login-store';
 import { BRANCH_STORAGE_KEY, FULFILLMENT_STORAGE_KEY, readStoredBranch } from '@/lib/fulfillment';
 import { shapeSignalCustomer, type SignalCustomer } from '@/lib/signal-customer';
 import type { CartItem } from '@/types';
 
-export type StoreSignalType = 'visit' | 'cart' | 'payment_failed' | 'dead_click' | 'client_error';
+export type StoreSignalType = 'visit' | 'cart' | 'payment_failed' | 'dead_click' | 'client_error' | 'help_dial';
 
 const SESSION_KEY = 'lv_dev_session';
 const VISIT_KEY = 'lv_dev_visit';
@@ -105,6 +106,64 @@ export function readSignalCustomer(): SignalCustomer {
   });
 }
 
+const BLANK_CONTACT = new Set([
+  'Todavía no lo escribió',
+  'Todavía no lo eligió',
+  'Todavía no la escribió',
+  'No aplica',
+  'Recoge en la sucursal',
+]);
+
+function writtenContact(value: string, fallback = '') {
+  const text = value.trim();
+  if (!text || BLANK_CONTACT.has(text)) return fallback.trim();
+  return text;
+}
+
+function signalOrigin() {
+  if (typeof document === 'undefined') return { referrer: '', utm: '' };
+  let referrer = '';
+  try {
+    if (document.referrer) {
+      const host = new URL(document.referrer).hostname;
+      if (host && host !== window.location.hostname) referrer = host;
+    }
+  } catch {
+    referrer = '';
+  }
+  const params = new URLSearchParams(window.location.search);
+  const utm = ['utm_source', 'utm_medium', 'utm_campaign']
+    .map((key) => {
+      const value = (params.get(key) || '').replace(/\s+/g, ' ').trim();
+      return value ? `${key.slice(4)} ${value}` : '';
+    })
+    .filter(Boolean)
+    .join(' · ')
+    .slice(0, 200);
+  return { referrer: referrer.slice(0, 200), utm };
+}
+
+function signalContact() {
+  const draft = readSignalCustomer();
+  const login = readStoredCustomerLogin();
+  return {
+    firstName: writtenContact(draft.firstName, login?.firstName),
+    lastName: writtenContact(draft.lastName, login?.lastName),
+    phone: writtenContact(draft.phone, login?.phone),
+    email: writtenContact(draft.email),
+    address: writtenContact(draft.address),
+  };
+}
+
+function signalDetail() {
+  const origin = signalOrigin();
+  const detail: Record<string, unknown> = {};
+  if (origin.referrer) detail.referrer = origin.referrer;
+  if (origin.utm) detail.utm = origin.utm;
+  detail.customer = signalContact();
+  return detail;
+}
+
 export function postDevSignal(input: {
   type: StoreSignalType;
   message?: string;
@@ -129,6 +188,7 @@ export function postDevSignal(input: {
     device: input.device || '',
     cart: input.cart ?? (problem ? readStoredCart() : undefined),
     customer: problem ? input.customer || readSignalCustomer() : undefined,
+    detail: input.type === 'visit' || input.type === 'help_dial' ? signalDetail() : undefined,
   };
   void fetch('/api/ops/dev-signal', {
     method: 'POST',
