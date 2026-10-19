@@ -3,7 +3,7 @@ const SESSION_CAP = 40;
 const IP_CAP = 200;
 const ERROR_REPEAT_MS = 60 * 1000;
 
-const STORE_TYPES = new Set(['visit', 'cart', 'payment_failed', 'dead_click', 'client_error']);
+const STORE_TYPES = new Set(['visit', 'cart', 'payment_failed', 'dead_click', 'client_error', 'help_dial']);
 const RIDER_TYPES = new Set(['api_error', 'dead_click', 'client_error']);
 const ALWAYS_SEND = new Set(['payment_failed', 'client_error']);
 
@@ -27,6 +27,7 @@ export type DevSignalInput = {
   device?: unknown;
   cart?: unknown;
   customer?: unknown;
+  detail?: unknown;
 };
 
 export type DevSignalDecision = {
@@ -71,6 +72,60 @@ function sourceOf(value: unknown) {
   if (source === 'iangel-rider') return 'iangel-rider';
   if (!source || source === 'las-vaqueras') return 'las-vaqueras';
   return '';
+}
+
+const BLANKS = new Set([
+  'Todavía no lo escribió',
+  'Todavía no lo eligió',
+  'Todavía no la escribió',
+  'No aplica',
+  'Recoge en la sucursal',
+]);
+
+function kept(value: unknown, max: number) {
+  const text = clip(stripCard(clip(value, max)), max);
+  return BLANKS.has(text) ? '' : text;
+}
+
+function contactOf(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const row = value as Record<string, unknown>;
+  const contact = {
+    firstName: kept(row.firstName, 80),
+    lastName: kept(row.lastName, 80),
+    phone: kept(row.phone, 30),
+    email: kept(row.email, 160),
+    address: kept(row.address, 300),
+  };
+  if (!contact.firstName && !contact.lastName && !contact.phone && !contact.email && !contact.address) return undefined;
+  return contact;
+}
+
+function detailOf(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const row = value as Record<string, unknown>;
+  const detail: Record<string, unknown> = {};
+  const referrer = kept(row.referrer, 200);
+  const utm = kept(row.utm, 200);
+  const city = kept(row.city, 80);
+  const region = kept(row.region, 80);
+  if (referrer) detail.referrer = referrer;
+  if (utm) detail.utm = utm;
+  if (city) detail.city = city;
+  if (region) detail.region = region;
+  const customer = contactOf(row.customer);
+  if (customer) detail.customer = customer;
+  return Object.keys(detail).length ? detail : undefined;
+}
+
+function headerText(value: string) {
+  const raw = value.trim();
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
 }
 
 function customerOf(value: unknown) {
@@ -158,6 +213,10 @@ export function decideDevSignal(
   if (cart && (type === 'cart' || type === 'payment_failed' || type === 'client_error')) payload.cart = cart;
   const customer = customerOf(input.customer);
   if (customer && (type === 'payment_failed' || type === 'client_error')) payload.customer = customer;
+  if (type === 'visit' || type === 'help_dial') {
+    const detail = detailOf(input.detail);
+    if (detail) payload.detail = detail;
+  }
   if (errorKey) {
     recentErrors.set(errorKey, now);
     if (recentErrors.size > 2000) {
@@ -167,6 +226,30 @@ export function decideDevSignal(
     }
   }
   return { forward: true, reason: 'ok', payload };
+}
+
+export function attachSignalPlace(
+  payload: Record<string, unknown>,
+  place: { city?: string; region?: string }
+) {
+  if (payload.type !== 'visit' && payload.type !== 'help_dial') return payload;
+  const city = kept(headerText(place.city || ''), 80);
+  const region = kept(headerText(place.region || ''), 80);
+  if (!city && !region) return payload;
+  const current =
+    payload.detail && typeof payload.detail === 'object' && !Array.isArray(payload.detail)
+      ? { ...(payload.detail as Record<string, unknown>) }
+      : {};
+  if (city) current.city = city;
+  if (region) current.region = region;
+  return { ...payload, detail: current };
+}
+
+export function notifyBody(payload: Record<string, unknown>) {
+  if (!('detail' in payload)) return payload;
+  const rest = { ...payload };
+  delete rest.detail;
+  return rest;
 }
 
 export async function forwardDevSignal(payload: Record<string, unknown>) {
@@ -180,7 +263,7 @@ export async function forwardDevSignal(payload: Record<string, unknown>) {
         'Content-Type': 'application/json',
         'X-LV-Dev-Signal': secret,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(notifyBody(payload)),
       signal: AbortSignal.timeout(8000),
     });
     return response.ok;

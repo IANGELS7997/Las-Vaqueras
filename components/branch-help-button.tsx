@@ -3,6 +3,7 @@
 import { Phone } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { branchById } from '@/lib/branches';
+import { deviceLabel, postDevSignal } from '@/lib/dev-signal-client';
 import { useFulfillment } from '@/lib/fulfillment-context';
 
 function isPurchasePath(pathname: string) {
@@ -26,6 +27,14 @@ export function BranchHelpButton() {
     <a
       href={`tel:${branch.phone}`}
       aria-label={`Ayuda, llamar a ${branch.shortName}`}
+      onClick={() => {
+        postDevSignal({
+          type: 'help_dial',
+          message: 'Abrió el marcador',
+          action: branch.shortName,
+          device: deviceLabel(),
+        });
+      }}
       className="fixed right-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-2xl bg-brand-500 px-2 py-3 text-[11px] font-semibold leading-none text-white shadow-lg hover:bg-brand-600"
     >
       <Phone className="h-4 w-4 shrink-0" aria-hidden />
