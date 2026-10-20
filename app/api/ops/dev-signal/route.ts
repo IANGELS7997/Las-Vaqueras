@@ -52,10 +52,9 @@ export async function POST(req: Request) {
       city: req.headers.get('x-vercel-ip-city') || '',
       region: req.headers.get('x-vercel-ip-country-region') || '',
     });
-    await Promise.all([
-      forwardDevSignal(payload),
-      saveOpsSignal(payload).catch(() => undefined),
-    ]);
+    const jobs: Promise<unknown>[] = [saveOpsSignal(payload).catch(() => undefined)];
+    if (payload.attachBranch !== true) jobs.push(forwardDevSignal(payload));
+    await Promise.all(jobs);
   }
   return NextResponse.json(
     { ok: true, ignored: decision.forward ? undefined : decision.reason },
