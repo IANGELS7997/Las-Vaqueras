@@ -1,4 +1,5 @@
 import { attachSignalPlace, decideDevSignal, notifyBody } from './dev-signal';
+import { signalOriginOf } from './signal-origin';
 
 function check(ok: boolean, message: string) {
   if (!ok) throw new Error(message);
@@ -43,6 +44,58 @@ const again = decideDevSignal(
   meta
 );
 check(!again.forward && again.reason === 'visit', 'la misma sesión no repite la visita');
+
+const placedBranch = decideDevSignal(
+  {
+    source: 'las-vaqueras',
+    type: 'visit',
+    session: 'visit-one',
+    attachBranch: true,
+    detail: { branch: 'norte', origin: 'qr', customer: { firstName: 'Ana' } },
+  },
+  meta
+);
+check(placedBranch.forward, 'completar la sucursal pasa aunque la visita ya se contó');
+check(placedBranch.payload?.attachBranch === true, 'la marca de sucursal viaja al panel');
+check(placedBranch.payload?.session === 'visit-one', 'la sesión identifica la visita');
+const placedBranchDetail = placedBranch.payload?.detail as Record<string, unknown>;
+check(placedBranchDetail.branch === 'norte' && placedBranchDetail.origin === 'qr', 'sucursal y origen quedan en el detalle');
+const placedNotice = notifyBody(placedBranch.payload || {});
+check(!('detail' in placedNotice) && !('session' in placedNotice) && !('attachBranch' in placedNotice), 'el aviso externo no lleva sucursal ni sesión');
+
+const stillOnce = decideDevSignal(
+  { source: 'las-vaqueras', type: 'visit', session: 'visit-one' },
+  meta
+);
+check(!stillOnce.forward && stillOnce.reason === 'visit', 'completar la sucursal no abre otra visita');
+
+const bareAttach = decideDevSignal(
+  { source: 'las-vaqueras', type: 'visit', session: 'visit-two', attachBranch: true, detail: { origin: 'qr' } },
+  { ...meta, ip: '203.0.113.13' }
+);
+check(!bareAttach.forward && bareAttach.reason === 'branch', 'sin sucursal no se completa la visita');
+
+const cart = decideDevSignal(
+  {
+    source: 'las-vaqueras',
+    type: 'cart',
+    session: 'cart-one',
+    detail: { branch: 'Sucursal Centro', origin: 'mail', referrer: 'google.com' },
+  },
+  { ...meta, ip: '203.0.113.14' }
+);
+check(cart.forward, 'el carrito se acepta');
+const cartDetail = cart.payload?.detail as Record<string, unknown>;
+check(cartDetail.referrer === 'google.com', 'el carrito conserva el referrer');
+check(!('branch' in cartDetail) && !('origin' in cartDetail), 'sucursal y origen inválidos no se guardan');
+check(cart.payload?.session === 'cart-one', 'el carrito lleva la sesión');
+
+check(signalOriginOf('google.com', '') === 'google', 'google.com es Google');
+check(signalOriginOf('www.google.com.mx', '') === 'google', 'google.com.mx es Google');
+check(signalOriginOf('', 'qr') === 'qr', 'utm_source=qr es QR');
+check(signalOriginOf('google.com', 'qr') === 'qr', 'el QR gana sobre Google');
+check(signalOriginOf('', 'google') === 'google', 'utm_source=google es Google');
+check(signalOriginOf('instagram.com', '') === 'otro', 'otro dominio no es Google');
 
 const dial = decideDevSignal(
   {

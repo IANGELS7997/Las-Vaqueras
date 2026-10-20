@@ -1,16 +1,20 @@
 'use client';
 
-import { BRANCHES } from '@/lib/branches';
+import { BRANCHES, type BranchId } from '@/lib/branches';
 import { readCheckoutDraft } from '@/lib/checkout-draft';
 import { readStoredCustomerLogin } from '@/lib/customer-login-store';
 import { BRANCH_STORAGE_KEY, FULFILLMENT_STORAGE_KEY, readStoredBranch } from '@/lib/fulfillment';
 import { shapeSignalCustomer, type SignalCustomer } from '@/lib/signal-customer';
+import { signalOriginOf, type SignalOrigin } from '@/lib/signal-origin';
 import type { CartItem } from '@/types';
 
 export type StoreSignalType = 'visit' | 'cart' | 'payment_failed' | 'dead_click' | 'client_error' | 'help_dial';
 
 const SESSION_KEY = 'lv_dev_session';
 const VISIT_KEY = 'lv_dev_visit';
+const ORIGIN_KEY = 'lv_signal_origin';
+const VISIT_BRANCH_KEY = 'lv_signal_visit_branch';
+const BRANCH_ATTACHED_KEY = 'lv_signal_branch_attached';
 
 let cartTimer: ReturnType<typeof setTimeout> | null = null;
 let netSeq = 0;
@@ -120,8 +124,17 @@ function writtenContact(value: string, fallback = '') {
   return text;
 }
 
-function signalOrigin() {
-  if (typeof document === 'undefined') return { referrer: '', utm: '' };
+function signalBranch(forced?: string) {
+  if (forced === 'centro' || forced === 'norte' || forced === 'sur') return forced;
+  try {
+    return readStoredBranch(sessionStorage.getItem(BRANCH_STORAGE_KEY)) || '';
+  } catch {
+    return '';
+  }
+}
+
+function freshOrigin() {
+  if (typeof document === 'undefined') return { referrer: '', utm: '', utmSource: '', origin: 'otro' as SignalOrigin };
   let referrer = '';
   try {
     if (document.referrer) {
@@ -132,6 +145,7 @@ function signalOrigin() {
     referrer = '';
   }
   const params = new URLSearchParams(window.location.search);
+  const utmSource = (params.get('utm_source') || '').replace(/\s+/g, ' ').trim();
   const utm = ['utm_source', 'utm_medium', 'utm_campaign']
     .map((key) => {
       const value = (params.get(key) || '').replace(/\s+/g, ' ').trim();
@@ -140,7 +154,25 @@ function signalOrigin() {
     .filter(Boolean)
     .join(' · ')
     .slice(0, 200);
-  return { referrer: referrer.slice(0, 200), utm };
+  return {
+    referrer: referrer.slice(0, 200),
+    utm,
+    utmSource,
+    origin: signalOriginOf(referrer, utmSource),
+  };
+}
+
+function signalOrigin(persist: boolean) {
+  const fresh = freshOrigin();
+  let origin = fresh.origin;
+  try {
+    const stored = sessionStorage.getItem(ORIGIN_KEY);
+    if (stored === 'qr' || stored === 'google' || stored === 'otro') origin = stored;
+    else if (persist) sessionStorage.setItem(ORIGIN_KEY, fresh.origin);
+  } catch {
+    origin = fresh.origin;
+  }
+  return { referrer: fresh.referrer, utm: fresh.utm, origin };
 }
 
 function signalContact() {
@@ -155,13 +187,43 @@ function signalContact() {
   };
 }
 
-function signalDetail() {
-  const origin = signalOrigin();
+function signalDetail(kind: 'visit' | 'cart' | 'help_dial', forcedBranch?: string) {
+  const origin = signalOrigin(kind !== 'help_dial');
   const detail: Record<string, unknown> = {};
   if (origin.referrer) detail.referrer = origin.referrer;
   if (origin.utm) detail.utm = origin.utm;
-  detail.customer = signalContact();
+  if (kind === 'visit' || kind === 'cart') {
+    const branch = signalBranch(forcedBranch);
+    if (branch) detail.branch = branch;
+    detail.origin = origin.origin;
+  }
+  if (kind !== 'cart') detail.customer = signalContact();
   return detail;
+}
+
+export function noteBranchForSignal(branchId: BranchId) {
+  try {
+    if (typeof window === 'undefined') return;
+    if (sessionStorage.getItem(VISIT_KEY) !== '1') return;
+    const stamped = sessionStorage.getItem(VISIT_BRANCH_KEY);
+    if (stamped == null || stamped !== '') return;
+    if (sessionStorage.getItem(BRANCH_ATTACHED_KEY)) return;
+    sessionStorage.setItem(BRANCH_ATTACHED_KEY, branchId);
+    window.setTimeout(() => {
+      try {
+        postDevSignal({
+          type: 'visit',
+          attachBranch: true,
+          action: 'sucursal',
+          branch: branchId,
+        });
+      } catch {
+        // El aviso no puede tumbar la sucursal ya elegida.
+      }
+    }, 1500);
+  } catch {
+    // sessionStorage puede no existir.
+  }
 }
 
 export function postDevSignal(input: {
@@ -173,10 +235,23 @@ export function postDevSignal(input: {
   device?: string;
   cart?: ReturnType<typeof summarizeCart>;
   customer?: SignalCustomer;
+  attachBranch?: boolean;
+  branch?: BranchId;
 }) {
   if (typeof window === 'undefined') return;
   if (isKitchenSurface() && input.type !== 'client_error') return;
+  if (input.type === 'visit' && !input.attachBranch) {
+    try {
+      if (sessionStorage.getItem(VISIT_BRANCH_KEY) == null) {
+        sessionStorage.setItem(VISIT_BRANCH_KEY, signalBranch(input.branch));
+      }
+    } catch {
+      // sessionStorage puede no existir.
+    }
+  }
   const problem = input.type === 'payment_failed' || input.type === 'client_error';
+  const tracked = input.type === 'visit' || input.type === 'help_dial' || input.type === 'cart';
+  const kind = input.type === 'cart' ? 'cart' : input.type === 'help_dial' ? 'help_dial' : 'visit';
   const body = {
     source: 'las-vaqueras',
     type: input.type,
@@ -188,7 +263,8 @@ export function postDevSignal(input: {
     device: input.device || '',
     cart: input.cart ?? (problem ? readStoredCart() : undefined),
     customer: problem ? input.customer || readSignalCustomer() : undefined,
-    detail: input.type === 'visit' || input.type === 'help_dial' ? signalDetail() : undefined,
+    detail: tracked || input.attachBranch ? signalDetail(kind, input.branch) : undefined,
+    attachBranch: input.attachBranch === true ? true : undefined,
   };
   void fetch('/api/ops/dev-signal', {
     method: 'POST',

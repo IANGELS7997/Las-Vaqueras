@@ -28,6 +28,7 @@ export type DevSignalInput = {
   cart?: unknown;
   customer?: unknown;
   detail?: unknown;
+  attachBranch?: unknown;
 };
 
 export type DevSignalDecision = {
@@ -109,10 +110,14 @@ function detailOf(value: unknown) {
   const utm = kept(row.utm, 200);
   const city = kept(row.city, 80);
   const region = kept(row.region, 80);
+  const branch = kept(row.branch, 20);
+  const origin = kept(row.origin, 20);
   if (referrer) detail.referrer = referrer;
   if (utm) detail.utm = utm;
   if (city) detail.city = city;
   if (region) detail.region = region;
+  if (branch === 'centro' || branch === 'norte' || branch === 'sur') detail.branch = branch;
+  if (origin === 'qr' || origin === 'google' || origin === 'otro') detail.origin = origin;
   const customer = contactOf(row.customer);
   if (customer) detail.customer = customer;
   return Object.keys(detail).length ? detail : undefined;
@@ -191,7 +196,14 @@ export function decideDevSignal(
 
   const sessionRaw = clip(input.session, 64).replace(/[^a-zA-Z0-9_-]/g, '');
   const sessionKey = `${source}:${sessionRaw || `ip:${ipKey}`}`;
-  if (!ALWAYS_SEND.has(type)) {
+  const attaching = type === 'visit' && input.attachBranch === true;
+  if (attaching) {
+    const detail = detailOf(input.detail);
+    const branch = detail?.branch;
+    if (!sessionRaw || (branch !== 'centro' && branch !== 'norte' && branch !== 'sur')) {
+      return { forward: false, reason: 'branch' };
+    }
+  } else if (!ALWAYS_SEND.has(type)) {
     const sessionBucket = bucket(sessions, sessionKey, now);
     if (type === 'visit' && sessionBucket.visit) return { forward: false, reason: 'visit' };
     if (sessionBucket.count >= SESSION_CAP) return { forward: false, reason: 'cap' };
@@ -213,7 +225,9 @@ export function decideDevSignal(
   if (cart && (type === 'cart' || type === 'payment_failed' || type === 'client_error')) payload.cart = cart;
   const customer = customerOf(input.customer);
   if (customer && (type === 'payment_failed' || type === 'client_error')) payload.customer = customer;
-  if (type === 'visit' || type === 'help_dial') {
+  if (sessionRaw && (type === 'visit' || type === 'cart')) payload.session = sessionRaw;
+  if (attaching) payload.attachBranch = true;
+  if (type === 'visit' || type === 'help_dial' || type === 'cart') {
     const detail = detailOf(input.detail);
     if (detail) payload.detail = detail;
   }
@@ -246,9 +260,11 @@ export function attachSignalPlace(
 }
 
 export function notifyBody(payload: Record<string, unknown>) {
-  if (!('detail' in payload)) return payload;
+  if (!('detail' in payload) && !('attachBranch' in payload) && !('session' in payload)) return payload;
   const rest = { ...payload };
   delete rest.detail;
+  delete rest.attachBranch;
+  delete rest.session;
   return rest;
 }
 

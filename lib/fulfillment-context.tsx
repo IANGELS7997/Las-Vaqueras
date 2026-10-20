@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { BranchId } from '@/lib/branches';
+import { noteBranchForSignal } from '@/lib/dev-signal-client';
 import {
   BRANCH_STORAGE_KEY,
   BROWSE_MENU_STORAGE_KEY,
@@ -60,6 +61,7 @@ export function FulfillmentProvider({ children }: { children: React.ReactNode })
     } catch {
       // ignore
     }
+    noteBranchForSignal(next);
   }, []);
 
   const clearBranch = useCallback(() => {
