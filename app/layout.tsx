@@ -4,7 +4,6 @@ import { Inter } from 'next/font/google';
 import { CartProvider } from '@/lib/cart-context';
 import { FulfillmentProvider } from '@/lib/fulfillment-context';
 import { OrdersProvider } from '@/lib/orders-context';
-import { BranchHelpButton } from '@/components/branch-help-button';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { DevSignalListener } from '@/components/dev-signal-listener';
@@ -48,7 +47,6 @@ export default function RootLayout({
         <CustomerEntrySession />
         <CartProvider>
           <FulfillmentProvider>
-            <BranchHelpButton />
             <OrdersProvider>
               <div className="flex min-h-screen flex-col">
                 <SiteHeader />
