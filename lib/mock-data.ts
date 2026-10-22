@@ -81,7 +81,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-tradicional',
     name: 'Hamburguesa Tradicional con Queso',
-    description: 'Clásica hamburguesa con queso derretido.',
+    description: 'Carne de hamburguesa de sirloin y rebanada de queso Chihuahua menonita. Sencilla pero deliciosa.',
     category: 'combos',
     price_base: 99,
     image: '/menu/hamburguesa-tradicional.jpg',
@@ -90,7 +90,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-aguacatosa',
     name: 'Hamburguesa Aguacatosa',
-    description: 'Hamburguesa con aguacate fresco y toppings especiales.',
+    description: 'Carne de hamburguesa de sirloin, queso y aguacate.',
     category: 'combos',
     price_base: 114,
     image: '/menu/hamburguesa-aguacatosa.jpg',
@@ -99,7 +99,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-tocino',
     name: 'Hamburguesa Tocino',
-    description: 'Hamburguesa con tocino crujiente y queso.',
+    description: 'Carne de hamburguesa de sirloin, queso, tocino y aguacate.',
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-tocino.jpg',
@@ -108,7 +108,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-campestre',
     name: 'Hamburguesa Campestre',
-    description: 'Hamburguesa estilo campestre con ingredientes rústicos.',
+    description: 'Carne de hamburguesa de sirloin, queso, salchicha para asar y aguacate.',
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-campestre.jpg',
@@ -117,7 +117,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-hawaiana',
     name: 'Hamburguesa Hawaiana',
-    description: 'Hamburguesa con piña y tocino al estilo hawaiano.',
+    description: 'Carne de hamburguesa de sirloin, queso, tocino y una dulce rebanada de piña.',
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-hawaiana.jpg',
@@ -126,7 +126,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-pollo',
     name: 'Hamburguesa de Pollo Especial',
-    description: 'Filete de pollo a la plancha con toppings.',
+    description: 'Pechuga de pollo empanizada, bañada en la salsa de tu preferencia, jamón, queso y aguacate.',
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-pollo.jpg',
@@ -135,7 +135,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesa-fajita',
     name: 'Hamburguesa Fajita Especial',
-    description: 'Hamburguesa con fajita de res y vegetales.',
+    description: 'Carne de hamburguesa de sirloin, queso, aguacate y jugosas fajitas de res marinadas.',
     category: 'combos',
     price_base: 139,
     image: '/menu/hamburguesa-fajita.jpg',
@@ -147,7 +147,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'torta-lomo',
     name: 'Torta de Lomo Especial',
-    description: 'Torta de lomo especial con toppings de la casa.',
+    description: 'Bastante lomo deshebrado doradito, jamón Virginia, queso Chihuahua Laurel gratinado y aguacate.',
     category: 'tortas',
     price_base: 119,
     image: '/menu/torta-lomo.jpg',
@@ -156,7 +156,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'torta-vaquera',
     name: 'Torta Vaquera',
-    description: 'Torta estilo vaquera con ingredientes especiales.',
+    description: 'Lomo deshebrado doradito, tocino, carne de burguer, jamón, queso y aguacate. Una torta tremenda!',
     category: 'tortas',
     price_base: 139,
     image: '/menu/torta-vaquera.jpg',
@@ -168,7 +168,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'papas-medianas',
     name: 'Papas Medianas Individuales',
-    description: 'Papas individuales. Elige 1 o 2 ingredientes.',
+    description: 'Individuales. 1 ó 2 ingredientes.',
     category: 'papas',
     price_base: 129,
     image: '/menu/papas-medianas.jpg',
@@ -193,7 +193,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'papas-grandes',
     name: 'Papas Grandes',
-    description: 'Porción para 2 personas. Elige 1 a 3 ingredientes.',
+    description: '2 personas. 1 a 3 ingredientes.',
     category: 'papas',
     price_base: 229,
     image: '/menu/papas-grandes.jpg',
@@ -218,7 +218,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'papas-jumbo',
     name: 'Papas Jumbo',
-    description: 'Porción para 3 personas. Elige 1 a 4 ingredientes.',
+    description: '3 personas. 1 a 4 ingredientes.',
     category: 'papas',
     price_base: 289,
     image: '/menu/papas-jumbo.jpg',
@@ -244,7 +244,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'boneless-chicos',
     name: 'Boneless Chicos',
-    description: 'Más de 350g de boneless crujientes. Elige tu salsa.',
+    description: 'Más de 350 grms. El peso de los boneless es bañados en salsa.',
     category: 'boneless',
     price_base: 119,
     image: '/menu/boneless-chicos.jpg',
@@ -263,7 +263,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'boneless-medianos',
     name: 'Boneless Medianos',
-    description: 'Más de 450g de boneless crujientes. Elige 1-2 salsas.',
+    description: 'Más de 450 grms. El peso de los boneless es bañados en salsa.',
     category: 'boneless',
     price_base: 143,
     image: '/menu/boneless-medianos.jpg',
@@ -282,7 +282,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'boneless-grandes',
     name: 'Boneless Grandes',
-    description: 'Más de 700g de boneless crujientes. Elige 1-3 salsas.',
+    description: 'Más de 700 grms. El peso de los boneless es bañados en salsa.',
     category: 'boneless',
     price_base: 239,
     image: '/menu/boneless-grandes.jpg',
@@ -300,7 +300,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'boneless-jumbo',
     name: 'Boneless Jumbo',
-    description: 'Más de 1kg de boneless crujientes. Elige 1-4 salsas.',
+    description: 'Más de 1 kg. El peso de los boneless es bañados en salsa.',
     category: 'boneless',
     price_base: 319,
     image: '/menu/boneless-jumbo.jpg',
@@ -319,7 +319,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'hamburguesita',
     name: 'Hamburguesita',
-    description: 'Carne, queso, mayo, catsup, papas francesas, juguito y galleta.',
+    description: 'Carne de hamburguesa, queso, mayonesa y catsup, acompañado de papas francesas, un juguito y una galleta.',
     category: 'peques',
     price_base: 109,
     image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
@@ -328,7 +328,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'combo-pechuguitas',
     name: 'Pechuguitas de Pollo',
-    description: '170g de pechuguitas empanizadas, papas francesas, juguito y galleta.',
+    description: '170 grs pechuguitas de pollo empanizadas, papas francesas, un juguito y una galleta.',
     category: 'peques',
     price_base: 109,
     image: '/menu/combo-pechuguitas.jpg',
