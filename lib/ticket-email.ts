@@ -50,6 +50,8 @@ function whenLine(row: TicketOrder) {
 }
 
 export const PURCHASE_THANKS = 'Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.';
+export const INSTALL_APP_REMINDER =
+  'Recuerda agregar la app al inicio. Ahí podrás consultar tu perfil y promociones.';
 
 export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | null) {
   const code = row.short_code || row.id.replace(/-/g, '').slice(0, 4).toUpperCase();
@@ -72,6 +74,7 @@ ${eta ? `<p>${escMail(eta)}</p>` : ''}
 ${delivery > 0 ? `<p>Envío: ${escMail(money(delivery))}</p>` : ''}
 ${service > 0 ? `<p>Cuota de servicio: ${escMail(money(service))}</p>` : ''}
 ${guide?.html || ''}
+<p>${escMail(INSTALL_APP_REMINDER)}</p>
 ${customerMailButtons(orderUrl)}
 ${billingMailButton()}
 <p>${branchMailLine(orderBranchId(row.branch_id))}</p>
@@ -85,6 +88,7 @@ ${billingMailButton()}
     eta,
     `Total ${money(row.total_charged)}`,
     guide?.text || '',
+    INSTALL_APP_REMINDER,
     customerMailLinksText(orderUrl),
     billingMailText(),
   ]
