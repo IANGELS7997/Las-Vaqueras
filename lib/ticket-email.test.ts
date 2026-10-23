@@ -1,5 +1,5 @@
 import { INSTALL_APP_URL, customerInstallPath, customerMailButtons, customerOrderUrl } from './customer-mail';
-import { buildTicketEmail } from './ticket-email';
+import { INSTALL_APP_REMINDER, buildTicketEmail } from './ticket-email';
 
 function check(ok: boolean, message: string) {
   if (!ok) throw new Error(message);
@@ -57,6 +57,9 @@ check(ticket.text.includes('Gracias por tu compra. En Las Vaqueras preparamos tu
 check(ticket.html.includes('Tiempo estimado: 35 a 45 minutos.'), 'el domicilio anuncia 35 a 45 minutos');
 check(ticket.text.includes('Tiempo estimado: 35 a 45 minutos.'), 'el texto del domicilio anuncia 35 a 45 minutos');
 check(!ticket.html.includes('15 minutos'), 'el ticket de compra no dice 15 minutos');
+check(ticket.html.includes(INSTALL_APP_REMINDER), 'el ticket recuerda agregar la app');
+check(ticket.text.includes(INSTALL_APP_REMINDER), 'el texto recuerda agregar la app');
+check(ticket.html.indexOf(INSTALL_APP_REMINDER) < ticket.html.indexOf('Agregar app al inicio'), 'la frase queda antes del boton');
 
 const pickup = buildTicketEmail({
   id: 'abc-def',
@@ -83,5 +86,7 @@ const pickup = buildTicketEmail({
 check(pickup.html.includes('estará listo'), 'recoger conserva la hora elegida');
 check(!pickup.html.includes('35 a 45'), 'recoger no anuncia 35 a 45');
 check(!pickup.text.includes('35 a 45'), 'el texto de recoger no anuncia 35 a 45');
+check(pickup.html.includes(INSTALL_APP_REMINDER), 'recoger tambien recuerda agregar la app');
+check(pickup.text.includes(INSTALL_APP_REMINDER), 'el texto de recoger recuerda agregar la app');
 
 console.log('ticket-email tests: ok');
