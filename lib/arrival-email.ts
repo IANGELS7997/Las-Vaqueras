@@ -1,6 +1,6 @@
 import { branchMailLine } from '@/lib/branches';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
-import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { customerMailButtons, customerMailLinksText, customerOrderUrl, INSTALL_APP_REMINDER } from '@/lib/customer-mail';
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 
 const SITE = 'https://lasvaqueras.com.mx';
@@ -58,6 +58,7 @@ export function buildArrivalEmail(input: {
 <p>Hola ${first},</p>
 <p>${esc(line)}</p>
 ${input.guide?.html || ''}
+<p>${esc(INSTALL_APP_REMINDER)}</p>
 ${customerMailButtons(track)}
 ${billingMailButton()}
 <p>${branchMailLine(input.branchId)}</p>
@@ -66,6 +67,7 @@ ${billingMailButton()}
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
     line,
     input.guide?.text || '',
+    INSTALL_APP_REMINDER,
     customerMailLinksText(track),
     billingMailText(),
   ]

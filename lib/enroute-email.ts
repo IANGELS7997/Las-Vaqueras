@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/nextjs';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { branchMailLine } from '@/lib/branches';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
-import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { customerMailButtons, customerMailLinksText, customerOrderUrl, INSTALL_APP_REMINDER } from '@/lib/customer-mail';
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
 import { ENROUTE_ARRIVAL_LINE } from '@/lib/iangel-copy';
@@ -72,6 +72,7 @@ export function buildEnrouteEmail(input: {
 <p>Hola ${first},</p>
 <p>${esc(ENROUTE_LINE)}</p>
 ${input.guide?.html || ''}
+<p>${esc(INSTALL_APP_REMINDER)}</p>
 ${customerMailButtons(track)}
 ${billingMailButton()}
 <p>${branchMailLine(input.branchId)}</p>
@@ -80,6 +81,7 @@ ${billingMailButton()}
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
     ENROUTE_LINE,
     input.guide?.text || '',
+    INSTALL_APP_REMINDER,
     customerMailLinksText(track),
     billingMailText(),
   ]

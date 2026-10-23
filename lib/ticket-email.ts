@@ -1,7 +1,7 @@
 import { branchMailLine, orderBranchId } from '@/lib/branches';
 import type { CartItem } from '@/types';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
-import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail, INSTALL_APP_REMINDER } from '@/lib/customer-mail';
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 import { DELIVERY_ETA_MAIL } from '@/lib/iangel-copy';
 import { formatMXN } from '@/lib/pricing';
@@ -50,8 +50,7 @@ function whenLine(row: TicketOrder) {
 }
 
 export const PURCHASE_THANKS = 'Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.';
-export const INSTALL_APP_REMINDER =
-  'Recuerda agregar la app al inicio. Ahí podrás consultar tu perfil y promociones.';
+export { INSTALL_APP_REMINDER };
 
 export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | null) {
   const code = row.short_code || row.id.replace(/-/g, '').slice(0, 4).toUpperCase();

@@ -1,6 +1,10 @@
 export const CUSTOMER_SITE = 'https://lasvaqueras.com.mx';
 export const INSTALL_APP_URL = `${CUSTOMER_SITE}/instalar`;
 
+/** Solo en el ticket, el correo de en camino y el de llegada. */
+export const INSTALL_APP_REMINDER =
+  'Recuerda agregar la app al inicio. Ahí podrás consultar tu perfil y promociones.';
+
 export function escMail(value: unknown) {
   return String(value == null ? '' : value)
     .split('&')
