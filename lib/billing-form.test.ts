@@ -16,6 +16,7 @@ check(!orderCanRequestInvoice('awaiting_payment'), 'el pago pendiente no factura
 const shared = customerMailButtons('https://lasvaqueras.com.mx/orders/1');
 check(!shared.includes('Facturación'), 'los demás correos no llevan facturación');
 check(!shared.includes(BILLING_FORM_URL), 'el enlace no se cuela en los botones compartidos');
+check(!shared.includes('Recuerda agregar la app'), 'la frase no se cuela en los demás correos');
 
 const ticket = buildTicketEmail({
   id: 'abc-def',
@@ -49,6 +50,8 @@ const enroute = buildEnrouteEmail({
 check(enroute.subject.startsWith('Tu pedido va en camino'), 'el asunto de camino se conserva');
 check(enroute.html.includes('Facturación'), 'el correo de camino lleva el botón');
 check(enroute.text.includes(BILLING_FORM_URL), 'el texto de camino lleva el enlace');
+check(enroute.html.includes('Recuerda agregar la app al inicio'), 'el correo de camino recuerda la app');
+check(enroute.text.includes('podrás consultar tu perfil y promociones'), 'el texto de camino recuerda la app');
 
 const arrival = buildArrivalEmail({
   customerName: 'Ana Lopez',
@@ -59,5 +62,7 @@ const arrival = buildArrivalEmail({
 check(arrival.subject.startsWith('Tu repartidor llegó'), 'el asunto de llegada se conserva');
 check(arrival.html.includes('Facturación'), 'el correo de llegada lleva el botón');
 check(arrival.text.includes(BILLING_FORM_URL), 'el texto de llegada lleva el enlace');
+check(arrival.html.includes('Recuerda agregar la app al inicio'), 'el correo de llegada recuerda la app');
+check(arrival.text.includes('podrás consultar tu perfil y promociones'), 'el texto de llegada recuerda la app');
 
 console.log('billing-form tests: ok');
