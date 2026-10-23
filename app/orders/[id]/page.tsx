@@ -11,6 +11,7 @@ import { orderCanRequestInvoice } from '@/lib/billing-form';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
+import { formatPickupClock, trackingEtaParts } from '@/lib/iangel-copy';
 import { CUSTOMER_STEPS, viewFromOrder } from '@/lib/order-lifecycle';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
@@ -174,6 +175,8 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     );
   }
 
+  const etaLine = trackingEtaParts({ fulfillment: order.fulfillment, pickupAt: order.pickupAt });
+
   return (
     <div className="mx-auto max-w-md px-6 pb-12 pt-6 text-white">
       <button
@@ -247,7 +250,13 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         <div className="mb-4 flex items-center justify-center gap-2 rounded-lg bg-neutral-900 px-4 py-2.5">
           <Clock className="h-4 w-4 text-orange-500" />
           <span className="text-sm text-muted-foreground">
-            Tiempo estimado: <span className="font-semibold text-white">~{sync?.etaMinutes || order.estimatedMinutes} min</span>
+            {etaLine.prefix}
+            {etaLine.emphasis ? (
+              <>
+                {' '}
+                <span className="font-semibold text-white">{etaLine.emphasis}</span>
+              </>
+            ) : null}
           </span>
         </div>
       )}
@@ -260,7 +269,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         {order.fulfillment === 'pickup' ? (
           <p className="text-sm">
             {order.pickupAt
-              ? `Hora de recoger: ${new Date(order.pickupAt).toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })}`
+              ? `Hora de recoger: ${formatPickupClock(order.pickupAt)}`
               : 'Recoges en sucursal'}
           </p>
         ) : (
