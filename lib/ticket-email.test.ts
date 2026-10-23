@@ -54,5 +54,34 @@ check(ticket.html.includes('Hola Ana'), 'el ticket saluda a Ana');
 check(ticket.html.includes('Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.'), 'el ticket agradece sin repetir el nombre');
 check(!ticket.html.includes('Gracias por tu compra, Ana'), 'el agradecimiento no repite el nombre');
 check(ticket.text.includes('Gracias por tu compra. En Las Vaqueras preparamos tu pedido con gusto.'), 'el texto agradece sin repetir el nombre');
+check(ticket.html.includes('Tiempo estimado: 35 a 45 minutos.'), 'el domicilio anuncia 35 a 45 minutos');
+check(ticket.text.includes('Tiempo estimado: 35 a 45 minutos.'), 'el texto del domicilio anuncia 35 a 45 minutos');
+check(!ticket.html.includes('15 minutos'), 'el ticket de compra no dice 15 minutos');
+
+const pickup = buildTicketEmail({
+  id: 'abc-def',
+  stripe_payment_intent_id: null,
+  restaurant_id: null,
+  customer_name: 'Ana Lopez',
+  customer_phone: '6140000000',
+  customer_email: 'ana@correo.com',
+  delivery_address: null,
+  delivery_references: null,
+  total_charged: 120,
+  restaurant_payout: 80,
+  platform_fee: 10,
+  customer_fee: 0,
+  delivery_fee: 0,
+  status: 'pending',
+  items: [{ uid: '1', menuItemId: 'p', name: 'Papas', image: '', price_base: 70, quantity: 2, selections: [] }],
+  created_at: new Date().toISOString(),
+  fulfillment_type: 'pickup',
+  pickup_at: '2026-10-22T19:30:00-06:00',
+  short_code: 'C3D4',
+  profile_login_token: 'abc',
+});
+check(pickup.html.includes('estará listo'), 'recoger conserva la hora elegida');
+check(!pickup.html.includes('35 a 45'), 'recoger no anuncia 35 a 45');
+check(!pickup.text.includes('35 a 45'), 'el texto de recoger no anuncia 35 a 45');
 
 console.log('ticket-email tests: ok');

@@ -5,6 +5,7 @@ import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
+import { ENROUTE_ARRIVAL_LINE } from '@/lib/iangel-copy';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 
 const SITE = 'https://lasvaqueras.com.mx';
@@ -12,7 +13,7 @@ const HEADING = new Set(['picked_up', 'en_route']);
 const CLOSED = new Set(['delivered', 'cancelled', 'incident', 'delivered_unclaimed']);
 
 export const ENROUTE_SUBJECT = 'Tu pedido va en camino · Las Vaqueras';
-export const ENROUTE_LINE = 'Tu pedido va en camino, el repartidor llegará pronto a tu domicilio.';
+export const ENROUTE_LINE = ENROUTE_ARRIVAL_LINE;
 
 export type EnrouteCandidate = {
   id: string;

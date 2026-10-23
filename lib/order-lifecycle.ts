@@ -1,3 +1,4 @@
+import { IANGEL_EN_ROUTE_DETAIL } from '@/lib/iangel-copy';
 import type { FulfillmentMode, OrderStatus } from '@/types';
 
 export type DispatchStatus =
@@ -184,7 +185,7 @@ export function viewFromOrder(input: OrderSyncInput): OrderSyncView {
   } else if (dispatch === 'picked_up' || dispatch === 'en_route' || kitchenStatus === 'in_transit') {
     customerPhase = 'en_route';
     customerLabel = 'En camino';
-    customerDetail = `IANGEL va hacia ti. Llega en ~${etaMinutes} min.`;
+    customerDetail = IANGEL_EN_ROUTE_DETAIL;
     stepIndex = 2;
   } else if (dispatch === 'assigned' || kitchenStatus === 'preparing') {
     customerPhase = 'kitchen';

@@ -3,6 +3,7 @@ import type { CartItem } from '@/types';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
+import { DELIVERY_ETA_MAIL } from '@/lib/iangel-copy';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
 
@@ -55,6 +56,7 @@ export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | nu
   const first = String(row.customer_name || '').trim().split(/\s+/)[0] || '';
   const orderUrl = customerOrderUrl(row.id, row.profile_login_token);
   const place = whenLine(row);
+  const eta = (row.fulfillment_type || '') === 'pickup' ? '' : DELIVERY_ETA_MAIL;
   const delivery = Number(row.delivery_fee || 0);
   const service = Number(row.customer_fee || 0);
   const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
@@ -64,6 +66,7 @@ export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | nu
 <p>${escMail(PURCHASE_THANKS)}</p>
 <p>Recibimos tu pedido. Venta final: no admite cancelación ni devolución.</p>
 <p style="font-weight:700;">${escMail(place)}</p>
+${eta ? `<p>${escMail(eta)}</p>` : ''}
 <ul>${itemLines(row.items)}</ul>
 <p><strong>Total:</strong> ${escMail(money(row.total_charged))}</p>
 ${delivery > 0 ? `<p>Envío: ${escMail(money(delivery))}</p>` : ''}
@@ -79,6 +82,7 @@ ${billingMailButton()}
     PURCHASE_THANKS,
     'Recibimos tu pedido. Venta final: no admite cancelación ni devolución.',
     place,
+    eta,
     `Total ${money(row.total_charged)}`,
     guide?.text || '',
     customerMailLinksText(orderUrl),
