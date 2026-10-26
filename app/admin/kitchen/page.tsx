@@ -20,7 +20,8 @@ import { Button } from '@/components/ui/button';
 import { stockRows, type StockRow } from '@/lib/branch-stock';
 import { MENU_ITEMS } from '@/lib/mock-data';
 import { formatMXN } from '@/lib/pricing';
-import { formatPickupAt } from '@/lib/pickup-slots';
+import { formatPickupClock } from '@/lib/iangel-copy';
+import { pickupArrivingSoon } from '@/lib/pickup-slots';
 import { KitchenShift, notifyKitchenNewOrder } from '@/components/kitchen-shift';
 import { kitchenAlertPlan } from '@/lib/kitchen-alert';
 import { ThermalTicket } from '@/components/thermal-ticket';
@@ -461,9 +462,18 @@ export default function KitchenDashboardPage() {
     };
   }, [printingOrderId]);
 
-  const activeOrders = orders.filter(
-    (o) => isRefundReview(o.helpLabel) || (o.status !== 'delivered' && o.status !== 'cancelled')
-  );
+  const activeOrders = orders
+    .filter((o) => isRefundReview(o.helpLabel) || (o.status !== 'delivered' && o.status !== 'cancelled'))
+    .sort((a, b) => {
+      const rank = (order: Order) => {
+        if (order.fulfillment !== 'pickup' || !order.pickupAt) return Number.POSITIVE_INFINITY;
+        const at = new Date(order.pickupAt).getTime();
+        return Number.isFinite(at) ? at : Number.POSITIVE_INFINITY;
+      };
+      const delta = rank(a) - rank(b);
+      if (delta !== 0) return delta;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
   const completedOrders = orders.filter(
     (o) => !isRefundReview(o.helpLabel) && (o.status === 'delivered' || o.status === 'cancelled')
   );
@@ -551,7 +561,7 @@ export default function KitchenDashboardPage() {
     if (payload.order) patchOrderLocal(order.id, payload.order as Order);
   };
 
-  /** Emergencia: forzar listo (pickup) o entregado si el auto-avance falló. */
+  /** Cocina marca listo, o cierra el pedido si el cierre automático no ocurrió. */
   const handleEmergencyStatus = async (order: Order, status: OrderStatus) => {
     const response = await fetch(`/api/orders/${order.id}/status`, {
       method: 'PATCH',
@@ -578,7 +588,7 @@ export default function KitchenDashboardPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">{branchName}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Monitor opcional. El ticket sale solo; el pedido avanza con IANGEL o el timer de recoger.
+              El ticket sale solo. Un recoger pasa a listo cuando cocina lo marca.
             </p>
           </div>
           <button
@@ -690,12 +700,15 @@ export default function KitchenDashboardPage() {
                     ? liveRiderKeys.includes(owner)
                     : liveRiderKeys.length > 0;
               const handoff = kitchenHandoff({ ...order, riderConnected });
+              const arrivingSoon =
+                order.fulfillment === 'pickup' && order.status === 'preparing' && pickupArrivingSoon(order.pickupAt);
               return (
                 <div
                   key={order.id}
                   className={cn(
                     'rounded-2xl border border-border/60 bg-card p-4 transition-all',
-                    (order.status === 'pending' || order.status === 'preparing') && 'border-blue-500/30',
+                    (order.status === 'pending' || order.status === 'preparing') && !arrivingSoon && 'border-blue-500/30',
+                    arrivingSoon && 'border-amber-500/70',
                     order.cookHold && 'border-yellow-500/40',
                     order.helpLabel && 'border-red-500'
                   )}
@@ -739,8 +752,12 @@ export default function KitchenDashboardPage() {
                     <div>
                       {order.fulfillment === 'pickup' ? (
                         <>
-                          <p className="font-semibold text-white">Recoger en tienda</p>
-                          {order.pickupAt && <p>Hora: {formatPickupAt(order.pickupAt)}</p>}
+                          <p className="text-base font-bold text-white">
+                            Recoger{order.pickupAt ? ` ${formatPickupClock(order.pickupAt)}` : ' en tienda'}
+                          </p>
+                          {order.pickupAt && arrivingSoon ? (
+                            <p className="font-semibold text-amber-300">El cliente puede llegar antes de la hora.</p>
+                          ) : null}
                         </>
                       ) : (
                         <>
@@ -874,11 +891,10 @@ export default function KitchenDashboardPage() {
                       <Button
                         onClick={() => handleEmergencyStatus(order, 'in_transit')}
                         size="sm"
-                        variant="outline"
-                        className="border-border bg-card"
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
                       >
                         <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                        Listo ahora
+                        Ya está listo
                       </Button>
                     ) : null}
                     {!reviewing && handoff.visible ? (

@@ -731,7 +731,7 @@ function StepPeekDialog({
               <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus)}
+              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus, order.fulfillment)}
             </p>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
               {order.items.slice(0, 4).map((item) => (
@@ -762,7 +762,7 @@ function OrderList({ orders, onOpen }: { orders: Order[]; onOpen: () => void }) 
               <span className="text-xs text-orange-400">{formatMXN(order.total)}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus)}
+              {order.fulfillment === 'pickup' ? 'Recoger' : 'Domicilio'} · {profileRefundLabel(order.helpLabel) || customerStatusLabel(order.status, order.dispatchStatus, order.fulfillment)}
             </p>
           </Link>
           {orderCanRequestInvoice(order.status) ? (

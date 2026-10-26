@@ -11,7 +11,7 @@ import { orderCanRequestInvoice } from '@/lib/billing-form';
 import { useCart } from '@/lib/cart-context';
 import { supabase } from '@/lib/supabase';
 import { calcCartLineWeb, formatMXN } from '@/lib/pricing';
-import { formatPickupClock, trackingEtaParts } from '@/lib/iangel-copy';
+import { trackingEtaParts } from '@/lib/iangel-copy';
 import { CUSTOMER_STEPS, viewFromOrder } from '@/lib/order-lifecycle';
 import type { Order, OrderStatus } from '@/types';
 import { cn } from '@/lib/utils';
@@ -144,6 +144,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         leaveAtDoor: order.leaveAtDoor,
         incidentType: order.incidentType,
         etaMinutes: order.etaMinutes ?? order.estimatedMinutes,
+        pickupAt: order.pickupAt,
       })
     : null;
   const currentStep = sync?.stepIndex ?? 0;
@@ -267,11 +268,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
           {order.fulfillment === 'pickup' ? 'Recoger en tienda' : 'Dirección de entrega'}
         </h3>
         {order.fulfillment === 'pickup' ? (
-          <p className="text-sm">
-            {order.pickupAt
-              ? `Hora de recoger: ${formatPickupClock(order.pickupAt)}`
-              : 'Recoges en sucursal'}
-          </p>
+          order.pickupAt ? null : <p className="text-sm">Recoges en sucursal</p>
         ) : (
           <>
             <p className="text-sm">{order.customer.address}</p>
