@@ -269,7 +269,7 @@ export function ProductModal({ item, open, onOpenChange, onConfirm, unavailableI
               Instrucciones especiales
             </Label>
             <Textarea
-              placeholder="Ej: sin cebolla, extra queso, salsa aparte..."
+                placeholder="Ej: salsa aparte, bien cocida..."
               value={specialInstructions}
               onChange={(e) => setSpecialInstructions(e.target.value)}
               className="resize-none"
