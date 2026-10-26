@@ -119,8 +119,12 @@ export function mapDbOrder(row: DbOrderRow): Order {
   };
 }
 
-export function customerStatusLabel(status: string, dispatchStatus?: string | null) {
-  return syncCustomerLabel(status, dispatchStatus);
+export function customerStatusLabel(
+  status: string,
+  dispatchStatus?: string | null,
+  fulfillment?: string | null
+) {
+  return syncCustomerLabel(status, dispatchStatus, fulfillment);
 }
 
 export function isOrderStatus(value: string): value is OrderStatus {

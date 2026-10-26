@@ -107,6 +107,16 @@ export function isValidPickupAt(
   return generatePickupSlots(from, options).some((slot) => slot.iso === iso);
 }
 
+export const PICKUP_ARRIVING_SOON_MINUTES = 15;
+
+/** El cliente puede llegar antes: faltan 15 minutos o la hora ya pasó. */
+export function pickupArrivingSoon(iso: string | null | undefined, nowMs = Date.now()): boolean {
+  if (!iso) return false;
+  const at = new Date(iso).getTime();
+  if (!Number.isFinite(at)) return false;
+  return at - nowMs <= PICKUP_ARRIVING_SOON_MINUTES * 60_000;
+}
+
 export function formatPickupAt(iso: string): string {
   return new Date(iso).toLocaleString('es-MX', {
     timeZone: RESTAURANT_TZ,

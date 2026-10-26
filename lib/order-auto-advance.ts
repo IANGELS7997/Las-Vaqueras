@@ -3,10 +3,7 @@ import type { DbOrderRow } from '@/lib/orders-map';
 
 type Client = ReturnType<typeof createAdminSupabase>;
 
-/** Punto medio del rango comunicado (10–15 min) para “listo para recoger”. */
-export const PICKUP_AUTO_READY_MINUTES = 12;
-
-/** Tras listo: si nadie marca recogido, cierra el pedido solo. */
+/** Pedido viejo sin hora, ya listo: se cierra este rato después de creado. */
 export const PICKUP_AUTO_DELIVERED_MINUTES_AFTER_READY = 30;
 
 function ageMinutes(createdAt: string | null | undefined, nowMs: number): number {
@@ -18,16 +15,6 @@ function ageMinutes(createdAt: string | null | undefined, nowMs: number): number
 
 export function isPickupOrder(row: Pick<DbOrderRow, 'fulfillment_type'> | { fulfillment_type?: string | null }) {
   return String(row.fulfillment_type || '') === 'pickup';
-}
-
-export function shouldAutoReadyPickup(
-  row: Pick<DbOrderRow, 'fulfillment_type' | 'status' | 'cook_hold' | 'created_at'>,
-  nowMs = Date.now()
-): boolean {
-  if (!isPickupOrder(row)) return false;
-  if (row.status !== 'preparing') return false;
-  if (row.cook_hold) return false;
-  return ageMinutes(row.created_at, nowMs) >= PICKUP_AUTO_READY_MINUTES;
 }
 
 export function shouldAutoDeliverPickup(
@@ -43,10 +30,7 @@ export function shouldAutoDeliverPickup(
     return nowMs >= pickupAt + 20 * 60_000;
   }
 
-  return (
-    ageMinutes(row.created_at, nowMs) >=
-    PICKUP_AUTO_READY_MINUTES + PICKUP_AUTO_DELIVERED_MINUTES_AFTER_READY
-  );
+  return ageMinutes(row.created_at, nowMs) >= PICKUP_AUTO_DELIVERED_MINUTES_AFTER_READY;
 }
 
 export function paidOrderStatusFields(input: {
@@ -65,23 +49,12 @@ export function paidOrderStatusFields(input: {
   return { status: 'preparing', dispatch_status: 'self_iangel' };
 }
 
-/** Avanza pickup preparing→listo o listo→entregado si ya pasó el tiempo. */
+/** Cierra un recoger ya listo cuando pasó la hora. Cocina marca el listo. */
 export async function advancePickupOrderIfDue(
   supabase: Client,
   row: DbOrderRow,
   nowMs = Date.now()
 ): Promise<DbOrderRow> {
-  if (shouldAutoReadyPickup(row, nowMs)) {
-    const updated = await supabase
-      .from('orders')
-      .update({ status: 'in_transit' })
-      .eq('id', row.id)
-      .eq('status', 'preparing')
-      .select('*')
-      .maybeSingle();
-    if (updated.data) return updated.data as DbOrderRow;
-  }
-
   if (shouldAutoDeliverPickup(row, nowMs)) {
     const updated = await supabase
       .from('orders')

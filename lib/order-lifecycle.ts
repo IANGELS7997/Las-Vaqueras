@@ -1,4 +1,4 @@
-import { IANGEL_EN_ROUTE_DETAIL } from '@/lib/iangel-copy';
+import { formatPickupClock, IANGEL_EN_ROUTE_DETAIL } from '@/lib/iangel-copy';
 import type { FulfillmentMode, OrderStatus } from '@/types';
 
 export type DispatchStatus =
@@ -34,6 +34,7 @@ export type OrderSyncInput = {
   leaveAtDoor?: boolean | null;
   incidentType?: string | null;
   etaMinutes?: number | null;
+  pickupAt?: string | null;
 };
 
 export type OrderSyncView = {
@@ -93,6 +94,12 @@ function asKitchenStatus(value?: string | null): OrderStatus {
   return 'pending';
 }
 
+function pickupWaitingDetail(pickupAt?: string | null): string {
+  const clock = pickupAt ? formatPickupClock(pickupAt) : '';
+  if (!clock) return 'Si llegas antes, puede que aún lo estemos preparando.';
+  return `Tu orden estará lista a las ${clock}. Si llegas antes, puede que aún lo estemos preparando.`;
+}
+
 export function viewFromOrder(input: OrderSyncInput): OrderSyncView {
   const kitchenStatus = asKitchenStatus(input.status);
   const fulfillment = input.fulfillment === 'pickup' ? 'pickup' : 'delivery';
@@ -145,13 +152,13 @@ export function viewFromOrder(input: OrderSyncInput): OrderSyncView {
     if (kitchenStatus === 'in_transit') {
       customerPhase = 'at_door';
       customerLabel = 'Listo para recoger';
-      customerDetail = 'Ya puedes pasar a sucursal.';
+      customerDetail = 'Tu pedido está listo para recoger.';
       stepIndex = 3;
-    } else if (kitchenStatus === 'preparing') {
-      customerPhase = 'kitchen';
-      customerLabel = 'En cocina';
-      customerDetail = 'Estamos preparando tu pedido.';
-      stepIndex = 1;
+    } else if (kitchenStatus === 'preparing' || kitchenStatus === 'pending') {
+      customerPhase = kitchenStatus === 'preparing' ? 'kitchen' : 'received';
+      customerLabel = kitchenStatus === 'preparing' ? 'En cocina' : 'Recibido';
+      customerDetail = pickupWaitingDetail(input.pickupAt);
+      stepIndex = kitchenStatus === 'preparing' ? 1 : 0;
     } else {
       customerPhase = 'received';
       customerLabel = 'Recibido';
@@ -214,8 +221,12 @@ export function viewFromOrder(input: OrderSyncInput): OrderSyncView {
   };
 }
 
-export function customerStatusLabel(status: string, dispatchStatus?: string | null) {
-  return viewFromOrder({ status, dispatchStatus }).customerLabel;
+export function customerStatusLabel(
+  status: string,
+  dispatchStatus?: string | null,
+  fulfillment?: string | null
+) {
+  return viewFromOrder({ status, dispatchStatus, fulfillment }).customerLabel;
 }
 
 export function patchFromKitchenStatus(
