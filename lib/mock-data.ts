@@ -60,20 +60,25 @@ const PRODUCT_EXTRAS: ProductExtra[] = [
   { id: 'extra-salchicha', name: 'Salchicha para asar', price_base: 29 },
 ];
 
-const PRODUCT_REMOVALS: OptionChoice[] = [
-  { id: 'sin-cebolla', name: 'Cebolla' },
-  { id: 'sin-jitomate', name: 'Jitomate' },
-  { id: 'sin-lechuga', name: 'Lechuga' },
-  { id: 'sin-mayonesa', name: 'Mayonesa' },
-  { id: 'sin-catsup', name: 'Catsup' },
-  { id: 'sin-mostaza', name: 'Mostaza' },
-  { id: 'sin-pepinillos', name: 'Pepinillos' },
-  { id: 'sin-queso', name: 'Queso' },
-];
+const REMOVAL = {
+  queso: { id: 'sin-queso', name: 'Queso' },
+  aguacate: { id: 'sin-aguacate', name: 'Aguacate' },
+  tocino: { id: 'sin-tocino', name: 'Tocino' },
+  salchicha: { id: 'sin-salchicha', name: 'Salchicha para asar' },
+  pina: { id: 'sin-pina', name: 'Piña' },
+  jamon: { id: 'sin-jamon', name: 'Jamón' },
+  fajitas: { id: 'sin-fajitas', name: 'Fajitas de res' },
+  carne: { id: 'sin-carne', name: 'Carne de hamburguesa' },
+  mayonesa: { id: 'sin-mayonesa', name: 'Mayonesa' },
+  catsup: { id: 'sin-catsup', name: 'Catsup' },
+} as const satisfies Record<string, OptionChoice>;
 
-const BURGER_TORTA_OPTIONS = {
+function dishRemovals(...keys: (keyof typeof REMOVAL)[]): OptionChoice[] {
+  return keys.map((key) => REMOVAL[key]);
+}
+
+const BURGER_OPTIONS = {
   extras: PRODUCT_EXTRAS,
-  removals: PRODUCT_REMOVALS,
   comboUpgrades: COMBO_UPGRADES,
 };
 
@@ -85,7 +90,8 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 99,
     image: '/menu/hamburguesa-tradicional.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    ...BURGER_OPTIONS,
+    removals: dishRemovals('queso'),
   },
   {
     id: 'hamburguesa-aguacatosa',
@@ -94,7 +100,8 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 114,
     image: '/menu/hamburguesa-aguacatosa.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    ...BURGER_OPTIONS,
+    removals: dishRemovals('queso', 'aguacate'),
   },
   {
     id: 'hamburguesa-tocino',
@@ -103,7 +110,8 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-tocino.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    ...BURGER_OPTIONS,
+    removals: dishRemovals('queso', 'tocino', 'aguacate'),
   },
   {
     id: 'hamburguesa-campestre',
@@ -112,7 +120,8 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-campestre.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    ...BURGER_OPTIONS,
+    removals: dishRemovals('queso', 'salchicha', 'aguacate'),
   },
   {
     id: 'hamburguesa-hawaiana',
@@ -121,7 +130,8 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-hawaiana.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    ...BURGER_OPTIONS,
+    removals: dishRemovals('queso', 'tocino', 'pina'),
   },
   {
     id: 'hamburguesa-pollo',
@@ -130,7 +140,8 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'combos',
     price_base: 129,
     image: '/menu/hamburguesa-pollo.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    ...BURGER_OPTIONS,
+    removals: dishRemovals('jamon', 'queso', 'aguacate'),
   },
   {
     id: 'hamburguesa-fajita',
@@ -140,7 +151,7 @@ export const MENU_ITEMS: MenuItem[] = [
     price_base: 139,
     image: '/menu/hamburguesa-fajita.jpg',
     extras: PRODUCT_EXTRAS,
-    removals: PRODUCT_REMOVALS,
+    removals: dishRemovals('queso', 'aguacate', 'fajitas'),
     comboUpgrades: COMBO_UPGRADES_189,
   },
 
@@ -151,7 +162,8 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'tortas',
     price_base: 119,
     image: '/menu/torta-lomo.jpg',
-    ...BURGER_TORTA_OPTIONS,
+    ...BURGER_OPTIONS,
+    removals: dishRemovals('jamon', 'queso', 'aguacate'),
   },
   {
     id: 'torta-vaquera',
@@ -161,7 +173,7 @@ export const MENU_ITEMS: MenuItem[] = [
     price_base: 139,
     image: '/menu/torta-vaquera.jpg',
     extras: PRODUCT_EXTRAS,
-    removals: PRODUCT_REMOVALS,
+    removals: dishRemovals('tocino', 'carne', 'jamon', 'queso', 'aguacate'),
     comboUpgrades: COMBO_UPGRADES_189,
   },
 
@@ -324,6 +336,7 @@ export const MENU_ITEMS: MenuItem[] = [
     price_base: 109,
     image: 'https://images.pexels.com/photos/11812583/pexels-photo-11812583.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
     serves: '1 niño',
+    removals: dishRemovals('queso', 'mayonesa', 'catsup'),
   },
   {
     id: 'combo-pechuguitas',
