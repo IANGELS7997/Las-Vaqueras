@@ -1,9 +1,11 @@
+import { CHECKOUT_FIELDS } from './checkout-field';
+
 const HOUR_MS = 60 * 60 * 1000;
 const SESSION_CAP = 40;
 const IP_CAP = 200;
 const ERROR_REPEAT_MS = 60 * 1000;
 
-const STORE_TYPES = new Set(['visit', 'cart', 'payment_failed', 'dead_click', 'client_error', 'help_dial']);
+const STORE_TYPES = new Set(['visit', 'cart', 'payment_failed', 'dead_click', 'client_error', 'help_dial', 'checkout_field']);
 const RIDER_TYPES = new Set(['api_error', 'dead_click', 'client_error']);
 const ALWAYS_SEND = new Set(['payment_failed', 'client_error']);
 
@@ -12,8 +14,11 @@ const BOT_UA =
 
 type Bucket = { start: number; count: number; visit: boolean };
 
+const CHECKOUT_CAP = 24;
+
 const sessions = new Map<string, Bucket>();
 const ips = new Map<string, Bucket>();
+const checkoutSessions = new Map<string, Bucket>();
 const recentErrors = new Map<string, number>();
 
 export type DevSignalInput = {
@@ -166,6 +171,46 @@ function cartLines(value: unknown) {
   });
 }
 
+function decideCheckoutField(
+  input: DevSignalInput,
+  meta: { now: number; sessionRaw: string; sessionKey: string; ipBucket: Bucket }
+): DevSignalDecision {
+  const row =
+    input.detail && typeof input.detail === 'object' && !Array.isArray(input.detail)
+      ? (input.detail as Record<string, unknown>)
+      : {};
+  const field = clip(row.field, 40);
+  const label = field in CHECKOUT_FIELDS ? CHECKOUT_FIELDS[field as keyof typeof CHECKOUT_FIELDS] : null;
+  const value = kept(row.value, 300);
+  if (!label || !value) return { forward: false, reason: 'field' };
+
+  const checkoutBucket = bucket(checkoutSessions, meta.sessionKey, meta.now);
+  if (checkoutBucket.count >= CHECKOUT_CAP) return { forward: false, reason: 'checkout' };
+  checkoutBucket.count += 1;
+  meta.ipBucket.count += 1;
+
+  const detail: Record<string, unknown> = { field, value };
+  const how = clip(row.how, 20);
+  if (how === 'delivery' || how === 'pickup') detail.how = how;
+  const branch = clip(row.branch, 20);
+  if (branch === 'centro' || branch === 'norte' || branch === 'sur') detail.branch = branch;
+
+  const payload: Record<string, unknown> = {
+    source: 'las-vaqueras',
+    type: 'checkout_field',
+    message: `Escribió ${label.phrase}: ${value}`,
+    page: clip(input.page, 300),
+    action: label.short,
+    at: clip(input.at, 40) || new Date(meta.now).toISOString(),
+    device: clip(input.device, 300),
+    detail,
+  };
+  if (meta.sessionRaw) payload.session = meta.sessionRaw;
+  const cart = cartLines(input.cart);
+  if (cart && cart.length) payload.cart = cart;
+  return { forward: true, reason: 'ok', payload };
+}
+
 export function decideDevSignal(
   input: DevSignalInput,
   meta: { userAgent: string; ip: string; now?: number }
@@ -181,6 +226,7 @@ export function decideDevSignal(
   const now = meta.now ?? Date.now();
   prune(sessions, now);
   prune(ips, now);
+  prune(checkoutSessions, now);
 
   const message = stripCard(clipBlock(input.message, 1500));
   let errorKey = '';
@@ -196,6 +242,7 @@ export function decideDevSignal(
 
   const sessionRaw = clip(input.session, 64).replace(/[^a-zA-Z0-9_-]/g, '');
   const sessionKey = `${source}:${sessionRaw || `ip:${ipKey}`}`;
+  if (type === 'checkout_field') return decideCheckoutField(input, { now, sessionRaw, sessionKey, ipBucket });
   const attaching = type === 'visit' && input.attachBranch === true;
   if (attaching) {
     const detail = detailOf(input.detail);

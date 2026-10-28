@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       region: req.headers.get('x-vercel-ip-country-region') || '',
     });
     const jobs: Promise<unknown>[] = [saveOpsSignal(payload).catch(() => undefined)];
-    if (payload.attachBranch !== true) jobs.push(forwardDevSignal(payload));
+    if (payload.attachBranch !== true && payload.type !== 'checkout_field') jobs.push(forwardDevSignal(payload));
     await Promise.all(jobs);
   }
   return NextResponse.json(

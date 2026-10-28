@@ -126,4 +126,86 @@ const rider = decideDevSignal(
 );
 check(!rider.forward && rider.reason === 'type', 'el rider no usa el marcador de la tienda');
 
+const written = decideDevSignal(
+  {
+    source: 'las-vaqueras',
+    type: 'checkout_field',
+    session: 'checkout-one',
+    page: '/checkout',
+    detail: { field: 'firstName', value: 'Ana', branch: 'norte', how: 'delivery', origin: 'qr' },
+    cart: [{ name: 'Boneless', quantity: 1 }],
+  },
+  { ...meta, ip: '203.0.113.20' }
+);
+check(written.forward, 'un dato escrito en el checkout se acepta');
+check(written.payload?.message === 'Escribió el nombre: Ana', 'el aviso dice qué escribió');
+check(written.payload?.action === 'Nombre', 'el campo queda en español');
+const writtenDetail = written.payload?.detail as Record<string, string>;
+check(writtenDetail.field === 'firstName' && writtenDetail.value === 'Ana', 'el texto queda en el detalle');
+check(writtenDetail.branch === 'norte' && writtenDetail.how === 'delivery', 'sucursal y entrega quedan en el detalle');
+check(!('origin' in writtenDetail), 'el dato escrito no guarda el origen de la visita');
+check(Array.isArray(written.payload?.cart), 'el carrito viaja con el dato');
+
+const card = decideDevSignal(
+  {
+    source: 'las-vaqueras',
+    type: 'checkout_field',
+    session: 'checkout-one',
+    detail: { field: 'references', value: '4242424242424242' },
+  },
+  { ...meta, ip: '203.0.113.20' }
+);
+check(card.forward && String((card.payload?.detail as Record<string, string>).value) === '[tarjeta]', 'el número de tarjeta no viaja');
+
+const blankField = decideDevSignal(
+  {
+    source: 'las-vaqueras',
+    type: 'checkout_field',
+    session: 'checkout-one',
+    detail: { field: 'email', value: 'Todavía no lo escribió' },
+  },
+  { ...meta, ip: '203.0.113.20' }
+);
+check(!blankField.forward && blankField.reason === 'field', 'el relleno vacío no es un dato');
+
+const mapField = decideDevSignal(
+  {
+    source: 'las-vaqueras',
+    type: 'checkout_field',
+    session: 'checkout-one',
+    detail: { field: 'map', value: 'puerta' },
+  },
+  { ...meta, ip: '203.0.113.20' }
+);
+check(!mapField.forward && mapField.reason === 'field', 'un campo desconocido no se acepta');
+
+for (let n = 0; n < 22; n += 1) {
+  const extra = decideDevSignal(
+    {
+      source: 'las-vaqueras',
+      type: 'checkout_field',
+      session: 'checkout-one',
+      detail: { field: 'street', value: `Calle ${n}` },
+    },
+    { ...meta, ip: '203.0.113.20', now: meta.now + n }
+  );
+  check(extra.forward, 'el tope del checkout cabe 24 avisos');
+}
+const over = decideDevSignal(
+  {
+    source: 'las-vaqueras',
+    type: 'checkout_field',
+    session: 'checkout-one',
+    detail: { field: 'street', value: 'Calle tope' },
+  },
+  { ...meta, ip: '203.0.113.20' }
+);
+check(!over.forward && over.reason === 'checkout', 'el tope del checkout es aparte y se queda en 24');
+
+const visitAfter = decideDevSignal(
+  { source: 'las-vaqueras', type: 'visit', session: 'checkout-one', message: 'entrada' },
+  { ...meta, ip: '203.0.113.20' }
+);
+check(visitAfter.forward, 'los datos del checkout no gastan el aviso de visita');
+
 console.log('dev-signal ok');
