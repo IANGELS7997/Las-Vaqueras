@@ -8,13 +8,23 @@ import { shapeSignalCustomer, type SignalCustomer } from '@/lib/signal-customer'
 import { signalOriginOf, type SignalOrigin } from '@/lib/signal-origin';
 import type { CartItem } from '@/types';
 
-export type StoreSignalType = 'visit' | 'cart' | 'payment_failed' | 'dead_click' | 'client_error' | 'help_dial';
+import { checkoutFieldChange, type CheckoutFieldId } from '@/lib/checkout-field';
+
+export type StoreSignalType =
+  | 'visit'
+  | 'cart'
+  | 'payment_failed'
+  | 'dead_click'
+  | 'client_error'
+  | 'help_dial'
+  | 'checkout_field';
 
 const SESSION_KEY = 'lv_dev_session';
 const VISIT_KEY = 'lv_dev_visit';
 const ORIGIN_KEY = 'lv_signal_origin';
 const VISIT_BRANCH_KEY = 'lv_signal_visit_branch';
 const BRANCH_ATTACHED_KEY = 'lv_signal_branch_attached';
+const CHECKOUT_SENT_KEY = 'lv_checkout_field_sent';
 
 let cartTimer: ReturnType<typeof setTimeout> | null = null;
 let netSeq = 0;
@@ -226,6 +236,55 @@ export function noteBranchForSignal(branchId: BranchId) {
   }
 }
 
+function readCheckoutSent() {
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_SENT_KEY);
+    if (!raw) return {} as Record<string, string>;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {} as Record<string, string>;
+    const sent: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'string') sent[key] = value;
+    }
+    return sent;
+  } catch {
+    return {} as Record<string, string>;
+  }
+}
+
+function checkoutDetail(field: string, value: string) {
+  const detail: Record<string, unknown> = { field, value: stripCard(value).slice(0, 300) };
+  const branch = signalBranch();
+  if (branch) detail.branch = branch;
+  try {
+    const mode = sessionStorage.getItem(FULFILLMENT_STORAGE_KEY) || '';
+    if (mode === 'delivery' || mode === 'pickup') detail.how = mode;
+  } catch {
+    // sessionStorage puede no existir.
+  }
+  return detail;
+}
+
+export function reportCheckoutField(field: CheckoutFieldId, before: string, after: string) {
+  if (typeof window === 'undefined') return;
+  const sent = readCheckoutSent();
+  const change = checkoutFieldChange(field, before, after, sent[field] || '');
+  if (!change) return;
+  try {
+    sessionStorage.setItem(CHECKOUT_SENT_KEY, JSON.stringify({ ...sent, [field]: change.value }));
+  } catch {
+    // sessionStorage puede no existir. El aviso igual sale esta vez.
+  }
+  postDevSignal({
+    type: 'checkout_field',
+    message: `Escribió ${change.phrase}: ${change.value}`,
+    action: change.short,
+    cart: readStoredCart(),
+    field: change.field,
+    written: change.value,
+  });
+}
+
 export function postDevSignal(input: {
   type: StoreSignalType;
   message?: string;
@@ -237,6 +296,8 @@ export function postDevSignal(input: {
   customer?: SignalCustomer;
   attachBranch?: boolean;
   branch?: BranchId;
+  field?: CheckoutFieldId;
+  written?: string;
 }) {
   if (typeof window === 'undefined') return;
   if (isKitchenSurface() && input.type !== 'client_error') return;
@@ -250,6 +311,8 @@ export function postDevSignal(input: {
     }
   }
   const problem = input.type === 'payment_failed' || input.type === 'client_error';
+  const checkoutField = input.type === 'checkout_field' ? input.field : undefined;
+  const checkoutValue = input.type === 'checkout_field' ? input.written : undefined;
   const tracked = input.type === 'visit' || input.type === 'help_dial' || input.type === 'cart';
   const kind = input.type === 'cart' ? 'cart' : input.type === 'help_dial' ? 'help_dial' : 'visit';
   const body = {
@@ -260,10 +323,12 @@ export function postDevSignal(input: {
     action: input.action || '',
     at: input.at || new Date().toISOString(),
     session: devSessionId(),
-    device: input.device || '',
+    device: input.device || (checkoutField && checkoutValue ? deviceLabel() : ''),
     cart: input.cart ?? (problem ? readStoredCart() : undefined),
     customer: problem ? input.customer || readSignalCustomer() : undefined,
-    detail: tracked || input.attachBranch ? signalDetail(kind, input.branch) : undefined,
+    detail: checkoutField && checkoutValue
+      ? checkoutDetail(checkoutField, checkoutValue)
+      : tracked || input.attachBranch ? signalDetail(kind, input.branch) : undefined,
     attachBranch: input.attachBranch === true ? true : undefined,
   };
   void fetch('/api/ops/dev-signal', {

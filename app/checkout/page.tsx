@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trash2, ArrowLeft, CreditCard, Loader2, User, Mail, Clock, Ticket } from 'lucide-react';
 import { CheckoutPayment } from '@/components/checkout-payment';
@@ -36,6 +36,8 @@ import {
   readCheckoutDraft,
   writeCheckoutDraft,
 } from '@/lib/checkout-draft';
+import { reportCheckoutField } from '@/lib/dev-signal-client';
+import type { CheckoutFieldId } from '@/lib/checkout-field';
 import {
   clearGiftRedeem,
   GIFT_COUPON_TITLE,
@@ -91,6 +93,15 @@ export default function CheckoutPage() {
   const [doorAsk, setDoorAsk] = useState(false);
   const [pendingAmount, setPendingAmount] = useState(0);
   const [pendingLabel, setPendingLabel] = useState('');
+  const fieldFocus = useRef<Partial<Record<CheckoutFieldId, string>>>({});
+
+  function rememberField(field: CheckoutFieldId, value: string) {
+    fieldFocus.current[field] = value;
+  }
+
+  function leaveField(field: CheckoutFieldId, value: string) {
+    reportCheckoutField(field, fieldFocus.current[field] ?? '', value);
+  }
 
   useEffect(() => {
     const digits = checkoutPhoneDigits(phone);
@@ -801,6 +812,8 @@ export default function CheckoutPage() {
                   <Input
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    onFocus={(e) => rememberField('firstName', e.currentTarget.value)}
+                    onBlur={(e) => leaveField('firstName', e.currentTarget.value)}
                     placeholder="Nombre"
                     disabled={Boolean(clientSecret) || gift.active}
                     className={cn(errors.firstName && 'border-red-500')}
@@ -812,6 +825,8 @@ export default function CheckoutPage() {
                   <Input
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
+                    onFocus={(e) => rememberField('lastName', e.currentTarget.value)}
+                    onBlur={(e) => leaveField('lastName', e.currentTarget.value)}
                     placeholder="Apellido"
                     disabled={Boolean(clientSecret) || gift.active}
                     className={cn(errors.lastName && 'border-red-500')}
@@ -824,6 +839,8 @@ export default function CheckoutPage() {
                 <Input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  onFocus={(e) => rememberField('phone', e.currentTarget.value)}
+                  onBlur={(e) => leaveField('phone', e.currentTarget.value)}
                   placeholder="+52 614 ..."
                   disabled={Boolean(clientSecret) || gift.active}
                   className={cn(errors.phone && 'border-red-500')}
@@ -840,6 +857,8 @@ export default function CheckoutPage() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onFocus={(e) => rememberField('email', e.currentTarget.value)}
+                  onBlur={(e) => leaveField('email', e.currentTarget.value)}
                   placeholder="tucorreo@email.com"
                   disabled={Boolean(clientSecret) || gift.active}
                   className={cn(errors.email && 'border-red-500')}
@@ -858,6 +877,8 @@ export default function CheckoutPage() {
                   <select
                     value={pickupAt}
                     onChange={(e) => setPickupAt(e.target.value)}
+                    onFocus={(e) => rememberField('pickupAt', e.currentTarget.value ? e.currentTarget.selectedOptions[0]?.text || '' : '')}
+                    onBlur={(e) => leaveField('pickupAt', e.currentTarget.value ? e.currentTarget.selectedOptions[0]?.text || '' : '')}
                     disabled={Boolean(clientSecret)}
                     className={cn(
                       'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
@@ -888,6 +909,8 @@ export default function CheckoutPage() {
                     <Input
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
+                      onFocus={(e) => rememberField('street', e.currentTarget.value)}
+                      onBlur={(e) => leaveField('street', e.currentTarget.value)}
                       placeholder="Calle"
                       disabled={Boolean(clientSecret)}
                       className={cn(errors.street && 'border-red-500')}
@@ -900,6 +923,8 @@ export default function CheckoutPage() {
                       <Input
                         value={extNumber}
                         onChange={(e) => setExtNumber(e.target.value)}
+                        onFocus={(e) => rememberField('extNumber', e.currentTarget.value)}
+                        onBlur={(e) => leaveField('extNumber', e.currentTarget.value)}
                         placeholder="Número"
                         disabled={Boolean(clientSecret)}
                         className={cn(errors.extNumber && 'border-red-500')}
@@ -911,6 +936,8 @@ export default function CheckoutPage() {
                       <Input
                         value={intNumber}
                         onChange={(e) => setIntNumber(e.target.value)}
+                        onFocus={(e) => rememberField('intNumber', e.currentTarget.value)}
+                        onBlur={(e) => leaveField('intNumber', e.currentTarget.value)}
                         placeholder="Opcional"
                         disabled={Boolean(clientSecret)}
                       />
@@ -921,6 +948,8 @@ export default function CheckoutPage() {
                     <Input
                       value={colonia}
                       onChange={(e) => setColonia(e.target.value)}
+                      onFocus={(e) => rememberField('colonia', e.currentTarget.value)}
+                      onBlur={(e) => leaveField('colonia', e.currentTarget.value)}
                       placeholder="Colonia"
                       disabled={Boolean(clientSecret)}
                       className={cn(errors.colonia && 'border-red-500')}
@@ -934,6 +963,8 @@ export default function CheckoutPage() {
                       maxLength={5}
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      onFocus={(e) => rememberField('postalCode', e.currentTarget.value)}
+                      onBlur={(e) => leaveField('postalCode', e.currentTarget.value)}
                       placeholder="C.P."
                       disabled={Boolean(clientSecret)}
                       className={cn(errors.postalCode && 'border-red-500')}
@@ -961,6 +992,8 @@ export default function CheckoutPage() {
                     <Textarea
                       value={references}
                       onChange={(e) => setReferences(e.target.value)}
+                      onFocus={(e) => rememberField('references', e.currentTarget.value)}
+                      onBlur={(e) => leaveField('references', e.currentTarget.value)}
                       placeholder="Ej: casa azul, frente al parque..."
                       className="resize-none"
                       rows={2}
