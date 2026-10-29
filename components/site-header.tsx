@@ -17,11 +17,10 @@ export function SiteHeader() {
   const { mode, setMode, ready, branchId, clearBranch } = useFulfillment();
   const branch = branchId ? branchById(branchId) : null;
   const headerRef = useRef<HTMLElement>(null);
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const hideHeader = pathname.startsWith('/admin') || pathname.startsWith('/connect');
-  const openNow = branchId ? isBranchOpen(branchId, now) : anyBranchOpen(now);
-  const status = { isOpen: openNow, label: openNow ? 'Abierto' : 'Cerrado' };
-  const todayHours = branchId ? branchTodayHours(branchId, now) : '';
+  const openNow = now == null ? null : branchId ? isBranchOpen(branchId, now) : anyBranchOpen(now);
+  const todayHours = now && branchId ? branchTodayHours(branchId, now) : '';
 
   useLayoutEffect(() => {
     if (hideHeader) {
@@ -41,33 +40,33 @@ export function SiteHeader() {
       observer.disconnect();
       window.removeEventListener('resize', apply);
     };
-  }, [hideHeader, pathname, ready, mode, status.isOpen, todayHours]);
+  }, [hideHeader, pathname, ready, mode, openNow, todayHours]);
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 60000);
+    const tick = () => setNow(new Date());
+    tick();
+    const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
   }, []);
 
   if (hideHeader) return null;
 
-  const showModeSwitch = ready && mode && pathname !== '/' && status.isOpen;
+  const showModeSwitch = ready && mode && pathname !== '/' && openNow === true;
 
-  const openBadge = (
-    <div
-      className={cn(
-        'flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors sm:px-3 sm:text-xs',
-        status.isOpen ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
-      )}
-    >
-      <span
+  const openBadge =
+    openNow == null ? (
+      <div className="h-[1.625rem] w-[4.75rem] shrink-0 rounded-full bg-white/5" aria-hidden="true" />
+    ) : (
+      <div
         className={cn(
-          'h-2 w-2 rounded-full',
-          status.isOpen ? 'bg-green-400 animate-pulse' : 'bg-red-400'
+          'flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors sm:px-3 sm:text-xs',
+          openNow ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
         )}
-      />
-      {status.label}
-    </div>
-  );
+      >
+        <span className={cn('h-2 w-2 rounded-full', openNow ? 'bg-green-400 animate-pulse' : 'bg-red-400')} />
+        {openNow ? 'Abierto' : 'Cerrado'}
+      </div>
+    );
 
   const modeSwitch = showModeSwitch ? (
     <div className="flex w-full items-center rounded-full border border-border/60 bg-card p-0.5 sm:w-auto">

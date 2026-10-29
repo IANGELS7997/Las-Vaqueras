@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import { reportClientError } from '@/lib/dev-signal-client';
+import { isRecoveredHydrationNotice } from '@/lib/hydration-notice';
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
 
@@ -17,6 +18,7 @@ Sentry.init({
       error instanceof Error
         ? error.message
         : event.exception?.values?.[0]?.value || event.message || 'Error';
+    if (isRecoveredHydrationNotice(message)) return null;
     const stack = error instanceof Error ? error.stack : '';
     reportClientError(message, stack);
     return event;
