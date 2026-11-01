@@ -13,6 +13,7 @@ import {
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { isValidPickupAt } from '@/lib/pickup-slots';
 import { branchById, isBranchId, isBranchOpen } from '@/lib/branches';
+import { readManualClosure } from '@/lib/store-closure';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const branch = branchById(isBranchId(body.branchId) ? body.branchId : 'centro');
-  if (!isBranchOpen(branch.id)) {
+  if (!isBranchOpen(branch.id) || (await readManualClosure())) {
     return NextResponse.json({ error: `${branch.shortName} está cerrada` }, { status: 400 });
   }
   const items = Array.isArray(body.items) ? (body.items as CartItem[]) : [];

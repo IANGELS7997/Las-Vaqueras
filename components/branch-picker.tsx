@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { BrandLogo } from '@/components/brand-logo';
 import { BRANCHES, isBranchOpen, nearestBranch, type Branch } from '@/lib/branches';
+import { useManualClosure } from '@/components/use-manual-closure';
 import { cn } from '@/lib/utils';
 
 type LocationState = 'asking' | 'nearest' | 'all';
@@ -12,6 +13,7 @@ export function BranchPicker({ onSelect }: { onSelect: (branch: Branch) => void 
   const [locationState, setLocationState] = useState<LocationState>('asking');
   const [nearest, setNearest] = useState<Branch | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const manualClosed = useManualClosure();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -49,7 +51,7 @@ export function BranchPicker({ onSelect }: { onSelect: (branch: Branch) => void 
 
       <div className="mt-8 grid w-full gap-3">
         {branches.map((branch) => {
-          const open = isBranchOpen(branch.id, now);
+          const open = isBranchOpen(branch.id, now) && !manualClosed;
           const recommended = locationState === 'nearest' && nearest?.id === branch.id;
           return (
             <button

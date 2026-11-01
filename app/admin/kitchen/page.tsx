@@ -131,6 +131,7 @@ export default function KitchenDashboardPage() {
     { severity: string; label: string; detail: string }[]
   >([]);
   const [managedBusyId, setManagedBusyId] = useState<string | null>(null);
+  const [postponeFor, setPostponeFor] = useState<string | null>(null);
   const printQueueRef = useRef<string[]>([]);
   const handoffLockRef = useRef<HandoffTapLock | null>(null);
   const printingIdRef = useRef<string | null>(null);
@@ -572,6 +573,17 @@ export default function KitchenDashboardPage() {
     if (payload.order) patchOrderLocal(order.id, payload.order as Order);
   };
 
+  const handlePostpone = async (order: Order, minutes: number) => {
+    const response = await fetch(`/api/orders/${order.id}/postpone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+    setPostponeFor(null);
+  };
+
   const getTimeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
@@ -801,6 +813,14 @@ export default function KitchenDashboardPage() {
                     ))}
                   </div>
 
+                  {order.prepDelayMinutes ? (
+                    <p className="mb-2 text-xs font-semibold text-yellow-300">
+                      Pospuesto {order.prepDelayMinutes} min. {order.promiseLabel}
+                    </p>
+                  ) : null}
+                  {order.handoffPin ? (
+                    <p className="mb-2 text-sm font-bold text-white">Clave de entrega: {order.handoffPin}</p>
+                  ) : null}
                   <p className="mb-2 text-xs text-yellow-400">
                     IANGEL: {viewFromOrder({
                       status: order.status,
@@ -945,6 +965,34 @@ export default function KitchenDashboardPage() {
                       <Printer className="mr-1.5 h-3.5 w-3.5" />
                       Imprimir
                     </Button>
+                    {!reviewing && order.status !== 'delivered' && order.status !== 'cancelled' ? (
+                      postponeFor === order.id ? (
+                        <>
+                          {[5, 10, 15, 20].map((minutes) => (
+                            <Button
+                              key={minutes}
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="border-border bg-card"
+                              onClick={() => void handlePostpone(order, minutes)}
+                            >
+                              {minutes} min
+                            </Button>
+                          ))}
+                        </>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="border-border bg-card"
+                          onClick={() => setPostponeFor(order.id)}
+                        >
+                          Posponer
+                        </Button>
+                      )
+                    ) : null}
                   </div>
 
                   <ThermalTicket order={order} active={printingOrderId === order.id} />

@@ -9,17 +9,20 @@ import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
 import { CustomerAccountSheet } from '@/components/customer-account-sheet';
 import { useFulfillment } from '@/lib/fulfillment-context';
+import { useManualClosure } from '@/components/use-manual-closure';
 import { cn } from '@/lib/utils';
 
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { mode, setMode, ready, branchId, clearBranch } = useFulfillment();
+  const manualClosed = useManualClosure();
   const branch = branchId ? branchById(branchId) : null;
   const headerRef = useRef<HTMLElement>(null);
   const [now, setNow] = useState<Date | null>(null);
   const hideHeader = pathname.startsWith('/admin') || pathname.startsWith('/connect');
-  const openNow = now == null ? null : branchId ? isBranchOpen(branchId, now) : anyBranchOpen(now);
+  const openNow =
+    now == null ? null : manualClosed ? false : branchId ? isBranchOpen(branchId, now) : anyBranchOpen(now);
   const todayHours = now && branchId ? branchTodayHours(branchId, now) : '';
 
   useLayoutEffect(() => {

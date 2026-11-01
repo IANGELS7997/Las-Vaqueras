@@ -66,7 +66,7 @@ export async function GET(req: Request) {
   const presence = await listRiderPresence();
 
   return NextResponse.json({
-    orders: advanced.map((row) => mapDbOrder(row)),
+    orders: advanced.map((row) => mapDbOrder(row, { includeHandoffPin: true })),
     liveRiderKeys: activeRiderKeys(presence),
   });
 }

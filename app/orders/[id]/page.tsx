@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Clock, MapPin, Package, Phone } from 'lucide-react';
 import { BillingFormLink } from '@/components/billing-form-link';
 import { MenuProductImage } from '@/components/menu-product-image';
+import { OrderExperienceRating } from '@/components/order-experience-rating';
 import { OrderRiderRating } from '@/components/order-rider-rating';
 import { PwaInstallHint } from '@/components/pwa-install-hint';
 import { orderCanRequestInvoice } from '@/lib/billing-form';
@@ -176,7 +177,9 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
     );
   }
 
-  const etaLine = trackingEtaParts({ fulfillment: order.fulfillment, pickupAt: order.pickupAt });
+  const etaLine = order.promiseLabel
+    ? { prefix: 'Tiempo aproximado:', emphasis: order.promiseLabel }
+    : trackingEtaParts({ fulfillment: order.fulfillment, pickupAt: order.pickupAt });
 
   return (
     <div className="mx-auto max-w-md px-6 pb-12 pt-6 text-white">
@@ -293,6 +296,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         ) : null}
       </div>
 
+      <OrderExperienceRating orderId={order.id} delivered={status === 'delivered' || order.dispatchStatus === 'delivered'} />
       <OrderRiderRating orderId={order.id} delivered={status === 'delivered' || order.dispatchStatus === 'delivered'} />
 
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left">

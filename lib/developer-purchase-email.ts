@@ -6,8 +6,11 @@ import type { DbOrderRow } from '@/lib/orders-map';
 const DEVELOPER_EMAIL = 'iangels7997@gmail.com';
 const STORE_EMAIL = 'servicio@lasvaqueras.com.mx';
 
-type NoticeRow = DbOrderRow & {
+export type PurchaseNoticeRow = DbOrderRow & {
   delivery_provider?: string | null;
+  profile_login_token?: string | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
 };
 
 function esc(value: unknown) {
@@ -27,7 +30,7 @@ function money(value: number | string | null | undefined) {
   return formatMXN(Number.isFinite(amount) ? amount : 0);
 }
 
-function whoDelivers(row: NoticeRow) {
+function whoDelivers(row: PurchaseNoticeRow) {
   if ((row.fulfillment_type || '') === 'pickup') return 'Recoger en la sucursal';
   if (row.delivery_provider === 'uber') return 'Uber Direct';
   if (row.delivery_provider === 'managed') return 'La sucursal gestiona el envío';
@@ -70,7 +73,7 @@ function itemText(items: CartItem[] | null | undefined) {
     .join('\n');
 }
 
-function placeLines(row: NoticeRow, branchName: string) {
+function placeLines(row: PurchaseNoticeRow, branchName: string) {
   if ((row.fulfillment_type || '') === 'pickup') {
     return [
       `El cliente va a recoger en ${branchName}.`,
@@ -86,10 +89,7 @@ function placeLines(row: NoticeRow, branchName: string) {
   ].filter(Boolean);
 }
 
-/** Aviso interno de una compra ya pagada. No es el ticket del cliente. */
-export async function sendDeveloperPurchaseNotice(row: NoticeRow) {
-  const key = process.env.RESEND_API_KEY || '';
-  if (!key || !row?.id) return { ok: false as const };
+export function purchaseNoticeLines(row: PurchaseNoticeRow) {
   const code = row.short_code || row.id.replace(/-/g, '').slice(0, 4).toUpperCase();
   const when = new Date(row.created_at || Date.now()).toLocaleString('es-MX', {
     timeZone: 'America/Chihuahua',
@@ -102,32 +102,43 @@ export async function sendDeveloperPurchaseNotice(row: NoticeRow) {
   const total = Number(row.total_charged || 0);
   const delivery = Number(row.delivery_fee || 0);
   const food = Number.isFinite(total) && Number.isFinite(delivery) ? Number((total - delivery).toFixed(2)) : 0;
-  const lines = [
-    `Venta hecha. Pedido #${code}.`,
-    `Fecha: ${when}.`,
-    '',
-    `Sucursal: ${branch.name}.`,
-    `Dirección de la sucursal: ${branch.address}.`,
-    `Teléfono de la sucursal: ${branch.phone}.`,
-    `Horario de la sucursal: ${branch.hoursLabel}.`,
-    '',
-    ...visit,
-    '',
-    `Cliente: ${row.customer_name || 'Sin nombre'}.`,
-    `Teléfono del cliente: ${row.customer_phone || 'Sin teléfono'}.`,
-    `Correo del cliente: ${row.customer_email || 'Sin correo'}.`,
-    '',
-    'Platillos:',
-    dishes,
-    '',
-    `Se le cobró al cliente: ${money(total)}.`,
-    `De eso, la comida es ${money(food)}. El envío es ${money(delivery)} y no cuenta como comida.`,
-    `Forma de pago: ${payWords(row.pay_method)}.`,
-    `Para el restaurante: ${money(row.restaurant_payout)}.`,
-    `Para la plataforma: ${money(row.platform_fee)}.`,
-    '',
-    `Número de pedido: ${row.id}.`,
-  ];
+  return {
+    code,
+    branch,
+    lines: [
+      `Venta hecha. Pedido #${code}.`,
+      `Fecha: ${when}.`,
+      '',
+      `Sucursal: ${branch.name}.`,
+      `Dirección de la sucursal: ${branch.address}.`,
+      `Teléfono de la sucursal: ${branch.phone}.`,
+      `Horario de la sucursal: ${branch.hoursLabel}.`,
+      '',
+      ...visit,
+      '',
+      `Cliente: ${row.customer_name || 'Sin nombre'}.`,
+      `Teléfono del cliente: ${row.customer_phone || 'Sin teléfono'}.`,
+      `Correo del cliente: ${row.customer_email || 'Sin correo'}.`,
+      '',
+      'Platillos:',
+      dishes,
+      '',
+      `Se le cobró al cliente: ${money(total)}.`,
+      `De eso, la comida es ${money(food)}. El envío es ${money(delivery)} y no cuenta como comida.`,
+      `Forma de pago: ${payWords(row.pay_method)}.`,
+      `Para el restaurante: ${money(row.restaurant_payout)}.`,
+      `Para la plataforma: ${money(row.platform_fee)}.`,
+      '',
+      `Número de pedido: ${row.id}.`,
+    ],
+  };
+}
+
+/** Aviso interno de una compra ya pagada. No es el ticket del cliente. */
+export async function sendDeveloperPurchaseNotice(row: PurchaseNoticeRow) {
+  const key = process.env.RESEND_API_KEY || '';
+  if (!key || !row?.id) return { ok: false as const };
+  const { code, branch, lines } = purchaseNoticeLines(row);
   const text = lines.join('\n');
   const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#111;line-height:1.5;">
 <p style="margin:0 0 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#9a3412;">Aviso interno · no es el correo del cliente</p>

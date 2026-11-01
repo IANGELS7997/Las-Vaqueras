@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { refundCardCharge } from '@/lib/card-refund';
 import { dropUncollectedCashFee } from '@/lib/cash-platform-fee-store';
 import { sendCustomerRefundDecision, sendDoorDecisionEmails, sendHelpEmails } from '@/lib/help-email';
+import { withDeliveredAt } from '@/lib/delivered-stamp';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 import { closeIangelOpsOrder, notifyIangelHelp, type IangelOpsRow } from '@/lib/iangel-ops';
 import { saveRiderPresence } from '@/lib/iangel-presence';
@@ -275,9 +276,10 @@ export async function payHelpAtRegister(supabase: SupabaseClient, orderId: strin
   if (row.lock_until === 'payout') {
     await saveRiderPresence(String(row.rider_key), { help_lock_note: null, help_lock_order_id: null });
   }
+  const existing = await supabase.from('orders').select('delivered_at').eq('id', orderId).maybeSingle();
   await supabase
     .from('orders')
-    .update({ status: 'delivered', dispatch_status: 'delivered', rider_status: 'idle' })
+    .update(withDeliveredAt({ status: 'delivered', dispatch_status: 'delivered', rider_status: 'idle' }, existing.data?.delivered_at))
     .eq('id', orderId)
     .neq('status', 'cancelled');
   return { ok: true, amount: Number(row.rider_due_mxn || 0) };

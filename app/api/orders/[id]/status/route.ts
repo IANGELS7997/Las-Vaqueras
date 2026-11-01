@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { sendArrivalEmail } from '@/lib/arrival-email';
 import { sendEnrouteEmail } from '@/lib/enroute-email';
 import { KITCHEN_ORDER_STATUSES, mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
+import { withDeliveredAt } from '@/lib/delivered-stamp';
 import { patchFromKitchenStatus } from '@/lib/order-lifecycle';
 import type { OrderStatus } from '@/types';
 import { createAdminSupabase } from '@/lib/supabase-admin';
@@ -135,6 +136,8 @@ export async function PATCH(
     );
   }
 
+  withDeliveredAt(patch, current.data.delivered_at);
+
   const orderId = params.id;
   const updateOne = supabase.from('orders').update(patch).eq('id', orderId);
   const scoped =
@@ -239,5 +242,5 @@ export async function PATCH(
     void syncIangelOpsKitchen(data as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
   }
 
-  return NextResponse.json({ order: mapDbOrder(data as DbOrderRow) });
+  return NextResponse.json({ order: mapDbOrder(data as DbOrderRow, { includeHandoffPin: true }) });
 }

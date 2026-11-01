@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { isBranchId, metersFromBranch } from '@/lib/branches';
+import { readManualClosure } from '@/lib/store-closure';
 import { isValidCoord } from '@/lib/delivery-address';
 import { COPY } from '@/lib/iangel-copy';
 import { assignmentFromRouting, quoteExpiresAt, signQuoteAssignment } from '@/lib/iangel-quote-token';
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
     const phone = typeof body.phone === 'string' ? body.phone : '';
     const priceBaseTotal = Number(body.priceBaseTotal) || 0;
     const branchId = isBranchId(body.branchId) ? body.branchId : 'centro';
+    if (await readManualClosure()) {
+      return NextResponse.json({ error: 'La sucursal está cerrada' }, { status: 400 });
+    }
 
     if (!isValidCoord(lat, lng) || !street || !extNumber || !/^\d{5}$/.test(postalCode)) {
       return NextResponse.json(

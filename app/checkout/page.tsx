@@ -31,6 +31,7 @@ import {
   isValidPostalCode,
 } from '@/lib/delivery-address';
 import { useFulfillment } from '@/lib/fulfillment-context';
+import { useManualClosure } from '@/components/use-manual-closure';
 import {
   clearCheckoutDraft,
   readCheckoutDraft,
@@ -76,6 +77,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, removeItem, clearCart, setLastOrder } = useCart();
   const { ready, mode, setMode, branchId } = useFulfillment();
+  const manualClosed = useManualClosure();
   const branch = branchById(branchId);
   const isPickup = mode === 'pickup';
 
@@ -185,13 +187,13 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const update = () => {
-      setIsOpen(branchId ? isBranchOpen(branchId) : false);
+      setIsOpen(branchId ? isBranchOpen(branchId) && !manualClosed : false);
       setPickupSlots(generatePickupSlots());
     };
     update();
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
-  }, [branchId]);
+  }, [branchId, manualClosed]);
 
   useEffect(() => {
     const draft = readCheckoutDraft();

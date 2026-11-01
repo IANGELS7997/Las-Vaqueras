@@ -13,6 +13,7 @@ import { BrandLogo } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { isBranchOpen } from '@/lib/branches';
+import { useManualClosure } from '@/components/use-manual-closure';
 import { useFulfillment } from '@/lib/fulfillment-context';
 
 /** El agotado puede tardar este tiempo en el menú. El cobro vuelve a leer el inventario. */
@@ -38,6 +39,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 export default function MenuPage() {
   const router = useRouter();
   const { ready, mode, browseOnly, branchId } = useFulfillment();
+  const manualClosed = useManualClosure();
   const [isOpen, setIsOpen] = useState<boolean | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('combos');
   const [modalItem, setModalItem] = useState<MenuItem | null>(null);
@@ -81,11 +83,11 @@ export default function MenuPage() {
   }, [branchId]);
 
   useEffect(() => {
-    const update = () => setIsOpen(branchId ? isBranchOpen(branchId) : false);
+    const update = () => setIsOpen(branchId ? isBranchOpen(branchId) && !manualClosed : false);
     update();
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
-  }, [branchId]);
+  }, [branchId, manualClosed]);
 
   useEffect(() => {
     if (!ready || isOpen === null) return;

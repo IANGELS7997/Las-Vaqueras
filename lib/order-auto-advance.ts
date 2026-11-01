@@ -1,3 +1,4 @@
+import { withDeliveredAt } from '@/lib/delivered-stamp';
 import type { createAdminSupabase } from '@/lib/supabase-admin';
 import type { DbOrderRow } from '@/lib/orders-map';
 
@@ -58,7 +59,7 @@ export async function advancePickupOrderIfDue(
   if (shouldAutoDeliverPickup(row, nowMs)) {
     const updated = await supabase
       .from('orders')
-      .update({ status: 'delivered', dispatch_status: 'delivered', rider_status: 'idle' })
+      .update(withDeliveredAt({ status: 'delivered', dispatch_status: 'delivered', rider_status: 'idle' }, row.delivered_at))
       .eq('id', row.id)
       .eq('status', 'in_transit')
       .select('*')

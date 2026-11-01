@@ -3,6 +3,7 @@ import { sendArrivalEmail, shouldSendArrivalEmail } from '@/lib/arrival-email';
 import { notifyNextDoorEnroute } from '@/lib/enroute-email';
 import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
 import { mapIangelOrder, runIangelOrderAction } from '@/lib/iangel-order';
+import { withDeliveredAt } from '@/lib/delivered-stamp';
 import { doorCollectAmounts } from '@/lib/iangel-cash';
 import { markIangelDoorCollected, syncIangelOpsKitchen, type IangelOpsRow } from '@/lib/iangel-ops';
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
@@ -81,6 +82,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!row.short_code) {
       patch.short_code = String(row.id).replace(/-/g, '').slice(0, 4).toUpperCase();
     }
+    withDeliveredAt(patch, row.delivered_at);
     let update = supabase.from('orders').update(patch).eq('id', params.id);
     if (claim) update = update.is('iangel_rider_key', null);
     const updated = await update.select('*').maybeSingle();
