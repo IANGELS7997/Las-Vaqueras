@@ -132,6 +132,9 @@ export interface Order {
   helpCode?: string | null;
   incidentType?: string | null;
   etaMinutes?: number | null;
+  prepDelayMinutes?: number | null;
+  promiseLabel?: string | null;
+  handoffPin?: string | null;
   loyaltyKind?: string | null;
   uberTrackingUrl?: string | null;
 }

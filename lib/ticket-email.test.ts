@@ -68,7 +68,7 @@ const pickup = buildTicketEmail({
   customer_name: 'Ana Lopez',
   customer_phone: '6140000000',
   customer_email: 'ana@correo.com',
-  delivery_address: null,
+  delivery_address: '',
   delivery_references: null,
   total_charged: 120,
   restaurant_payout: 80,

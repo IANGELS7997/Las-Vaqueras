@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import { NextResponse } from 'next/server';
+import { withDeliveredAt } from '@/lib/delivered-stamp';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { sendUberTrackingEmail, shouldSendUberTrackingEmail } from '@/lib/uber-tracking-email';
 import {
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
   const supabase = createAdminSupabase();
   let orderQuery = supabase
     .from('orders')
-    .select('id, status, fulfillment_type, customer_email, customer_name, uber_tracking_url, profile_login_token');
+    .select('id, status, fulfillment_type, customer_email, customer_name, uber_tracking_url, profile_login_token, delivered_at');
   if (event.orderId) {
     orderQuery = orderQuery.eq('id', event.orderId);
   } else if (event.deliveryId) {
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
   if (found.data.fulfillment_type === 'delivery' && nextStatus && found.data.status !== 'cancelled') {
     patch.status = nextStatus;
   }
+  withDeliveredAt(patch, found.data.delivered_at);
 
   const saved = await supabase.from('orders').update(patch).eq('id', found.data.id);
   if (

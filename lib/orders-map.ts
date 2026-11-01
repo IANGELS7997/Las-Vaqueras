@@ -1,4 +1,5 @@
 import { orderBranchId } from '@/lib/branches';
+import { postponePromise } from '@/lib/postpone';
 import type { CartItem, Order, OrderStatus } from '@/types';
 import { customerStatusLabel as syncCustomerLabel } from '@/lib/order-lifecycle';
 import { uberTrackingHref } from '@/lib/uber-tracking-email';
@@ -41,6 +42,7 @@ export type DbOrderRow = {
   status: OrderStatus;
   items: CartItem[] | null;
   created_at: string;
+  delivered_at?: string | null;
   fulfillment_type?: string | null;
   pickup_at?: string | null;
   customer_id?: string | null;
@@ -58,6 +60,10 @@ export type DbOrderRow = {
   help_code?: string | null;
   incident_type?: string | null;
   eta_minutes?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
+  prep_delay_minutes?: number | null;
+  handoff_pin?: string | null;
   rider_lat?: number | null;
   rider_lng?: number | null;
   loyalty_kind?: string | null;
@@ -70,7 +76,20 @@ function toNumber(value: number | string): number {
   return typeof value === 'number' ? value : Number(value);
 }
 
-export function mapDbOrder(row: DbOrderRow): Order {
+export function mapDbOrder(row: DbOrderRow, options?: { includeHandoffPin?: boolean }): Order {
+  const delay = Number(row.prep_delay_minutes);
+  const promise =
+    Number.isFinite(delay) && delay > 0
+      ? postponePromise({
+          fulfillment: row.fulfillment_type,
+          createdAt: row.created_at,
+          pickupAt: row.pickup_at,
+          delayMinutes: delay,
+          branchId: row.branch_id,
+          dropoffLat: row.dropoff_lat,
+          dropoffLng: row.dropoff_lng,
+        })
+      : null;
   return {
     id: row.id,
     stripePaymentIntentId: row.stripe_payment_intent_id || undefined,
@@ -113,6 +132,9 @@ export function mapDbOrder(row: DbOrderRow): Order {
     helpCode: row.help_code || null,
     incidentType: row.incident_type || null,
     etaMinutes: row.eta_minutes == null ? null : Number(row.eta_minutes),
+    prepDelayMinutes: promise ? delay : null,
+    promiseLabel: promise?.label || null,
+    handoffPin: options?.includeHandoffPin ? row.handoff_pin || null : null,
     loyaltyKind: row.loyalty_kind || null,
     uberTrackingUrl: uberTrackingHref(row.uber_tracking_url),
     branchId: orderBranchId(row.branch_id),

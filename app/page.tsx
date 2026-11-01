@@ -9,19 +9,21 @@ import { Button } from '@/components/ui/button';
 import { BranchPicker } from '@/components/branch-picker';
 import { branchById, branchNextOpenLabel, isBranchOpen } from '@/lib/branches';
 import { useFulfillment } from '@/lib/fulfillment-context';
+import { useManualClosure } from '@/components/use-manual-closure';
 import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const router = useRouter();
   const { ready, branchId, setBranch, clearBranch, setMode, enableBrowseMenu } = useFulfillment();
   const [clock, setClock] = useState(() => new Date());
+  const manualClosed = useManualClosure();
 
   useEffect(() => {
     const interval = setInterval(() => setClock(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const isOpen = branchId ? isBranchOpen(branchId, clock) : false;
+  const isOpen = branchId ? isBranchOpen(branchId, clock) && !manualClosed : false;
   const open = { isOpen, label: isOpen ? 'Abierto' : 'Cerrado' };
   const nextHours = branchId ? branchNextOpenLabel(branchId, clock) : '';
 

@@ -26,6 +26,7 @@ import { calcCartBaseTotal } from '@/lib/pricing';
 import { cartStockError } from '@/lib/branch-stock';
 import { listOutOfStock } from '@/lib/branch-stock-db';
 import { branchById, isBranchId, isBranchOpen } from '@/lib/branches';
+import { readManualClosure } from '@/lib/store-closure';
 import { getStripe } from '@/lib/stripe';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { resolvePaidDelivery } from '@/lib/iangel-checkout';
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
       };
 
     const branch = branchById(isBranchId(requestedBranch) ? requestedBranch : 'centro');
-    if (!isBranchOpen(branch.id)) {
+    if (!isBranchOpen(branch.id) || (await readManualClosure())) {
       return NextResponse.json({ error: `${branch.shortName} está cerrada` }, { status: 400 });
     }
     if (!isFulfillmentMode(fulfillment)) {
