@@ -2,8 +2,7 @@ import { branchMailLine } from '@/lib/branches';
 import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl, INSTALL_APP_REMINDER } from '@/lib/customer-mail';
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
-
-const SITE = 'https://lasvaqueras.com.mx';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 
 function esc(value: unknown) {
   return String(value == null ? '' : value)
@@ -52,17 +51,19 @@ export function buildArrivalEmail(input: {
   const line = input.managed
     ? 'Tu repartidor ha llegado a tu domicilio.'
     : arrivalCustomerLine(input.leaveAtDoor);
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu repartidor llegó</h1>
-<p>Hola ${first},</p>
-<p>${esc(line)}</p>
-${input.guide?.html || ''}
-<p>${esc(INSTALL_APP_REMINDER)}</p>
-${customerMailButtons(track)}
-${billingMailButton()}
-<p>${branchMailLine(input.branchId)}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'En tu domicilio',
+    title: 'Tu repartidor llegó',
+    body: [
+      mailParagraph(`Hola ${first},`),
+      mailParagraph(esc(line)),
+      input.guide?.html || '',
+      mailParagraph(esc(INSTALL_APP_REMINDER)),
+      customerMailButtons(track),
+      billingMailButton(),
+    ].join(''),
+    footer: branchMailLine(input.branchId),
+  });
   const text = [
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
     line,

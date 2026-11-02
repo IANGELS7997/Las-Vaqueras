@@ -1,6 +1,7 @@
 import type { CartItem } from '@/types';
 import { branchById, orderBranchId } from '@/lib/branches';
 import { formatMXN } from '@/lib/pricing';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 import type { DbOrderRow } from '@/lib/orders-map';
 
 const DEVELOPER_EMAIL = 'iangels7997@gmail.com';
@@ -140,13 +141,12 @@ export async function sendDeveloperPurchaseNotice(row: PurchaseNoticeRow) {
   if (!key || !row?.id) return { ok: false as const };
   const { code, branch, lines } = purchaseNoticeLines(row);
   const text = lines.join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#111;line-height:1.5;">
-<p style="margin:0 0 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#9a3412;">Aviso interno · no es el correo del cliente</p>
-<h1 style="font-size:22px;margin:0 0 8px;">Venta hecha · #${esc(code)}</h1>
-${lines
-  .map((line) => (line === '' ? '' : `<p style="margin:0 0 6px;">${esc(line)}</p>`))
-  .join('')}
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Aviso interno',
+    title: `Venta hecha · #${code}`,
+    body: lines.filter(Boolean).map((line) => mailParagraph(esc(line))).join(''),
+    footer: 'No es el correo del cliente.',
+  });
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

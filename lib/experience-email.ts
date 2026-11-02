@@ -7,8 +7,7 @@ import {
   DEVELOPER_ORDER_COPY,
   escMail,
 } from '@/lib/customer-mail';
-
-const SITE = 'https://lasvaqueras.com.mx';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 
 export const EXPERIENCE_SUBJECT = '¿Cómo estuvo tu pedido? · Las Vaqueras';
 
@@ -16,7 +15,7 @@ function starLinks(orderUrl: string) {
   const stars = [1, 2, 3, 4, 5]
     .map((star) => {
       const href = escMail(`${orderUrl}${orderUrl.includes('?') ? '&' : '?'}estrellas=${star}`);
-      return `<a href="${href}" style="color:#ea580c;text-decoration:none;font-size:32px;margin:0 4px;" aria-label="${star} estrellas">★</a>`;
+      return `<a href="${href}" style="color:#f97316;text-decoration:none;font-size:32px;margin:0 4px;" aria-label="${star} estrellas">★</a>`;
     })
     .join('');
   return `<p style="text-align:center;margin:18px 0 8px;">${stars}</p>
@@ -31,15 +30,17 @@ export function buildExperienceEmail(input: {
 }) {
   const track = customerOrderUrl(input.orderId, input.token);
   const first = escMail(input.customerName.trim().split(' ')[0] || '');
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">¿Cómo estuvo tu pedido?</h1>
-<p>Hola ${first},</p>
-<p>Ya pasó un rato desde que recibiste tu pedido. Nos ayuda mucho saber cómo te fue, del 1 al 5.</p>
-${starLinks(track)}
-${customerMailButtons(track)}
-<p>${escMail(branchMailLine(input.branchId))}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Tu opinión',
+    title: '¿Cómo estuvo tu pedido?',
+    body: [
+      mailParagraph(`Hola ${first},`),
+      mailParagraph('Ya pasó un rato desde que recibiste tu pedido. Nos ayuda mucho saber cómo te fue, del 1 al 5.'),
+      starLinks(track),
+      customerMailButtons(track),
+    ].join(''),
+    footer: branchMailLine(input.branchId),
+  });
   const text = [
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
     '¿Cómo estuvo tu pedido? Elige del 1 al 5. En la página puedes dejar un comentario.',
@@ -111,10 +112,11 @@ export async function sendExperienceResultNotice(input: {
       to: [DEVELOPER_ORDER_COPY],
       subject: `Calificación · #${input.code} · ${input.stars} estrellas`,
       text: lines.join('\n'),
-      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#111;line-height:1.5;">
-<h1 style="font-size:22px;color:#ea580c;">Calificación · #${escMail(input.code)}</h1>
-${lines.map((line) => `<p style="margin:0 0 6px;">${escMail(line)}</p>`).join('')}
-</div>`,
+      html: mailDocument({
+        eyebrow: 'Aviso interno',
+        title: `Calificación · #${input.code}`,
+        body: lines.map((line) => mailParagraph(escMail(line))).join(''),
+      }),
     }),
   });
   return { ok: response.ok };

@@ -4,10 +4,9 @@ import { billingMailButton, billingMailText } from '@/lib/billing-form';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail, INSTALL_APP_REMINDER } from '@/lib/customer-mail';
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 import { DELIVERY_ETA_MAIL } from '@/lib/iangel-copy';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
-
-const SITE = 'https://lasvaqueras.com.mx';
 
 export type TicketOrder = DbOrderRow & {
   profile_login_token?: string | null;
@@ -60,24 +59,26 @@ export function buildTicketEmail(row: TicketOrder, guide?: LoyaltyMailGuide | nu
   const eta = (row.fulfillment_type || '') === 'pickup' ? '' : DELIVERY_ETA_MAIL;
   const delivery = Number(row.delivery_fee || 0);
   const service = Number(row.customer_fee || 0);
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu ticket · #${escMail(code)}</h1>
-<p>Hola ${escMail(first)},</p>
-<p>${escMail(PURCHASE_THANKS)}</p>
-<p>Recibimos tu pedido. Venta final: no admite cancelación ni devolución.</p>
-<p style="font-weight:700;">${escMail(place)}</p>
-${eta ? `<p>${escMail(eta)}</p>` : ''}
-<ul>${itemLines(row.items)}</ul>
-<p><strong>Total:</strong> ${escMail(money(row.total_charged))}</p>
-${delivery > 0 ? `<p>Envío: ${escMail(money(delivery))}</p>` : ''}
-${service > 0 ? `<p>Cuota de servicio: ${escMail(money(service))}</p>` : ''}
-${guide?.html || ''}
-<p>${escMail(INSTALL_APP_REMINDER)}</p>
-${customerMailButtons(orderUrl)}
-${billingMailButton()}
-<p>${branchMailLine(orderBranchId(row.branch_id))}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Pedido confirmado',
+    title: `Tu ticket · #${code}`,
+    body: [
+      mailParagraph(`Hola ${escMail(first)},`),
+      mailParagraph(escMail(PURCHASE_THANKS)),
+      mailParagraph('Recibimos tu pedido. Venta final: no admite cancelación ni devolución.'),
+      mailParagraph(escMail(place), true),
+      eta ? mailParagraph(escMail(eta)) : '',
+      `<ul style="margin:0 0 16px;padding:0 0 0 18px;">${itemLines(row.items)}</ul>`,
+      mailParagraph(`<strong style="color:#111111;">Total:</strong> ${escMail(money(row.total_charged))}`),
+      delivery > 0 ? mailParagraph(`Envío: ${escMail(money(delivery))}`) : '',
+      service > 0 ? mailParagraph(`Cuota de servicio: ${escMail(money(service))}`) : '',
+      guide?.html || '',
+      mailParagraph(escMail(INSTALL_APP_REMINDER)),
+      customerMailButtons(orderUrl),
+      billingMailButton(),
+    ].join(''),
+    footer: branchMailLine(orderBranchId(row.branch_id)),
+  });
   const text = [
     `Tu ticket #${code}`,
     `Hola ${first}.`,

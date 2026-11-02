@@ -1,4 +1,5 @@
 import { escMail, customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 import { formatMXN } from '@/lib/pricing';
 import type { CartItem } from '@/types';
 
@@ -39,7 +40,7 @@ function photoLine(label: string, url: string) {
 
 function photoLink(label: string, url: string) {
   if (!url) return `${escMail(label)}: sin enlace`;
-  return `<a href="${escMail(url)}">${escMail(label)}</a>`;
+  return `<a href="${escMail(url)}" style="color:#f97316;text-decoration:none;">${escMail(label)}</a>`;
 }
 
 export function refundRequestMail(input: RefundNoticeInput) {
@@ -61,20 +62,17 @@ export function refundRequestMail(input: RefundNoticeInput) {
     photoLine('Foto del ticket', input.ticketPhotoUrl),
     `Pedido: ${input.orderId}`,
   ].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#111;line-height:1.45;">
-<p style="margin:0 0 8px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#9a3412;">Solicitud de reembolso</p>
-<h1 style="font-size:22px;margin:0 0 12px;">#${escMail(input.folio)} · ${escMail(input.branch)}</h1>
-<p><strong>Cliente:</strong> ${escMail(input.customerName)}<br/>
-<strong>Teléfono:</strong> ${escMail(input.customerPhone)}<br/>
-<strong>Pago:</strong> ${escMail(input.payLabel)}<br/>
-<strong>Monto:</strong> ${escMail(money)}</p>
-<p><strong>Motivo:</strong> ${escMail(input.reason)}<br/>
-<strong>Descripción:</strong> ${escMail(input.note)}</p>
-<p><strong>Platillos</strong><br/>${escMail(dishes).split('\n').join('<br/>')}</p>
-<p>${photoLink('Foto de la comida', input.foodPhotoUrl)}<br/>
-${photoLink('Foto del ticket', input.ticketPhotoUrl)}</p>
-<p>Pedido ${escMail(input.orderId)}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Solicitud de reembolso',
+    title: `#${input.folio} · ${input.branch}`,
+    body: [
+      mailParagraph(`<strong style="color:#111111;">Cliente:</strong> ${escMail(input.customerName)}<br/><strong style="color:#111111;">Teléfono:</strong> ${escMail(input.customerPhone)}<br/><strong style="color:#111111;">Pago:</strong> ${escMail(input.payLabel)}<br/><strong style="color:#111111;">Monto:</strong> ${escMail(money)}`),
+      mailParagraph(`<strong style="color:#111111;">Motivo:</strong> ${escMail(input.reason)}<br/><strong style="color:#111111;">Descripción:</strong> ${escMail(input.note)}`),
+      mailParagraph(`<strong style="color:#111111;">Platillos</strong><br/>${escMail(dishes).split('\n').join('<br/>')}`),
+      mailParagraph(`${photoLink('Foto de la comida', input.foodPhotoUrl)}<br/>${photoLink('Foto del ticket', input.ticketPhotoUrl)}`),
+      mailParagraph(`Pedido ${escMail(input.orderId)}`),
+    ].join(''),
+  });
   return { subject, html, text };
 }
 
@@ -96,12 +94,16 @@ export function customerRefundDecisionMail(input: {
       : `Aceptamos tu solicitud. ${money} de comida y envío quedan en tu próxima compra.`
     : `No se aprobó el reembolso.${input.note ? ` ${input.note}` : ''}`;
   const subject = `${input.accepted ? 'Reembolso aceptado' : 'Reembolso no aprobado'} · #${input.folio} · Las Vaqueras`;
-  const html = `<div style="font-family:sans-serif;line-height:1.5">
-<p>Hola ${escMail(input.customerName || '')},</p>
-<p>${escMail(body)}</p>
-<p>Pedido #${escMail(input.folio)}</p>
-${customerMailButtons(orderUrl)}
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Reembolso',
+    title: input.accepted ? 'Reembolso aceptado' : 'Reembolso no aprobado',
+    body: [
+      mailParagraph(`Hola ${escMail(input.customerName || '')},`),
+      mailParagraph(escMail(body)),
+      mailParagraph(`Pedido #${escMail(input.folio)}`),
+      customerMailButtons(orderUrl),
+    ].join(''),
+  });
   const text = `${body}\nPedido #${input.folio}\n${customerMailLinksText(orderUrl)}`;
   return { subject, html, text };
 }

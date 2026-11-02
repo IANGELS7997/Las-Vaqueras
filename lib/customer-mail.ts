@@ -1,3 +1,5 @@
+import { mailButton } from '@/lib/mail-shell';
+
 export const CUSTOMER_SITE = 'https://lasvaqueras.com.mx';
 export const INSTALL_APP_URL = `${CUSTOMER_SITE}/instalar`;
 
@@ -54,10 +56,7 @@ function installUrlForOrderLink(orderUrl: string) {
 export function customerMailButtons(orderUrl: string) {
   const order = escMail(orderUrl);
   const install = escMail(installUrlForOrderLink(orderUrl));
-  return `<div style="text-align:center;margin:20px 0;">
-<a href="${order}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin:4px;">Ver mi pedido</a>
-<a href="${install}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;margin:4px;">Agregar app al inicio</a>
-</div>`;
+  return `${mailButton(order, 'Ver mi pedido', 'primary')}${mailButton(install, 'Agregar app al inicio', 'secondary')}`;
 }
 
 export function customerMailLinksText(orderUrl: string) {

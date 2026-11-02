@@ -6,9 +6,9 @@ import { customerMailButtons, customerMailLinksText, customerOrderUrl, INSTALL_A
 import { loadLoyaltyMailGuide, type LoyaltyMailGuide } from '@/lib/loyalty-mail';
 import { sequenceIangelOps, type IangelOpsRow } from '@/lib/iangel-ops';
 import { ENROUTE_ARRIVAL_LINE } from '@/lib/iangel-copy';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 
-const SITE = 'https://lasvaqueras.com.mx';
 const HEADING = new Set(['picked_up', 'en_route']);
 const CLOSED = new Set(['delivered', 'cancelled', 'incident', 'delivered_unclaimed']);
 
@@ -66,17 +66,19 @@ export function buildEnrouteEmail(input: {
 }) {
   const track = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu pedido va en camino</h1>
-<p>Hola ${first},</p>
-<p>${esc(ENROUTE_LINE)}</p>
-${input.guide?.html || ''}
-<p>${esc(INSTALL_APP_REMINDER)}</p>
-${customerMailButtons(track)}
-${billingMailButton()}
-<p>${branchMailLine(input.branchId)}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'En camino',
+    title: 'Tu pedido va en camino',
+    body: [
+      mailParagraph(`Hola ${first},`),
+      mailParagraph(esc(ENROUTE_LINE)),
+      input.guide?.html || '',
+      mailParagraph(esc(INSTALL_APP_REMINDER)),
+      customerMailButtons(track),
+      billingMailButton(),
+    ].join(''),
+    footer: branchMailLine(input.branchId),
+  });
   const text = [
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
     ENROUTE_LINE,

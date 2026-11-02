@@ -22,9 +22,9 @@ const third = loyaltyGuideFromPaidOrders({
 check(third.text.includes('Vas en el pedido 3.'), 'el pedido 3 se dice en claro');
 check(third.text.includes('Pedidos marcados: 1, 2, 3.'), 'marca solo los pedidos ya hechos');
 check(third.text.includes('Este correo es el pedido 3.'), 'marca el pedido de este correo');
-check(third.html.includes('border:3px solid #111111;font-weight:700;font-size:13px;text-align:center;">3</div>'), 'el 3 va resaltado');
-check(third.html.includes('background:#ea580c;color:#ffffff;border:2px solid transparent;font-weight:700;font-size:16px;text-align:center;">1</div>'), 'el 1 ya hecho se distingue como promo');
-check(third.html.includes('background:#fff7ed;color:#ea580c;border:2px solid #ea580c;font-weight:700;font-size:16px;text-align:center;">5</div>'), 'el 5 pendiente se distingue como promo');
+check(third.html.includes('border:2px solid #111111;font-weight:700;font-size:14px;text-align:center;box-sizing:border-box;">3</div>'), 'el 3 va resaltado');
+check(third.html.includes('background:#f97316;color:#ffffff;border:2px solid #f97316;font-weight:700;font-size:14px;text-align:center;box-sizing:border-box;">1</div>'), 'el 1 ya hecho queda del mismo tamaño');
+check(third.html.includes('background:#ffffff;color:#c2410c;border:2px solid #f97316;font-weight:700;font-size:14px;text-align:center;box-sizing:border-box;">5</div>'), 'el 5 pendiente se distingue como promo');
 check(!third.text.includes('Papas</'), 'la guía no lista platillos');
 
 const guest = loyaltyMailGuide({ paidOrders: 1, currentStep: 1 });
@@ -38,7 +38,7 @@ const done = loyaltyGuideFromPaidOrders({
 check(done.text.includes('Ya usaste las promos del pedido 1, 5 y 10.'), 'después del 10 usa el texto del perfil');
 check(done.text.includes('Pedidos marcados: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10.'), 'los 10 quedan marcados');
 check(!done.text.includes('Vas en el pedido'), 'después del 10 no inventa un número nuevo');
-check(!done.html.includes('3px solid #111111'), 'un pedido fuera de la guía no se marca como actual');
+check(!done.html.includes('border:2px solid #111111'), 'un pedido fuera de la guía no se marca como actual');
 
 const tenth = loyaltyGuideFromPaidOrders({
   orderId: '10',
@@ -46,7 +46,7 @@ const tenth = loyaltyGuideFromPaidOrders({
   firstIds: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
 });
 check(tenth.text.includes('Ya usaste las promos del pedido 1, 5 y 10.'), 'el pedido 10 cierra la guía');
-check(tenth.html.includes('border:3px solid #111111;font-weight:700;font-size:16px;text-align:center;">10</div>'), 'el 10 de este correo queda resaltado');
+check(tenth.html.includes('border:2px solid #111111;font-weight:700;font-size:14px;text-align:center;box-sizing:border-box;">10</div>'), 'el 10 de este correo queda resaltado');
 
 const unlinked = loyaltyGuideForOrder({
   orderId: 'nuevo',

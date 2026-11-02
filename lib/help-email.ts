@@ -1,5 +1,6 @@
 import { customerHelpCopy, HELP_LABELS, type HelpKind, type HelpPay } from '@/lib/rider-help';
 import { customerCopyBcc, customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 import { customerRefundDecisionMail, refundRequestMail, REFUND_NOTICE_TO, type RefundNoticeInput } from '@/lib/refund-notice';
 
 const DEVELOPER_EMAIL = 'iangels7997@gmail.com';
@@ -41,12 +42,16 @@ export async function sendHelpEmails(input: {
   const summary = customerHelpCopy(input.kind, input.pay);
   const folio = input.shortCode || input.orderId.slice(0, 8);
   if (input.customerEmail) {
-    const html = `<div style="font-family:sans-serif;line-height:1.5">
-<p>Hola ${escMail(input.customerName || '')},</p>
-<p><strong>${escMail(label)}</strong> · pedido #${escMail(folio)}</p>
-<p>${escMail(summary)}</p>
-${customerMailButtons(orderUrl)}
-</div>`;
+    const html = mailDocument({
+      eyebrow: 'Ayuda',
+      title: label,
+      body: [
+        mailParagraph(`Hola ${escMail(input.customerName || '')},`),
+        mailParagraph(`<strong style="color:#111111;">${escMail(label)}</strong> · pedido #${escMail(folio)}`),
+        mailParagraph(escMail(summary)),
+        customerMailButtons(orderUrl),
+      ].join(''),
+    });
     await send(
       input.customerEmail,
       `${label} · #${folio} · Las Vaqueras`,
@@ -65,13 +70,13 @@ ${customerMailButtons(orderUrl)}
   ]
     .filter(Boolean)
     .join('\n');
-  await send(DEVELOPER_EMAIL, `Ayuda rider · ${label} · #${folio}`, `<pre>${escMail(dev)}</pre>`, dev);
+  await send(DEVELOPER_EMAIL, `Ayuda rider · ${label} · #${folio}`, internalHtml(`Ayuda rider · #${folio}`, dev), dev);
 }
 
 export async function sendDoorReportNotice(input: { orderId: string; shortCode: string; note: string }) {
   const folio = input.shortCode || input.orderId.slice(0, 8);
   const text = `El cliente reportó que no dejaron el pedido en la puerta.\nPedido #${folio} · ${input.orderId}\n${input.note}\nEstá en Reembolsos. Si lo apruebas, se reembolsa al cliente y el rider queda debiendo el total.`;
-  await send(DEVELOPER_EMAIL, `Puerta no encontrada · #${folio}`, `<pre>${escMail(text)}</pre>`, text);
+  await send(DEVELOPER_EMAIL, `Puerta no encontrada · #${folio}`, internalHtml(`Puerta no encontrada · #${folio}`, text), text);
 }
 
 export async function sendDoorDecisionEmails(input: {
@@ -92,17 +97,33 @@ export async function sendDoorDecisionEmails(input: {
       ? 'El pago fue con tarjeta. Devuélvelo en Stripe. El sistema no lo reembolsa solo.'
       : 'El pago fue en efectivo. Devuelve ese monto al cliente.',
   ].join('\n');
-  await send(DEVELOPER_EMAIL, `Reembolso de puerta · $${input.amount} · #${folio}`, `<pre>${escMail(angel)}</pre>`, angel);
+  await send(DEVELOPER_EMAIL, `Reembolso de puerta · $${input.amount} · #${folio}`, internalHtml(`Reembolso de puerta · #${folio}`, angel), angel);
   if (input.customerEmail) {
     const text = `Aprobamos tu reporte: el pedido no estaba en la puerta. El reembolso de $${input.amount} queda en proceso.`;
     await send(
       input.customerEmail,
       `Reembolso aprobado · #${folio} · Las Vaqueras`,
-      `<p>Hola ${escMail(input.customerName || '')},</p><p>${escMail(text)}</p>`,
+      mailDocument({
+        eyebrow: 'Reembolso',
+        title: `Reembolso aprobado · #${folio}`,
+        body: [mailParagraph(`Hola ${escMail(input.customerName || '')},`), mailParagraph(escMail(text))].join(''),
+      }),
       text,
       customerCopyBcc(input.customerEmail)
     );
   }
+}
+
+function internalHtml(title: string, text: string) {
+  return mailDocument({
+    eyebrow: 'Aviso interno',
+    title,
+    body: text
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => mailParagraph(escMail(line)))
+      .join(''),
+  });
 }
 
 export async function sendRefundRequestNotice(input: RefundNoticeInput) {
