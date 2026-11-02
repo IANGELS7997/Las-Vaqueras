@@ -190,12 +190,13 @@ export function DeliveryMap({ lat, lng, disabled, onPick }: DeliveryMapProps) {
         >
           Confirmar punto de entrega
         </Button>
+        {lat == null || lng == null ? (
+          <p className="text-center text-xs text-muted-foreground">*Obligatorio</p>
+        ) : null}
       </div>
       {lat != null && lng != null ? (
         <p className="text-xs font-semibold text-emerald-400">Punto de entrega confirmado. El rider llega aquí.</p>
-      ) : (
-        <p className="text-xs text-muted-foreground">Confirma el punto de entrega para continuar el pedido.</p>
-      )}
+      ) : null}
     </div>
   );
 }

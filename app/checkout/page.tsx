@@ -1232,7 +1232,11 @@ export default function CheckoutPage() {
                     'Pagar'
                   )}
                 </Button>
-                {!detailsReady ? (
+                {!isPickup && (dropoffLat == null || dropoffLng == null) ? (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Confirma el punto de entrega para poder pagar.
+                  </p>
+                ) : !detailsReady ? (
                   <p className="mt-2 text-center text-xs text-muted-foreground">Completa tus datos para pagar.</p>
                 ) : !loyaltySettled ? (
                   <p className="mt-2 text-center text-xs text-muted-foreground">Revisando tu promoción…</p>
