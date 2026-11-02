@@ -37,7 +37,7 @@ declare global {
 }
 
 const RIDER_PIN_COPY =
-  'El punto marcado por la cruz es la ubicación que utiliza el rider para la entrega. Mueve el mapa hasta que la cruz quede sobre la puerta de tu casa, no sobre la calle, y pulsa Confirmar punto de entrega. Si el punto no coincide con tu domicilio, el pedido puede entregarse en otro lugar.';
+  'Ojo: es importante colocar la cruz exactamente sobre su domicilio de entrega. El repartidor utilizará este punto como referencia.';
 
 let leafletLoader: Promise<LeafletNamespace> | null = null;
 
