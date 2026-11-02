@@ -287,8 +287,7 @@ export async function POST(req: Request) {
       platilloCount,
       provider: deliveryProvider,
       uberFee,
-      deliveryFee:
-        deliveryProvider === 'self' || deliveryProvider === 'wait_self' ? routedDeliveryFee : undefined,
+      deliveryFee: deliveryProvider !== 'pickup' && routedDeliveryFee > 0 ? routedDeliveryFee : undefined,
       foodWebTotal,
       foodDiscountPesos: Number.isFinite(foodDiscountPesos) ? foodDiscountPesos : 0,
     });
