@@ -7,9 +7,9 @@ import {
   escMail,
 } from '@/lib/customer-mail';
 import { purchaseNoticeLines, type PurchaseNoticeRow } from '@/lib/developer-purchase-email';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 import { postponePromise } from '@/lib/postpone';
 
-const SITE = 'https://lasvaqueras.com.mx';
 const FROM = () => process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>';
 
 export function postponeCustomerCopy(input: {
@@ -22,15 +22,17 @@ export function postponeCustomerCopy(input: {
   const track = customerOrderUrl(input.orderId, input.token);
   const first = escMail(input.customerName.trim().split(' ')[0] || '');
   const sentence = escMail(input.sentence);
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu pedido tarda un poco más</h1>
-<p>Hola ${first},</p>
-<p>${sentence}</p>
-<p>Gracias por esperarnos.</p>
-${customerMailButtons(track)}
-<p>${escMail(branchMailLine(input.branchId))}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Tu pedido',
+    title: 'Tu pedido tarda un poco más',
+    body: [
+      mailParagraph(`Hola ${first},`),
+      mailParagraph(sentence),
+      mailParagraph('Gracias por esperarnos.'),
+      customerMailButtons(track),
+    ].join(''),
+    footer: branchMailLine(input.branchId),
+  });
   const text = [
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
     input.sentence,
@@ -70,10 +72,11 @@ export async function sendPostponeEmails(row: PurchaseNoticeRow, delayMinutes: n
       to: [DEVELOPER_ORDER_COPY],
       subject: `POSPONER · #${code} · ${delayMinutes} min`,
       text: internalText,
-      html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#111;line-height:1.5;">
-<h1 style="font-size:22px;margin:0 0 8px;">POSPONER</h1>
-${internal.map((line) => (line === '' ? '' : `<p style="margin:0 0 6px;">${escMail(line)}</p>`)).join('')}
-</div>`,
+      html: mailDocument({
+        eyebrow: 'Aviso interno',
+        title: 'POSPONER',
+        body: internal.filter(Boolean).map((line) => mailParagraph(escMail(line))).join(''),
+      }),
     }),
   });
 

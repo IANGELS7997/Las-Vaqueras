@@ -1,4 +1,5 @@
 import { branchById, type BranchId } from '@/lib/branches';
+import { mailButton, mailDocument, mailNote, mailParagraph } from '@/lib/mail-shell';
 
 export const KITCHEN_STATION_ID = 'main';
 /** Sin heartbeat en este tiempo = señal perdida. El turno sigue hasta Salir. */
@@ -138,10 +139,11 @@ export async function sendKitchenShiftNotice(
     ? `La caja de ${branch.shortName} inició el turno.`
     : `La caja de ${branch.shortName} cerró el turno.`;
   const text = [lead, '', `Hora: ${when}`, `Local: ${place}`].join('\n');
-  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.5;">
-<p>${lead}</p>
-<p><strong>Hora:</strong> ${when}<br/><strong>Local:</strong> ${place}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Aviso interno',
+    title: subject,
+    body: [mailParagraph(lead), mailNote(`<strong style="color:#111111;">Hora:</strong> ${when}<br/><strong style="color:#111111;">Local:</strong> ${place}`)].join(''),
+  });
   const result = await sendOpsEmail({ subject, text, html });
   return { sent: result.ok };
 }
@@ -178,18 +180,21 @@ export async function sendKitchenOfflineAlert(args: {
     'Avisos: Angel (iangels7997@gmail.com) y dueño (servicio@lasvaqueras.com.mx).',
   ].join('\n');
 
-  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.5;">
-<p>${lead}</p>
-<p><strong>Hora:</strong> ${when}<br/><strong>Local:</strong> ${place}</p>
-<p><strong>Qué hacer ahora:</strong></p>
-<ol>
-<li>Abrir <a href="https://cocina.lasvaqueras.com.mx">cocina.lasvaqueras.com.mx</a></li>
-<li>Iniciar turno</li>
-<li>Dejar impresión automática encendida</li>
-<li>No cerrar esa pestaña durante el servicio</li>
-</ol>
-<p>Este aviso se envió a Angel y al correo del negocio.</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Aviso interno',
+    title: subject,
+    body: [
+      mailParagraph(lead),
+      mailNote(`<strong style="color:#111111;">Hora:</strong> ${when}<br/><strong style="color:#111111;">Local:</strong> ${place}`),
+      mailParagraph('<strong style="color:#111111;">Qué hacer ahora</strong>'),
+      mailParagraph('1. Abrir cocina.lasvaqueras.com.mx'),
+      mailParagraph('2. Iniciar turno'),
+      mailParagraph('3. Dejar impresión automática encendida'),
+      mailParagraph('4. No cerrar esa pestaña durante el servicio'),
+      mailButton('https://cocina.lasvaqueras.com.mx', 'Abrir cocina', 'primary'),
+      mailParagraph('Este aviso se envió a Angel y al correo del negocio.'),
+    ].join(''),
+  });
 
   const result = await sendOpsEmail({ subject, text, html });
   return { sent: result.ok };

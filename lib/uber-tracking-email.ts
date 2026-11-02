@@ -1,7 +1,6 @@
 import { branchMailLine } from '@/lib/branches';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl } from '@/lib/customer-mail';
-
-const SITE = 'https://lasvaqueras.com.mx';
+import { mailButton, mailDocument, mailParagraph } from '@/lib/mail-shell';
 
 export const UBER_TRACK_SUBJECT = 'Sigue tu pedido con Uber Direct · Las Vaqueras';
 export const UBER_TRACK_LINE = 'Tu envío va con Uber Direct. Desde este enlace ves al repartidor.';
@@ -49,17 +48,17 @@ export async function sendUberTrackingEmail(input: {
   if (!key || !to.includes('@') || !tracking) return { ok: false as const };
   const orderUrl = customerOrderUrl(input.orderId, input.token);
   const first = esc(input.customerName.trim().split(' ')[0] || '');
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">Sigue tu pedido</h1>
-<p>Hola ${first},</p>
-<p>${esc(UBER_TRACK_LINE)}</p>
-<div style="text-align:center;margin:20px 0;">
-<a href="${esc(tracking)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;">Seguir con Uber Direct</a>
-</div>
-${customerMailButtons(orderUrl)}
-<p>${branchMailLine(input.branchId)}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Uber Direct',
+    title: 'Sigue tu pedido',
+    body: [
+      mailParagraph(`Hola ${first},`),
+      mailParagraph(esc(UBER_TRACK_LINE)),
+      mailButton(esc(tracking), 'Seguir con Uber Direct', 'secondary'),
+      customerMailButtons(orderUrl),
+    ].join(''),
+    footer: branchMailLine(input.branchId),
+  });
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

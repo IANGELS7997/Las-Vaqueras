@@ -1,7 +1,6 @@
 import { branchMailLine } from '@/lib/branches';
 import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
-
-const SITE = 'https://lasvaqueras.com.mx';
+import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 
 export function isHandoffPin(value: string) {
   return /^\d{4}$/.test(value);
@@ -17,15 +16,18 @@ export function buildHandoffPinEmail(input: {
   const track = customerOrderUrl(input.orderId, input.token);
   const first = escMail(input.customerName.trim().split(' ')[0] || '');
   const pin = escMail(input.pin);
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;line-height:1.45;">
-<img src="${SITE}/logo-vaqueras.png" alt="Las Vaqueras" width="120" style="display:block;margin:0 auto 16px;" />
-<h1 style="font-size:20px;text-align:center;color:#ea580c;">Tu clave de entrega</h1>
-<p>Hola ${first},</p>
-<p>Tu clave para recibir este pedido es <strong style="font-size:22px;letter-spacing:4px;">${pin}</strong>.</p>
-<p>Dísela a la persona que te entregue el pedido.</p>
-${customerMailButtons(track)}
-<p>${escMail(branchMailLine(input.branchId))}</p>
-</div>`;
+  const html = mailDocument({
+    eyebrow: 'Entrega',
+    title: 'Tu clave de entrega',
+    body: [
+      mailParagraph(`Hola ${first},`),
+      `<p style="margin:0 0 16px;text-align:center;">Tu clave para recibir este pedido es</p>`,
+      `<p style="margin:0 0 16px;text-align:center;font-size:32px;line-height:1;letter-spacing:8px;font-weight:700;color:#111111;">${pin}</p>`,
+      `<p style="margin:0 0 16px;text-align:center;">Dísela a la persona que te entregue el pedido.</p>`,
+      customerMailButtons(track),
+    ].join(''),
+    footer: branchMailLine(input.branchId),
+  });
   const text = [
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
     `Tu clave para recibir este pedido es ${input.pin}.`,

@@ -49,12 +49,24 @@ function cell(step: number, filled: number, current: number | null) {
   const done = step <= filled;
   const prize = step === 1 || step === 5 || step === 10;
   const here = current === step;
-  const background = done ? (prize ? '#ea580c' : '#f97316') : prize ? '#fff7ed' : '#f4f4f5';
-  const color = done ? '#ffffff' : prize ? '#ea580c' : '#71717a';
-  const border = here ? '3px solid #111111' : prize && !done ? '2px solid #ea580c' : '2px solid transparent';
-  const size = prize ? 40 : 32;
-  return `<td style="padding:4px;text-align:center;">
-<div style="width:${size}px;height:${size}px;line-height:${size - 4}px;margin:0 auto;border-radius:8px;background:${background};color:${color};border:${border};font-weight:700;font-size:${prize ? 16 : 13}px;text-align:center;">${step}</div>
+  let background = '#f4f4f5';
+  let color = '#737373';
+  let border = '#f4f4f5';
+  if (here) {
+    background = '#f97316';
+    color = '#ffffff';
+    border = '#111111';
+  } else if (done) {
+    background = '#f97316';
+    color = '#ffffff';
+    border = '#f97316';
+  } else if (prize) {
+    background = '#ffffff';
+    color = '#c2410c';
+    border = '#f97316';
+  }
+  return `<td width="44" height="44" align="center" valign="middle" style="width:44px;height:44px;padding:4px;">
+<div style="width:36px;height:36px;line-height:32px;margin:0 auto;border-radius:8px;background:${background};color:${color};border:2px solid ${border};font-weight:700;font-size:14px;text-align:center;box-sizing:border-box;">${step}</div>
 </td>`;
 }
 
@@ -71,13 +83,13 @@ export function loyaltyMailGuide(input: LoyaltyGuideInput): LoyaltyMailGuide {
   const markedText = marked.length > 0 ? marked.join(', ') : 'ninguno';
   const hereText = current ? `Este correo es el pedido ${current}.` : '';
   const html = `<div style="margin:16px 0 8px;">
-<p style="font-weight:700;margin:0 0 4px;">Tu guía de pedidos</p>
-<p style="margin:0 0 8px;">${escMail(caption)}</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+<p style="font-weight:700;margin:0 0 8px;color:#111111;text-align:center;">Tu guía de pedidos</p>
+<p style="margin:0 0 8px;text-align:center;">${escMail(caption)}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
 ${row([1, 2, 3, 4, 5], filled, current)}
 ${row([6, 7, 8, 9, 10], filled, current)}
 </table>
-<p style="font-size:12px;color:#52525b;margin:8px 0 0;text-align:center;">${escMail(PROMO_LINE)}</p>
+<p style="font-size:13px;line-height:1.6;color:#737373;margin:8px 0 0;text-align:center;">1 · 30% en comida<br>5 · 20% en comida<br>10 · Papas Jumbo</p>
 </div>`;
   const text = [
     'Tu guía de pedidos',
