@@ -150,11 +150,13 @@ export function cashOptionLock(input: {
   return null;
 }
 
-export function cashPaySummary(food: number, fulfillment?: string | null, deliveryFee?: number | null) {
+export function cashPaySummary(
+  food: number,
+  fulfillment?: string | null,
+  deliveryFee?: number | null
+): string | null {
+  if (String(fulfillment || '') === 'pickup') return null;
   const comida = Math.round(Number(food));
-  if (String(fulfillment || '') === 'pickup') {
-    return `Pagas ${formatMXN(comida)} en el mostrador al recoger. No entra un rider.`;
-  }
   const envio =
     typeof deliveryFee === 'number' && Number.isFinite(deliveryFee) && deliveryFee > 0
       ? Math.round(deliveryFee)
