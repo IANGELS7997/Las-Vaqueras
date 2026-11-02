@@ -67,6 +67,6 @@ assert(
   'recoger no bloquea por otro efectivo abierto'
 );
 assert(cashPaySummary(180).includes('230'), 'el resumen dice el total en la puerta');
-assert(!cashPaySummary(900, 'pickup').includes('abierto'), 'recoger no avisa un tope de pedidos en efectivo');
+assert(cashPaySummary(900, 'pickup') === null, 'recoger no muestra aviso de efectivo');
 
 console.log('cash-fraud ok');

@@ -506,6 +506,8 @@ export default function CheckoutPage() {
     pickup: isPickup,
   });
   const cashClickable = cashLock == null;
+  const cashSummary =
+    cashClickable && payChoice === 'cash' ? cashPaySummary(split.subtotalWeb, mode, quotedFee) : null;
   useEffect(() => {
     if (!cashClickable && payChoice === 'cash') setPayChoice('card');
   }, [cashClickable, payChoice]);
@@ -1143,9 +1145,9 @@ export default function CheckoutPage() {
                   </button>
                 </div>
                 {cashLock ? <p className="text-xs leading-relaxed text-muted-foreground">{cashLock}</p> : null}
-                {cashClickable && payChoice === 'cash' ? (
+                {cashSummary ? (
                   <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                    {cashPaySummary(split.subtotalWeb, mode, quotedFee)}
+                    {cashSummary}
                   </p>
                 ) : null}
               </div>
