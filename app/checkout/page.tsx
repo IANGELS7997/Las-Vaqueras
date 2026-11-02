@@ -22,7 +22,7 @@ import {
   calcCartLineWeb,
   formatMXN,
 } from '@/lib/pricing';
-import { calcCheckoutSplit } from '@/lib/checkout-split';
+import { calcCheckoutSplit, summarizeDeliveryPreview } from '@/lib/checkout-split';
 import { resolveStripeConnectDestination } from '@/lib/stripe-connect-destination';
 import {
   formatDeliveryAddress,
@@ -180,6 +180,16 @@ export default function CheckoutPage() {
     foodDiscountPesos: foodQuote.discountPesos,
   });
   const displaySplit = paySplit ?? split;
+  const foodCharged = Number((split.subtotalWeb + split.customerFee).toFixed(2));
+  const deliveryPreview = summarizeDeliveryPreview({
+    isPickup,
+    quotedFee: quoting ? null : quotedFee,
+    foodCharged,
+    quotedDeliveryFee: split.deliveryFee,
+    quotedTotal: split.totalCharged,
+  });
+  const shownDeliveryFee = paySplit ? paySplit.deliveryFee : deliveryPreview.deliveryFee;
+  const shownTotal = paySplit ? paySplit.totalCharged : deliveryPreview.totalCharged;
   const shownFull = paySplit?.foodFullWeb ?? foodQuote.fullWeb;
   const shownPercent = paySplit?.percentPesos ?? foodQuote.percentPesos;
   const shownGift = paySplit?.giftPesos ?? foodQuote.giftPesos;
@@ -1258,16 +1268,16 @@ export default function CheckoutPage() {
                   <span>Envío</span>
                   <span className="text-white">{formatMXN(0)}</span>
                 </div>
-              ) : quoting ? (
+              ) : !paySplit && quoting ? (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Envío</span>
                   <span className="text-white">Calculando...</span>
                 </div>
-              ) : quotedFee != null ? (
+              ) : shownDeliveryFee != null ? (
                 <>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Envío</span>
-                    <span className="text-white">{formatMXN(displaySplit.deliveryFee)}</span>
+                    <span className="text-white">{formatMXN(shownDeliveryFee)}</span>
                   </div>
                   {waitNotice ? (
                     <p className="rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-xs leading-relaxed text-brand-400">
@@ -1291,7 +1301,7 @@ export default function CheckoutPage() {
               <Separator className="my-3 bg-border" />
               <div className="flex justify-between text-base font-bold">
                 <span className="text-white">Total</span>
-                <span className="text-brand-500">{formatMXN(isFreeGift ? 0 : displaySplit.totalCharged + pendingAmount)}</span>
+                <span className="text-brand-500">{formatMXN(isFreeGift ? 0 : shownTotal + pendingAmount)}</span>
               </div>
             </div>
           </div>

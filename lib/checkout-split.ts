@@ -144,3 +144,31 @@ export function calcCheckoutSplit({
     foodDiscountPesos: discount,
   };
 }
+
+export type DeliveryPreview = {
+  /** null: todavía no hay cotización. La fila de envío no muestra un precio. */
+  deliveryFee: number | null;
+  totalCharged: number;
+};
+
+/**
+ * Resumen antes de pagar. Sin cruz en el mapa no se inventa el envío de casa.
+ * Con cotización, Envío y el total usan el fee del radio que ya trae el split.
+ */
+export function summarizeDeliveryPreview(input: {
+  isPickup: boolean;
+  quotedFee: number | null;
+  foodCharged: number;
+  quotedDeliveryFee: number;
+  quotedTotal: number;
+}): DeliveryPreview {
+  const food = Number(Math.max(0, input.foodCharged).toFixed(2));
+  if (input.isPickup) return { deliveryFee: 0, totalCharged: food };
+  const quoted =
+    typeof input.quotedFee === 'number' && Number.isFinite(input.quotedFee) && input.quotedFee > 0;
+  if (!quoted) return { deliveryFee: null, totalCharged: food };
+  return {
+    deliveryFee: input.quotedDeliveryFee,
+    totalCharged: input.quotedTotal,
+  };
+}
