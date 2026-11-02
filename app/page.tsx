@@ -12,6 +12,40 @@ import { useFulfillment } from '@/lib/fulfillment-context';
 import { useManualClosure } from '@/components/use-manual-closure';
 import { cn } from '@/lib/utils';
 
+function FulfillmentChoice({
+  icon: Icon,
+  label,
+  closed,
+  onChoose,
+}: {
+  icon: typeof Bike;
+  label: string;
+  closed: boolean;
+  onChoose: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={closed}
+      onClick={onChoose}
+      className={cn(
+        'flex min-h-[168px] flex-col items-center justify-center gap-3 rounded-3xl border border-border/60 bg-card p-5 text-center transition-all sm:min-h-[220px] sm:gap-4 sm:p-8',
+        closed
+          ? 'cursor-not-allowed'
+          : 'hover:border-brand-500/60 hover:shadow-lg hover:shadow-brand-500/15'
+      )}
+    >
+      <Icon className={cn('h-8 w-8 shrink-0 text-brand-500 sm:h-12 sm:w-12', closed && 'grayscale')} />
+      {closed ? (
+        <span className="rounded-full bg-black/80 px-3 py-1 text-[10px] font-bold tracking-wide text-white sm:text-xs">
+          CERRADO
+        </span>
+      ) : null}
+      <p className="min-h-[2.5em] text-sm font-bold leading-snug text-white sm:min-h-0 sm:text-xl">{label}</p>
+    </button>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const { ready, branchId, setBranch, clearBranch, setMode, enableBrowseMenu } = useFulfillment();
@@ -58,54 +92,19 @@ export default function HomePage() {
         Cambiar sucursal
       </button>
 
-      <div className="mt-8 grid w-full grid-cols-2 gap-3 sm:gap-4">
-        <button
-          type="button"
-          disabled={!open.isOpen}
-          onClick={() => choose('delivery')}
-          className={cn(
-            'relative min-h-[140px] overflow-hidden rounded-3xl border border-border/60 bg-card p-4 text-left transition-all sm:min-h-[220px] sm:p-6',
-            open.isOpen
-              ? 'hover:border-brand-500/60 hover:shadow-lg hover:shadow-brand-500/15'
-              : 'cursor-not-allowed'
-          )}
-        >
-          {!open.isOpen && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-grayscale">
-              <span className="rounded-lg bg-black/70 px-2 py-1 text-[10px] font-bold tracking-wide text-white sm:px-4 sm:py-2 sm:text-sm">
-                CERRADO
-              </span>
-            </div>
-          )}
-          <Bike className={cn('h-8 w-8 text-brand-500 sm:h-12 sm:w-12', !open.isOpen && 'grayscale')} />
-          <p className="mt-3 text-sm font-bold leading-snug text-white sm:mt-4 sm:text-xl">
-            Entrega a domicilio
-          </p>
-        </button>
-
-        <button
-          type="button"
-          disabled={!open.isOpen}
-          onClick={() => choose('pickup')}
-          className={cn(
-            'relative min-h-[140px] overflow-hidden rounded-3xl border border-border/60 bg-card p-4 text-left transition-all sm:min-h-[220px] sm:p-6',
-            open.isOpen
-              ? 'hover:border-brand-500/60 hover:shadow-lg hover:shadow-brand-500/15'
-              : 'cursor-not-allowed'
-          )}
-        >
-          {!open.isOpen && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/55 backdrop-grayscale">
-              <span className="rounded-lg bg-black/70 px-2 py-1 text-[10px] font-bold tracking-wide text-white sm:px-4 sm:py-2 sm:text-sm">
-                CERRADO
-              </span>
-            </div>
-          )}
-          <Store className={cn('h-8 w-8 text-brand-500 sm:h-12 sm:w-12', !open.isOpen && 'grayscale')} />
-          <p className="mt-3 text-sm font-bold leading-snug text-white sm:mt-4 sm:text-xl">
-            Recoger en tienda
-          </p>
-        </button>
+      <div className="mt-8 grid w-full grid-cols-2 items-stretch gap-3 sm:gap-4">
+        <FulfillmentChoice
+          icon={Bike}
+          label="Entrega a domicilio"
+          closed={!open.isOpen}
+          onChoose={() => choose('delivery')}
+        />
+        <FulfillmentChoice
+          icon={Store}
+          label="Recoger en tienda"
+          closed={!open.isOpen}
+          onChoose={() => choose('pickup')}
+        />
       </div>
 
       {!open.isOpen && (
