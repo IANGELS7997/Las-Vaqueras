@@ -511,7 +511,7 @@ export async function POST(req: Request) {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: cardCharge.amountCentavos,
       currency: 'mxn',
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ['card'],
       ...(skipTransfer
         ? {}
         : {

@@ -1120,13 +1120,13 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={() => setPayChoice('card')}
                     className={cn(
-                      'min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold',
+                      'min-h-11 rounded-xl border px-2 py-2.5 text-xs font-semibold leading-tight sm:text-sm',
                       payChoice === 'card'
                         ? 'border-brand-500 bg-brand-500 text-white'
                         : 'border-border bg-card text-muted-foreground'
                     )}
                   >
-                    Tarjeta
+                    Apple Pay / Google Pay
                   </button>
                   <button
                     type="button"
@@ -1144,6 +1144,11 @@ export default function CheckoutPage() {
                     Pago en efectivo
                   </button>
                 </div>
+                {payChoice === 'card' ? (
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Pagas con Apple Pay o Google Pay. No se escribe el número de tarjeta.
+                  </p>
+                ) : null}
                 {cashLock ? <p className="text-xs leading-relaxed text-muted-foreground">{cashLock}</p> : null}
                 {cashSummary ? (
                   <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
@@ -1175,6 +1180,7 @@ export default function CheckoutPage() {
                   paymentIntentId,
                 }}
                 onPaid={handlePaid}
+                cashAvailable={cashClickable}
                 submitLabel={
                   gift.variant === 'shipping_only' || gift.variant === 'mixed_delivery'
                     ? 'Canjear · pagar envío'
