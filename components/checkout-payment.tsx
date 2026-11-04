@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Elements, ExpressCheckoutElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { useEffect, useRef, useState } from 'react';
+import { Elements, useElements, useStripe } from '@stripe/react-stripe-js';
 import type {
+  StripeExpressCheckoutElement,
   StripeExpressCheckoutElementConfirmEvent,
-  StripeExpressCheckoutElementReadyEvent,
 } from '@stripe/stripe-js';
 import { Loader2 } from 'lucide-react';
 import { getStripeJs } from '@/lib/stripe-js';
@@ -22,16 +22,16 @@ const appearance = {
   },
 };
 
+const WALLET_LOAD_MS = 10000;
+
 const walletOptions = {
   buttonHeight: 48,
   buttonTheme: { applePay: 'white' as const, googlePay: 'white' as const },
   buttonType: { applePay: 'buy' as const, googlePay: 'pay' as const },
-  layout: { maxColumns: 1, maxRows: 2, overflow: 'never' as const },
   billingAddressRequired: false,
   emailRequired: false,
   phoneNumberRequired: false,
   shippingAddressRequired: false,
-  paymentMethodOrder: ['apple_pay', 'google_pay'],
   paymentMethods: {
     applePay: 'always' as const,
     googlePay: 'always' as const,
@@ -48,11 +48,65 @@ type PendingCheckout = {
   paymentIntentId: string;
 };
 
-type WalletState = 'loading' | 'ready' | 'unavailable';
+type WalletState = 'loading' | 'ready' | 'unavailable' | 'error';
 
-function hasWallet(event: StripeExpressCheckoutElementReadyEvent) {
-  const methods = event.availablePaymentMethods;
-  return Boolean(methods?.applePay || methods?.googlePay);
+type WalletFlag = boolean | { available?: boolean } | undefined;
+
+function walletOn(value: WalletFlag) {
+  if (typeof value === 'boolean') return value;
+  return Boolean(value?.available);
+}
+
+function walletsReady(methods?: { applePay?: WalletFlag; googlePay?: WalletFlag } | null) {
+  if (!methods) return false;
+  return walletOn(methods.applePay) || walletOn(methods.googlePay);
+}
+
+function WalletButtons({
+  onReady,
+  onMethods,
+  onLoadError,
+  onCancel,
+  onConfirm,
+}: {
+  onReady: (methods: { applePay?: WalletFlag; googlePay?: WalletFlag } | null | undefined) => void;
+  onMethods: (methods: { applePay?: WalletFlag; googlePay?: WalletFlag } | null | undefined) => void;
+  onLoadError: (message: string) => void;
+  onCancel: () => void;
+  onConfirm: (event: StripeExpressCheckoutElementConfirmEvent) => void;
+}) {
+  const elements = useElements();
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const handlers = useRef({ onReady, onMethods, onLoadError, onCancel, onConfirm });
+  handlers.current = { onReady, onMethods, onLoadError, onCancel, onConfirm };
+
+  useEffect(() => {
+    if (!elements || !nodeRef.current) return;
+    let element: StripeExpressCheckoutElement;
+    try {
+      element = elements.create('expressCheckout', walletOptions);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudieron cargar Apple Pay ni Google Pay';
+      handlers.current.onLoadError(message);
+      return;
+    }
+    element.on('ready', (event) => handlers.current.onReady(event.availablePaymentMethods));
+    element.on('availablepaymentmethodschange', (event) => {
+      handlers.current.onMethods(event.paymentMethods);
+    });
+    element.on('loaderror', (event) => {
+      handlers.current.onLoadError(event.error.message || 'No se pudieron cargar Apple Pay ni Google Pay');
+    });
+    element.on('cancel', () => handlers.current.onCancel());
+    element.on('confirm', (event) => handlers.current.onConfirm(event));
+    element.mount(nodeRef.current);
+    return () => {
+      element.unmount();
+      element.destroy();
+    };
+  }, [elements]);
+
+  return <div ref={nodeRef} className="min-h-12" />;
 }
 
 function PaymentForm({
@@ -71,6 +125,17 @@ function PaymentForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [wallets, setWallets] = useState<WalletState>('loading');
+
+  useEffect(() => {
+    if (wallets !== 'loading') return;
+    const timer = window.setTimeout(() => {
+      setWallets((current) => (current === 'loading' ? 'error' : current));
+      setError(
+        (current) => current || 'No se pudo cargar Apple Pay ni Google Pay. Recarga la página e intenta de nuevo.'
+      );
+    }, WALLET_LOAD_MS);
+    return () => window.clearTimeout(timer);
+  }, [wallets]);
 
   const fail = (message: string) => {
     setError(message);
@@ -138,6 +203,12 @@ function PaymentForm({
     onPaid(payload.order as Order);
   };
 
+  const noteWallets = (methods: { applePay?: WalletFlag; googlePay?: WalletFlag } | null | undefined) => {
+    const ready = walletsReady(methods);
+    setWallets(ready ? 'ready' : 'unavailable');
+    if (wallets === 'loading' || wallets === 'error') setError('');
+  };
+
   const unavailable = cashAvailable
     ? 'Este dispositivo no tiene Apple Pay ni Google Pay. Puedes pagar en efectivo.'
     : 'Este dispositivo no tiene Apple Pay ni Google Pay. Aquí el pago en línea solo se hace con una de esas dos.';
@@ -147,18 +218,15 @@ function PaymentForm({
       {submitLabel !== 'Pagar ahora' ? (
         <p className="text-sm font-semibold text-white">{submitLabel}</p>
       ) : null}
-      <ExpressCheckoutElement
-        options={walletOptions}
-        onReady={(event) => setWallets(hasWallet(event) ? 'ready' : 'unavailable')}
-        onAvailablePaymentMethodsChange={(event) => {
-          const methods = event.paymentMethods;
+      <WalletButtons
+        onReady={noteWallets}
+        onMethods={(methods) => {
           if (!methods) return;
-          const ready = Boolean(methods.applePay?.available || methods.googlePay?.available);
-          setWallets(ready ? 'ready' : 'unavailable');
+          noteWallets(methods);
         }}
-        onLoadError={(event) => {
-          setError(event.error.message || 'No se pudieron cargar Apple Pay ni Google Pay');
-          setWallets('unavailable');
+        onLoadError={(message) => {
+          setError(message);
+          setWallets('error');
         }}
         onCancel={() => setSubmitting(false)}
         onConfirm={onConfirm}
@@ -181,9 +249,6 @@ function PaymentForm({
         </p>
       ) : null}
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
-      <p className="text-center text-xs text-muted-foreground">
-        Apple Pay o Google Pay. El número de tarjeta no se escribe aquí.
-      </p>
     </div>
   );
 }

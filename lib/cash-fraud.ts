@@ -128,6 +128,8 @@ export function cashAbuseMessage(input: {
   return null;
 }
 
+const CASH_DISTANCE_LOCK = 'En esta distancia el pago es solo con tarjeta.';
+
 export function cashOptionLock(input: {
   identityReady: boolean;
   quoting: boolean;
@@ -145,9 +147,14 @@ export function cashOptionLock(input: {
   }
   if (input.pickup) return null;
   if (input.quoting || !input.quoted) return 'Espera un momento mientras cotizamos el envío.';
-  if (!input.iangel) return 'En esta distancia el pago es solo con tarjeta.';
+  if (!input.iangel) return CASH_DISTANCE_LOCK;
   if (input.overCap) return `La comida pasa de ${formatMXN(CASH_FOOD_CAP_MXN)}. Solo tarjeta.`;
   return null;
+}
+
+export function cashLockNotice(lock: string | null) {
+  if (!lock || lock === CASH_DISTANCE_LOCK) return null;
+  return lock;
 }
 
 export function cashPaySummary(

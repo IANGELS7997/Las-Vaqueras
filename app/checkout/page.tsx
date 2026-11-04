@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { BAG_LIMIT_BODY, BAG_LIMIT_TITLE, bagFits, iangelCarries } from '@/lib/bag-capacity';
 import { countDeliveryPlatillos } from '@/lib/delivery-tarifa';
 import { COPY } from '@/lib/iangel-copy';
-import { cashOptionLock, cashPaySummary } from '@/lib/cash-fraud';
+import { cashLockNotice, cashOptionLock, cashPaySummary } from '@/lib/cash-fraud';
 import { CASH_FOOD_CAP_MXN } from '@/lib/iangel-cash';
 import {
   calcCartBaseTotal,
@@ -506,6 +506,7 @@ export default function CheckoutPage() {
     pickup: isPickup,
   });
   const cashClickable = cashLock == null;
+  const cashNotice = cashLockNotice(cashLock);
   const cashSummary =
     cashClickable && payChoice === 'cash' ? cashPaySummary(split.subtotalWeb, mode, quotedFee) : null;
   useEffect(() => {
@@ -1144,12 +1145,7 @@ export default function CheckoutPage() {
                     Pago en efectivo
                   </button>
                 </div>
-                {payChoice === 'card' ? (
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Pagas con Apple Pay o Google Pay. No se escribe el número de tarjeta.
-                  </p>
-                ) : null}
-                {cashLock ? <p className="text-xs leading-relaxed text-muted-foreground">{cashLock}</p> : null}
+                {cashNotice ? <p className="text-xs leading-relaxed text-muted-foreground">{cashNotice}</p> : null}
                 {cashSummary ? (
                   <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                     {cashSummary}
