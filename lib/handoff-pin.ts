@@ -1,6 +1,7 @@
 import { orderBranchId, type BranchId } from '@/lib/branches';
 import type { PurchaseNoticeRow } from '@/lib/developer-purchase-email';
 import { isHandoffPin, sendHandoffPinEmails, type HandoffPinSource } from '@/lib/handoff-pin-email';
+import { syncIangelOpsKitchen, type IangelOpsRow } from '@/lib/iangel-ops';
 import { mapDbOrder, type DbOrderRow } from '@/lib/orders-map';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import type { Order } from '@/types';
@@ -47,6 +48,7 @@ export async function commitHandoffPin(input: {
     return { ok: false, status: 500, error: saved.error?.message || 'No se guardó la clave' };
   }
 
+  await syncIangelOpsKitchen(saved.data as DbOrderRow & IangelOpsRow);
   const mailed = await sendHandoffPinEmails(saved.data as PurchaseNoticeRow, pin, input.source);
   if (!mailed.customerOk && !mailed.developerOk) {
     return { ok: false, status: 502, error: 'La clave quedó guardada, pero los correos no salieron' };

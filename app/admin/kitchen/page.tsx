@@ -135,6 +135,8 @@ export default function KitchenDashboardPage() {
   const [pinDrafts, setPinDrafts] = useState<Record<string, string>>({});
   const [pinBusyId, setPinBusyId] = useState<string | null>(null);
   const [pinNote, setPinNote] = useState<{ id: string; ok: boolean; text: string } | null>(null);
+  const [acceptBusyId, setAcceptBusyId] = useState<string | null>(null);
+  const [acceptNote, setAcceptNote] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const printQueueRef = useRef<string[]>([]);
   const handoffLockRef = useRef<HandoffTapLock | null>(null);
   const printingIdRef = useRef<string | null>(null);
@@ -587,6 +589,29 @@ export default function KitchenDashboardPage() {
     setPostponeFor(null);
   };
 
+  const handleAccept = async (order: Order) => {
+    if (order.kitchenAcceptedAt) return;
+    setAcceptBusyId(order.id);
+    setAcceptNote(null);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accept: true }),
+      });
+      if (kitchenDenied(response)) return;
+      const payload = await response.json().catch(() => ({}));
+      if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+      if (!response.ok) {
+        setAcceptNote({ id: order.id, ok: false, text: payload.error || 'No se aceptó el pedido' });
+      }
+    } catch {
+      setAcceptNote({ id: order.id, ok: false, text: 'No se aceptó el pedido' });
+    } finally {
+      setAcceptBusyId((current) => (current === order.id ? null : current));
+    }
+  };
+
   const handleSendPin = async (order: Order) => {
     const pin = (pinDrafts[order.id] ?? order.handoffPin ?? '').trim();
     if (!/^\d{4}$/.test(pin)) {
@@ -953,6 +978,21 @@ export default function KitchenDashboardPage() {
                   ) : null}
 
                   <div className="flex flex-wrap gap-2">
+                    {!reviewing && order.status !== 'delivered' && order.status !== 'cancelled' ? (
+                      <Button
+                        type="button"
+                        onClick={() => void handleAccept(order)}
+                        size="sm"
+                        variant="outline"
+                        disabled={Boolean(order.kitchenAcceptedAt) || acceptBusyId === order.id}
+                        className="border-border bg-card"
+                      >
+                        {acceptBusyId === order.id ? 'Aceptando…' : order.kitchenAcceptedAt ? 'Aceptado' : 'Aceptar pedido'}
+                      </Button>
+                    ) : null}
+                    {acceptNote?.id === order.id && !acceptNote.ok ? (
+                      <p className="w-full text-xs text-red-300">{acceptNote.text}</p>
+                    ) : null}
                     {!reviewing && order.status !== 'delivered' && order.status !== 'cancelled' ? (
                       <Button
                         onClick={() => handleCookHold(order, !order.cookHold)}

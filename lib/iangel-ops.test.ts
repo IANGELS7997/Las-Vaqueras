@@ -45,6 +45,14 @@ assert(iangel?.ticket.items[0]?.extras[0] === 'Queso', 'extra en el ticket');
 assert(iangel?.ticket.items[0]?.removals[0] === 'Cebolla', 'sin ingrediente en el ticket');
 assert(iangel?.ticket.foodMxn === 200 && iangel.ticket.deliveryMxn === 50, 'comida y envío');
 assert(iangel?.kitchenStatus === 'Preparando', 'estado de cocina');
+assert(
+  buildIangelOpsOrder(row({ kitchen_accepted_at: '2026-11-04T18:00:00.000Z' }))?.kitchenStatus === 'Cocina aceptó',
+  'aceptar cambia el estado del admin'
+);
+assert(
+  buildIangelOpsOrder(row({ status: 'in_transit', handoff_pin: '4821' }))?.kitchenStatus === 'En camino · Clave enviada',
+  'la clave se queda en el estado'
+);
 
 const wait = buildIangelOpsOrder(row({ delivery_provider: 'wait_self' }));
 assert(wait && wait.channel === null && wait.ticket.kindLabel === 'Esperar rider', 'esperar rider sigue en la cola');

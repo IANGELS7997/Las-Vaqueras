@@ -14,6 +14,7 @@ import { closeIangelOpsOrder, syncIangelOpsKitchen, type IangelOpsRow } from '@/
 import { closeDeliveredWithFee } from '@/lib/iangel-rider-fee';
 import { dropUncollectedCashFee } from '@/lib/cash-platform-fee-store';
 import { kitchenHandoff } from '@/lib/kitchen-handoff';
+import { commitKitchenAccept, notifyKitchenTransition } from '@/lib/kitchen-notice-email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,7 @@ export async function PATCH(
   const riderPaidCash = typeof body.riderPaidCash === 'boolean' ? body.riderPaidCash : undefined;
   const kitchenReceivedCash = typeof body.kitchenReceivedCash === 'boolean' ? body.kitchenReceivedCash : undefined;
   const release = body.release === true;
+  const accept = body.accept === true;
   const managedStep = body.managedStep === 'depart' || body.managedStep === 'arrive' ? body.managedStep : undefined;
 
   if (status !== undefined && !KITCHEN_ORDER_STATUSES.includes(status as OrderStatus)) {
@@ -45,15 +47,33 @@ export async function PATCH(
     riderPaidCash === undefined &&
     kitchenReceivedCash === undefined &&
     !release &&
-    !managedStep
+    !managedStep &&
+    !accept
   ) {
     return NextResponse.json({ error: 'sin cambios' }, { status: 400 });
+  }
+  if (
+    accept &&
+    (status !== undefined ||
+      cookHold !== undefined ||
+      riderPaidCash !== undefined ||
+      kitchenReceivedCash !== undefined ||
+      release ||
+      managedStep)
+  ) {
+    return NextResponse.json({ error: 'Aceptar va solo' }, { status: 400 });
   }
 
   const supabase = createAdminSupabase();
   const current = await supabase.from('orders').select('*').eq('id', params.id).maybeSingle();
   if (!current.data || orderBranchId(current.data.branch_id) !== branch) {
     return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
+  }
+
+  if (accept) {
+    const result = await commitKitchenAccept(supabase, current.data as DbOrderRow);
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json({ order: result.order });
   }
 
   const patch: Record<string, unknown> = {};
@@ -241,6 +261,12 @@ export async function PATCH(
   } else {
     void syncIangelOpsKitchen(data as DbOrderRow & IangelOpsRow).catch((err) => Sentry.captureException(err));
   }
+
+  await notifyKitchenTransition({
+    before: current.data as DbOrderRow,
+    after: data as DbOrderRow & IangelOpsRow,
+    managedStep,
+  });
 
   return NextResponse.json({ order: mapDbOrder(data as DbOrderRow, { includeHandoffPin: true }) });
 }
