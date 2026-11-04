@@ -1,4 +1,4 @@
-import { cashAbuseMessage, cashIdentityMessage, cashOptionLock, cashPaySummary } from './cash-fraud';
+import { cashAbuseMessage, cashIdentityMessage, cashLockNotice, cashOptionLock, cashPaySummary } from './cash-fraud';
 
 function assert(cond: unknown, message: string) {
   if (!cond) throw new Error(message);
@@ -62,6 +62,20 @@ assert(cashOptionLock({ identityReady: false, quoting: false, quoted: true, iang
 assert(cashOptionLock({ identityReady: true, quoting: false, quoted: true, iangel: true, overCap: false, gift: false }) === null, 'con datos e IANGEL sí se puede');
 assert(cashOptionLock({ identityReady: true, quoting: false, quoted: true, iangel: true, overCap: true, gift: false }) != null, 'domicilio arriba de $500 sigue en tarjeta');
 assert(cashOptionLock({ identityReady: true, quoting: false, quoted: false, iangel: false, overCap: true, gift: false, pickup: true }) === null, 'recoger no bloquea por monto');
+const distanceLock = cashOptionLock({
+  identityReady: true,
+  quoting: false,
+  quoted: true,
+  iangel: false,
+  overCap: false,
+  gift: false,
+});
+assert(distanceLock != null, 'fuera de IANGEL el efectivo sigue bloqueado');
+assert(cashLockNotice(distanceLock) === null, 'esa distancia no muestra el aviso');
+assert(
+  cashLockNotice('Espera un momento mientras cotizamos el envío.') === 'Espera un momento mientras cotizamos el envío.',
+  'los otros avisos de efectivo sí se muestran'
+);
 assert(
   cashAbuseMessage({ phone: person.phone, address: person.address, prior: [open], now, fulfillment: 'pickup' }) === null,
   'recoger no bloquea por otro efectivo abierto'
