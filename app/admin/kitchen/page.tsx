@@ -132,6 +132,9 @@ export default function KitchenDashboardPage() {
   >([]);
   const [managedBusyId, setManagedBusyId] = useState<string | null>(null);
   const [postponeFor, setPostponeFor] = useState<string | null>(null);
+  const [pinDrafts, setPinDrafts] = useState<Record<string, string>>({});
+  const [pinBusyId, setPinBusyId] = useState<string | null>(null);
+  const [pinNote, setPinNote] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const printQueueRef = useRef<string[]>([]);
   const handoffLockRef = useRef<HandoffTapLock | null>(null);
   const printingIdRef = useRef<string | null>(null);
@@ -584,6 +587,35 @@ export default function KitchenDashboardPage() {
     setPostponeFor(null);
   };
 
+  const handleSendPin = async (order: Order) => {
+    const pin = (pinDrafts[order.id] ?? order.handoffPin ?? '').trim();
+    if (!/^\d{4}$/.test(pin)) {
+      setPinNote({ id: order.id, text: 'El PIN son 4 dígitos.', ok: false });
+      return;
+    }
+    setPinBusyId(order.id);
+    setPinNote(null);
+    try {
+      const response = await fetch(`/api/orders/${order.id}/handoff-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      if (kitchenDenied(response)) return;
+      const payload = await response.json().catch(() => ({}));
+      if (payload.order) patchOrderLocal(order.id, payload.order as Order);
+      setPinNote({
+        id: order.id,
+        ok: response.ok,
+        text: response.ok ? 'Clave enviada.' : payload.error || 'No se envió la clave',
+      });
+    } catch {
+      setPinNote({ id: order.id, ok: false, text: 'No se envió la clave' });
+    } finally {
+      setPinBusyId((current) => (current === order.id ? null : current));
+    }
+  };
+
   const getTimeAgo = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
@@ -820,6 +852,43 @@ export default function KitchenDashboardPage() {
                   ) : null}
                   {order.handoffPin ? (
                     <p className="mb-2 text-sm font-bold text-white">Clave de entrega: {order.handoffPin}</p>
+                  ) : null}
+                  {!reviewing && order.deliveryProvider === 'managed' ? (
+                    <form
+                      className="mb-3 space-y-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void handleSendPin(order);
+                      }}
+                    >
+                      <label className="block text-xs text-muted-foreground">
+                        Clave para el cliente
+                        <input
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={4}
+                          value={pinDrafts[order.id] ?? order.handoffPin ?? ''}
+                          onChange={(event) => {
+                            const next = event.target.value.replace(/\D/g, '').slice(0, 4);
+                            setPinDrafts((current) => ({ ...current, [order.id]: next }));
+                          }}
+                          placeholder="4 dígitos"
+                          aria-label={`Clave de entrega de ${order.shortCode || order.id.slice(0, 8)}`}
+                          className="mt-1 block w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-base font-bold tracking-[0.3em] text-white"
+                        />
+                      </label>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={pinBusyId === order.id}
+                        className="bg-brand-500 text-white hover:bg-brand-600"
+                      >
+                        {pinBusyId === order.id ? 'Enviando…' : order.handoffPin ? 'Reenviar clave' : 'Enviar clave'}
+                      </Button>
+                      {pinNote?.id === order.id ? (
+                        <p className={pinNote.ok ? 'text-xs text-emerald-300' : 'text-xs text-red-300'}>{pinNote.text}</p>
+                      ) : null}
+                    </form>
                   ) : null}
                   <p className="mb-2 text-xs text-yellow-400">
                     IANGEL: {viewFromOrder({
