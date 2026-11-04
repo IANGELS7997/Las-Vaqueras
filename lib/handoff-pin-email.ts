@@ -1,6 +1,17 @@
 import { branchMailLine } from '@/lib/branches';
-import { customerMailButtons, customerMailLinksText, customerOrderUrl, escMail } from '@/lib/customer-mail';
+import {
+  customerMailButtons,
+  customerMailLinksText,
+  customerOrderUrl,
+  DEVELOPER_ORDER_COPY,
+  escMail,
+} from '@/lib/customer-mail';
+import { purchaseNoticeLines, type PurchaseNoticeRow } from '@/lib/developer-purchase-email';
 import { mailDocument, mailParagraph } from '@/lib/mail-shell';
+
+const FROM = () => process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>';
+
+export type HandoffPinSource = 'kitchen' | 'panel';
 
 export function isHandoffPin(value: string) {
   return /^\d{4}$/.test(value);
@@ -38,31 +49,55 @@ export function buildHandoffPinEmail(input: {
   return { subject: 'Tu clave de entrega · Las Vaqueras', html, text };
 }
 
-export async function sendHandoffPinEmail(input: {
-  to: string;
-  customerName: string;
-  orderId: string;
-  token?: string | null;
-  branchId?: unknown;
-  pin: string;
-}) {
-  const key = process.env.RESEND_API_KEY || '';
-  const to = input.to.trim();
-  if (!key || !to.includes('@') || !isHandoffPin(input.pin)) return { ok: false as const };
-  const message = buildHandoffPinEmail(input);
+export function handoffPinInternalCopy(row: PurchaseNoticeRow, pin: string, source: HandoffPinSource) {
+  const { code, lines } = purchaseNoticeLines(row);
+  const who =
+    source === 'kitchen'
+      ? 'La cocina envió la clave de entrega.'
+      : 'La clave se envió desde Pin a cliente.';
+  const body = ['CLAVE', who, `Clave: ${pin}.`, '', ...lines];
+  const text = body.join('\n');
+  return {
+    to: DEVELOPER_ORDER_COPY,
+    subject: `CLAVE · #${code}`,
+    text,
+    html: mailDocument({
+      eyebrow: 'Aviso interno',
+      title: 'CLAVE',
+      body: body.filter(Boolean).map((line) => mailParagraph(escMail(line))).join(''),
+    }),
+  };
+}
+
+async function postMail(key: string, payload: Record<string, unknown>) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || 'Las Vaqueras <noreply@lasvaqueras.com.mx>',
-      to: [to],
-      subject: message.subject,
-      html: message.html,
-      text: message.text,
-    }),
+    body: JSON.stringify({ from: FROM(), ...payload }),
+  }).catch(() => null);
+  return response?.ok === true;
+}
+
+export async function sendHandoffPinEmails(row: PurchaseNoticeRow, pin: string, source: HandoffPinSource) {
+  const key = process.env.RESEND_API_KEY || '';
+  const to = String(row.customer_email || '').trim();
+  if (!key || !row.id || !isHandoffPin(pin) || !to.includes('@')) {
+    return { customerOk: false, developerOk: false };
+  }
+  const customer = buildHandoffPinEmail({
+    customerName: row.customer_name || '',
+    orderId: row.id,
+    token: row.profile_login_token,
+    branchId: row.branch_id,
+    pin,
   });
-  return { ok: response.ok };
+  const internal = handoffPinInternalCopy(row, pin, source);
+  const [customerOk, developerOk] = await Promise.all([
+    postMail(key, { to: [to], subject: customer.subject, html: customer.html, text: customer.text }),
+    postMail(key, { to: [internal.to], subject: internal.subject, html: internal.html, text: internal.text }),
+  ]);
+  return { customerOk, developerOk };
 }
