@@ -1176,7 +1176,6 @@ export default function CheckoutPage() {
                   paymentIntentId,
                 }}
                 onPaid={handlePaid}
-                cashAvailable={cashClickable}
                 submitLabel={
                   gift.variant === 'shipping_only' || gift.variant === 'mixed_delivery'
                     ? 'Canjear · pagar envío'

@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Elements, useElements, useStripe } from '@stripe/react-stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import type {
   StripeExpressCheckoutElement,
   StripeExpressCheckoutElementConfirmEvent,
 } from '@stripe/stripe-js';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { getStripeJs } from '@/lib/stripe-js';
 import { reportPaymentFailed } from '@/lib/dev-signal-client';
 import type { CartItem, Order, OrderCustomer } from '@/types';
@@ -42,13 +43,30 @@ const walletOptions = {
   },
 };
 
+const cardOptions = {
+  layout: 'tabs' as const,
+  wallets: {
+    applePay: 'never' as const,
+    googlePay: 'never' as const,
+    link: 'never' as const,
+  },
+  fields: {
+    billingDetails: {
+      name: 'never' as const,
+      email: 'never' as const,
+      phone: 'never' as const,
+      address: 'if_required' as const,
+    },
+  },
+};
+
 type PendingCheckout = {
   customer: OrderCustomer;
   items: CartItem[];
   paymentIntentId: string;
 };
 
-type WalletState = 'loading' | 'ready' | 'unavailable' | 'error';
+type WalletState = 'loading' | 'ready' | 'unavailable';
 
 type WalletFlag = boolean | { available?: boolean } | undefined;
 
@@ -113,26 +131,23 @@ function PaymentForm({
   pending,
   onPaid,
   submitLabel,
-  cashAvailable,
 }: {
   pending: PendingCheckout;
   onPaid: (order: Order) => void;
   submitLabel: string;
-  cashAvailable: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [wallets, setWallets] = useState<WalletState>('loading');
+  const showCard = wallets === 'unavailable';
+  const payLabel = submitLabel === 'Pagar ahora' ? 'Pagar' : submitLabel;
 
   useEffect(() => {
     if (wallets !== 'loading') return;
     const timer = window.setTimeout(() => {
-      setWallets((current) => (current === 'loading' ? 'error' : current));
-      setError(
-        (current) => current || 'No se pudo cargar Apple Pay ni Google Pay. Recarga la página e intenta de nuevo.'
-      );
+      setWallets((current) => (current === 'loading' ? 'unavailable' : current));
     }, WALLET_LOAD_MS);
     return () => window.clearTimeout(timer);
   }, [wallets]);
@@ -141,6 +156,45 @@ function PaymentForm({
     setError(message);
     reportPaymentFailed(message, pending.items);
     setSubmitting(false);
+  };
+
+  const confirmAndSave = async (): Promise<string | null> => {
+    if (!stripe || !elements) return 'El pago todavía no está listo.';
+    try {
+      const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/checkout/complete`,
+          payment_method_data: {
+            billing_details: {
+              name: pending.customer.name,
+              phone: pending.customer.phone,
+              email: pending.customer.email.trim(),
+            },
+          },
+        },
+        redirect: 'if_required',
+      });
+
+      if (confirmError) return confirmError.message || 'No se pudo completar el pago';
+      if (paymentIntent?.status !== 'succeeded') return 'El pago no se completó. Intenta de nuevo.';
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentIntentId: pending.paymentIntentId,
+          customer: pending.customer,
+          items: pending.items,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) return payload.error || 'Pago hecho, pero no se guardó el pedido';
+      onPaid(payload.order as Order);
+      return null;
+    } catch {
+      return 'No se pudo completar el pago';
+    }
   };
 
   const onConfirm = async (event: StripeExpressCheckoutElementConfirmEvent) => {
@@ -155,92 +209,77 @@ function PaymentForm({
 
     setSubmitting(true);
     setError('');
+    const message = await confirmAndSave();
+    if (!message) return;
+    event.paymentFailed({ reason: 'fail', message });
+    fail(message);
+  };
 
-    const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/checkout/complete`,
-        payment_method_data: {
-          billing_details: {
-            name: pending.customer.name,
-            phone: pending.customer.phone,
-            email: pending.customer.email.trim(),
-          },
-        },
-      },
-      redirect: 'if_required',
-    });
-
-    if (confirmError) {
-      const message = confirmError.message || 'No se pudo completar el pago';
-      event.paymentFailed({ reason: 'fail', message });
-      fail(message);
+  const payWithCard = async () => {
+    if (!stripe || !elements || submitting) return;
+    setSubmitting(true);
+    setError('');
+    const { error: submitError } = await elements.submit();
+    if (submitError) {
+      fail(submitError.message || 'No se pudo completar el pago');
       return;
     }
-
-    if (paymentIntent?.status !== 'succeeded') {
-      const message = 'El pago no se completó. Intenta de nuevo.';
-      event.paymentFailed({ reason: 'fail', message });
-      fail(message);
-      return;
-    }
-
-    const response = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        paymentIntentId: pending.paymentIntentId,
-        customer: pending.customer,
-        items: pending.items,
-      }),
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      fail(payload.error || 'Pago hecho, pero no se guardó el pedido');
-      return;
-    }
-
-    onPaid(payload.order as Order);
+    const message = await confirmAndSave();
+    if (message) fail(message);
   };
 
   const noteWallets = (methods: { applePay?: WalletFlag; googlePay?: WalletFlag } | null | undefined) => {
     const ready = walletsReady(methods);
     setWallets(ready ? 'ready' : 'unavailable');
-    if (wallets === 'loading' || wallets === 'error') setError('');
+    if (wallets === 'loading') setError('');
   };
-
-  const unavailable = cashAvailable
-    ? 'Este dispositivo no tiene Apple Pay ni Google Pay. Puedes pagar en efectivo.'
-    : 'Este dispositivo no tiene Apple Pay ni Google Pay. Aquí el pago en línea solo se hace con una de esas dos.';
 
   return (
     <div className="space-y-4">
-      {submitLabel !== 'Pagar ahora' ? (
+      {submitLabel !== 'Pagar ahora' && wallets === 'ready' ? (
         <p className="text-sm font-semibold text-white">{submitLabel}</p>
       ) : null}
-      <WalletButtons
-        onReady={noteWallets}
-        onMethods={(methods) => {
-          if (!methods) return;
-          noteWallets(methods);
-        }}
-        onLoadError={(message) => {
-          setError(message);
-          setWallets('error');
-        }}
-        onCancel={() => setSubmitting(false)}
-        onConfirm={onConfirm}
-      />
+      {showCard ? null : (
+        <WalletButtons
+          onReady={noteWallets}
+          onMethods={(methods) => {
+            if (!methods) return;
+            noteWallets(methods);
+          }}
+          onLoadError={() => setWallets('unavailable')}
+          onCancel={() => setSubmitting(false)}
+          onConfirm={onConfirm}
+        />
+      )}
       {wallets === 'loading' ? (
         <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           Cargando Apple Pay y Google Pay...
         </p>
       ) : null}
-      {wallets === 'unavailable' ? (
-        <p className="rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-sm leading-relaxed text-muted-foreground">
-          {unavailable}
-        </p>
+      {showCard ? (
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void payWithCard();
+          }}
+        >
+          <PaymentElement
+            options={cardOptions}
+            onLoadError={(event) => {
+              setError(event.error.message || 'No se pudo completar el pago');
+            }}
+          />
+          <Button
+            type="submit"
+            disabled={submitting || !stripe}
+            className="w-full bg-brand-500 text-white hover:bg-brand-600"
+            size="lg"
+          >
+            {payLabel}
+          </Button>
+        </form>
       ) : null}
       {submitting ? (
         <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -258,13 +297,11 @@ export function CheckoutPayment({
   pending,
   onPaid,
   submitLabel = 'Pagar ahora',
-  cashAvailable = false,
 }: {
   clientSecret: string;
   pending: PendingCheckout;
   onPaid: (order: Order) => void;
   submitLabel?: string;
-  cashAvailable?: boolean;
 }) {
   return (
     <Elements
@@ -275,12 +312,7 @@ export function CheckoutPayment({
         locale: 'es',
       }}
     >
-      <PaymentForm
-        pending={pending}
-        onPaid={onPaid}
-        submitLabel={submitLabel}
-        cashAvailable={cashAvailable}
-      />
+      <PaymentForm pending={pending} onPaid={onPaid} submitLabel={submitLabel} />
     </Elements>
   );
 }
