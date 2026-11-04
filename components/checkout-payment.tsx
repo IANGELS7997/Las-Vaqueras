@@ -124,7 +124,7 @@ function WalletButtons({
     };
   }, [elements]);
 
-  return <div ref={nodeRef} className="min-h-12" />;
+  return <div ref={nodeRef} />;
 }
 
 function PaymentForm({
@@ -141,7 +141,6 @@ function PaymentForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [wallets, setWallets] = useState<WalletState>('loading');
-  const showCard = wallets === 'unavailable';
   const payLabel = submitLabel === 'Pagar ahora' ? 'Pagar' : submitLabel;
 
   useEffect(() => {
@@ -239,7 +238,7 @@ function PaymentForm({
       {submitLabel !== 'Pagar ahora' && wallets === 'ready' ? (
         <p className="text-sm font-semibold text-white">{submitLabel}</p>
       ) : null}
-      {showCard ? null : (
+      {wallets === 'unavailable' ? null : (
         <WalletButtons
           onReady={noteWallets}
           onMethods={(methods) => {
@@ -251,36 +250,28 @@ function PaymentForm({
           onConfirm={onConfirm}
         />
       )}
-      {wallets === 'loading' ? (
-        <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Cargando Apple Pay y Google Pay...
-        </p>
-      ) : null}
-      {showCard ? (
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void payWithCard();
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void payWithCard();
+        }}
+      >
+        <PaymentElement
+          options={cardOptions}
+          onLoadError={(event) => {
+            setError(event.error.message || 'No se pudo completar el pago');
           }}
+        />
+        <Button
+          type="submit"
+          disabled={submitting || !stripe}
+          className="w-full bg-brand-500 text-white hover:bg-brand-600"
+          size="lg"
         >
-          <PaymentElement
-            options={cardOptions}
-            onLoadError={(event) => {
-              setError(event.error.message || 'No se pudo completar el pago');
-            }}
-          />
-          <Button
-            type="submit"
-            disabled={submitting || !stripe}
-            className="w-full bg-brand-500 text-white hover:bg-brand-600"
-            size="lg"
-          >
-            {payLabel}
-          </Button>
-        </form>
-      ) : null}
+          {payLabel}
+        </Button>
+      </form>
       {submitting ? (
         <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
