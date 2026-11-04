@@ -1,12 +1,12 @@
 import { branchById } from '@/lib/branches';
+import { kitchenProgressLabel } from '@/lib/kitchen-notice';
 import { kitchenStatusLabel } from '@/lib/order-lifecycle';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
-import type { CartItem, OrderStatus } from '@/types';
+import type { CartItem } from '@/types';
 
 const DEFAULT_URL = 'https://fcuknxeakjbpqevlwswu.supabase.co/functions/v1/iangel-ops';
 const SLUG = 'las-vaqueras';
 const PICKED_UP = new Set(['picked_up', 'en_route', 'arrived', 'waiting_customer']);
-const KITCHEN_STATUSES = new Set<OrderStatus>(['pending', 'preparing', 'in_transit', 'delivered', 'cancelled']);
 
 export type IangelOpsRow = {
   id: string;
@@ -30,6 +30,9 @@ export type IangelOpsRow = {
   short_code?: string | null;
   branch_id?: string | null;
   items?: unknown;
+  kitchen_accepted_at?: string | null;
+  kitchen_released_at?: string | null;
+  handoff_pin?: string | null;
 };
 
 export type OpsTicketLine = {
@@ -133,9 +136,7 @@ function ticketLines(items: unknown): OpsTicketLine[] {
 }
 
 export function kitchenStatusForOps(row: IangelOpsRow) {
-  const status = String(row.status || 'preparing');
-  const known = KITCHEN_STATUSES.has(status as OrderStatus) ? (status as OrderStatus) : 'preparing';
-  return kitchenStatusLabel(known, row.fulfillment_type);
+  return kitchenProgressLabel(row);
 }
 
 /** Pedido pagado listo para el panel. Recoger y Gestionar llevan canal cocina. IANGEL no, para que el rider lo siga viendo. */

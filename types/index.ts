@@ -135,6 +135,7 @@ export interface Order {
   prepDelayMinutes?: number | null;
   promiseLabel?: string | null;
   handoffPin?: string | null;
+  kitchenAcceptedAt?: string | null;
   loyaltyKind?: string | null;
   uberTrackingUrl?: string | null;
 }

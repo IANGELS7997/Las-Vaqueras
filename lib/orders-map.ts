@@ -64,6 +64,7 @@ export type DbOrderRow = {
   dropoff_lng?: number | null;
   prep_delay_minutes?: number | null;
   handoff_pin?: string | null;
+  kitchen_accepted_at?: string | null;
   rider_lat?: number | null;
   rider_lng?: number | null;
   loyalty_kind?: string | null;
@@ -135,6 +136,7 @@ export function mapDbOrder(row: DbOrderRow, options?: { includeHandoffPin?: bool
     prepDelayMinutes: promise ? delay : null,
     promiseLabel: promise?.label || null,
     handoffPin: options?.includeHandoffPin ? row.handoff_pin || null : null,
+    kitchenAcceptedAt: row.kitchen_accepted_at || null,
     loyaltyKind: row.loyalty_kind || null,
     uberTrackingUrl: uberTrackingHref(row.uber_tracking_url),
     branchId: orderBranchId(row.branch_id),
