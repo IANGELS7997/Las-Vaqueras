@@ -1206,7 +1206,10 @@ export default function CheckoutPage() {
                     <a href="/terminos" className="text-brand-400 underline-offset-2 hover:underline">
                       Términos
                     </a>
-                    .
+                    {' · '}
+                    <a href="/faq" className="text-brand-400 underline-offset-2 hover:underline">
+                      Preguntas frecuentes
+                    </a>.
                   </span>
                 </label>
                 {errors.acceptFinalSale && (
