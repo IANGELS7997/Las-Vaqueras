@@ -1,5 +1,12 @@
 import { Shield } from 'lucide-react';
+import { BRANCHES } from '@/lib/branches';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
+
+const UPDATED = '5 de noviembre de 2026';
+
+function branchPhones() {
+  return BRANCHES.map((branch) => `${branch.shortName.replace(/^Sucursal /, '')} ${branch.phone}`).join(', ');
+}
 
 export default function PrivacyPolicyPage() {
   const sections = [
@@ -10,12 +17,12 @@ export default function PrivacyPolicyPage() {
     {
       title: '2. Datos personales recabados',
       content:
-        'Recabamos los siguientes datos personales: nombre completo, número de teléfono, dirección de entrega y referencias de ubicación. Estos datos son utilizados únicamente para procesar y entregar sus pedidos.',
+        'Recabamos nombre completo, número de teléfono, correo electrónico, dirección de entrega y referencias de ubicación. Si comparte su ubicación desde el celular, se usa en ese momento para sugerir la sucursal más cercana y no se guarda como domicilio. Si solicita una revisión, también recabamos la nota, la foto de la comida y la foto del ticket. Si solicita factura, los datos de esa solicitud los escribe usted en el formulario de facturación.',
     },
     {
       title: '3. Finalidades del tratamiento',
       content:
-        'Sus datos personales serán utilizados para: (a) procesar y gestionar pedidos, (b) coordinar la entrega a domicilio, (c) contactarle en caso de incidencias con su pedido, y (d) mantener un registro de transacciones.',
+        'Sus datos personales serán utilizados para: (a) procesar y gestionar pedidos, (b) coordinar la entrega a domicilio, (c) enviarle el ticket y contactarle si hay una incidencia, (d) mantener el registro de transacciones y las promociones ligadas a su teléfono, y (e) atender una solicitud de revisión o de factura cuando usted la envíe.',
     },
     {
       title: '4. Conservación de datos',
@@ -34,7 +41,7 @@ export default function PrivacyPolicyPage() {
     {
       title: '6. No transferencia de datos',
       content:
-        'No transferimos sus datos personales a terceros, salvo cuando sea necesario para la entrega del pedido (empresa de mensajería) o por requerimiento legal.',
+        'No transferimos sus datos personales a terceros, salvo cuando sea necesario para la entrega del pedido (empresa de mensajería), el cobro con tarjeta, el envío del ticket por correo, la factura que usted solicite, o por requerimiento legal.',
     },
     {
       title: '7. Cambios al aviso de privacidad',
@@ -64,10 +71,10 @@ export default function PrivacyPolicyPage() {
         ))}
 
         <div className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
-          <p>Última actualización: {new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p>Última actualización: {UPDATED}</p>
           <p className="mt-1">
-            Para dudas o sugerencias: {RESTAURANT_INFO.phone} · {RESTAURANT_INFO.email} ·{' '}
-            {RESTAURANT_INFO.address}
+            Correo {RESTAURANT_INFO.email}. Teléfono de la sucursal: {branchPhones()}. Domicilio de este aviso:{' '}
+            {RESTAURANT_INFO.address}.
           </p>
         </div>
       </div>

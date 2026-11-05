@@ -1,5 +1,12 @@
 import { FileText } from 'lucide-react';
+import { BRANCHES } from '@/lib/branches';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
+
+const UPDATED = '5 de noviembre de 2026';
+
+function branchPhones() {
+  return BRANCHES.map((branch) => `${branch.shortName.replace(/^Sucursal /, '')} ${branch.phone}`).join(', ');
+}
 
 export default function TermsPage() {
   const sections = [
@@ -21,7 +28,7 @@ export default function TermsPage() {
     {
       title: '4. Pedidos confirmados',
       content:
-        'Al confirmar el pago, el pedido se envía de inmediato a preparación y se considera venta final: no admite cancelación ni devolución. El ticket se imprime en caja y la orden pasa a cocina. El uso de la plataforma implica la aceptación de esta condición. Si el restaurante no puede cumplir el pedido (por ejemplo, cierre o producto no disponible), el contacto es ' +
+        'Al confirmar el pago, el pedido se envía de inmediato a preparación y se considera venta final: no admite cancelación ni devolución. El ticket se imprime en caja y la orden pasa a cocina. El uso de la plataforma implica la aceptación de esta condición. Si faltó un producto, llegó equivocado, llegó en mal estado, faltó un extra u otro, en Mi perfil se puede solicitar una revisión con una nota, una foto de la comida y una foto del ticket. Enviar la solicitud no significa que se apruebe. Si se acepta y el pago fue con tarjeta, el total vuelve a la tarjeta. Si se acepta y el pago fue en efectivo, la comida y el envío quedan a favor en la próxima compra. Si el restaurante no puede cumplir el pedido (por ejemplo, cierre o producto no disponible), el contacto es ' +
         RESTAURANT_INFO.email +
         ' o ' +
         RESTAURANT_INFO.phone +
@@ -40,13 +47,11 @@ export default function TermsPage() {
     {
       title: '7. Contacto',
       content:
-        'Para cualquier duda sobre estos términos, puede contactarnos en: ' +
+        'Para cualquier duda sobre estos términos, escriba a ' +
         RESTAURANT_INFO.email +
-        ', ' +
-        RESTAURANT_INFO.phone +
-        ' o en nuestro domicilio: ' +
-        RESTAURANT_INFO.address +
-        '.',
+        '. El teléfono y la dirección son los de la sucursal del pedido: ' +
+        branchPhones() +
+        '. Las direcciones y los horarios están en el apartado 3.',
     },
   ];
 
@@ -71,7 +76,7 @@ export default function TermsPage() {
         ))}
 
         <div className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
-          <p>Última actualización: {new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p>Última actualización: {UPDATED}</p>
         </div>
       </div>
     </div>
