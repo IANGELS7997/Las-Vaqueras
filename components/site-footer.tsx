@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Mail, MapPin, Phone, Clock, Shield, FileText } from 'lucide-react';
+import { Mail, MapPin, Phone, Clock, Shield, FileText, CircleHelp } from 'lucide-react';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
 import { BrandLogo } from '@/components/brand-logo';
 
@@ -68,7 +68,14 @@ export function SiteFooter() {
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} Las Vaqueras. Todos los derechos reservados.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link
+              href="/faq"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-brand-400"
+            >
+              <CircleHelp className="h-3.5 w-3.5" />
+              Preguntas frecuentes
+            </Link>
             <Link
               href="/privacidad"
               className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-brand-400"
