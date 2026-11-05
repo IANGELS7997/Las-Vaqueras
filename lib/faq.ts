@@ -85,7 +85,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         id: 'como-pedir-minimo',
         question: '¿Hay un mínimo de compra?',
-        answer: 'No. Pagas la comida más el envío. Recoger no lleva envío.',
+        answer: 'No. Pagas la comida más el envío.',
       },
       {
         id: 'como-pedir-cerrado',
