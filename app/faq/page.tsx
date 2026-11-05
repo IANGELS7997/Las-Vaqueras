@@ -26,18 +26,6 @@ export default function FaqPage() {
         </div>
       </div>
 
-      <nav aria-label="Categorías" className="mb-4 flex gap-2 overflow-x-auto pb-1">
-        {FAQ_CATEGORIES.map((category) => (
-          <a
-            key={category.id}
-            href={`#${category.id}`}
-            className="shrink-0 whitespace-nowrap rounded-full border border-border/60 px-3 py-1.5 text-sm text-white/80 hover:text-white"
-          >
-            {category.title}
-          </a>
-        ))}
-      </nav>
-
       <div className="rounded-2xl border border-border/60 bg-card p-6">
         <FaqList categories={FAQ_CATEGORIES} />
         <p className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">

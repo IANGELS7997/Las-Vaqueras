@@ -1,19 +1,7 @@
 import { BRANCHES, type Branch } from '@/lib/branches';
-import {
-  BAND_MID_MAX_M,
-  BAND_NEAR_MAX_M,
-  MID_STORE_FEE_MXN,
-  NEAR_STORE_FEE_MXN,
-  OUTER_FEE_MXN,
-  SELF_FEE_MXN,
-  SELF_MAX_M,
-  SERVICE_MAX_M,
-  SHIFT_END_SEC,
-  SHIFT_START_SEC,
-} from '@/lib/iangel-constants';
-import { CASH_FOOD_CAP_MXN } from '@/lib/iangel-cash';
-import { JUMBO_PRODUCT_ID, JUMBO_PRODUCT_NAME, foodDiscountPercentLabel } from '@/lib/loyalty';
-import { CATEGORIES, getMenuItemById } from '@/lib/mock-data';
+import { SERVICE_MAX_M } from '@/lib/iangel-constants';
+import { JUMBO_PRODUCT_NAME, foodDiscountPercentLabel } from '@/lib/loyalty';
+import { CATEGORIES } from '@/lib/mock-data';
 import { CUSTOMER_STEPS, kitchenStatusLabel } from '@/lib/order-lifecycle';
 import { PICKUP_LEAD_MINUTES, PICKUP_SLOT_MINUTES } from '@/lib/pickup-slots';
 import { RESTAURANT_INFO } from '@/lib/restaurant';
@@ -33,10 +21,6 @@ export type FaqCategory = {
   title: string;
   items: FaqItem[];
 };
-
-function pesos(amount: number) {
-  return `$${amount}`;
-}
 
 function telHref(phone: string) {
   return `tel:${phone.replace(/[^\d+]/g, '')}`;
@@ -58,11 +42,6 @@ function closesAt(branch: Branch) {
   return branch.hoursLabel.split(' - ')[1] || branch.hoursLabel;
 }
 
-function clockFromShift(seconds: number) {
-  const hour = Math.floor(seconds / 3600);
-  return `${String(hour).padStart(2, '0')}:00`;
-}
-
 function joinSteps(steps: readonly string[]) {
   if (steps.length < 2) return steps.join('');
   return `${steps.slice(0, -1).join(', ')} y ${steps[steps.length - 1]}`;
@@ -78,15 +57,8 @@ const supportTel = telHref(supportPhone);
 const firstOff = foodDiscountPercentLabel('first_30');
 const fifthOff = foodDiscountPercentLabel('fifth_20');
 const kidsName = CATEGORIES.find((category) => category.id === 'peques')?.name || 'Para los peques';
-const jumboIngredients = getMenuItemById(JUMBO_PRODUCT_ID)?.optionGroups?.find((group) => group.max > 1);
-const ingredientMin = jumboIngredients?.min ?? 1;
-const ingredientMax = jumboIngredients?.max ?? 4;
 const waitMinutes = Math.round(WAIT_CLOSE_SECONDS / 60);
 const readyToPickup = kitchenStatusLabel('in_transit', 'pickup');
-const shiftStart = clockFromShift(SHIFT_START_SEC);
-const shiftEnd = clockFromShift(SHIFT_END_SEC);
-
-const storeFees = `${pesos(NEAR_STORE_FEE_MXN)}, ${pesos(MID_STORE_FEE_MXN)} o ${pesos(OUTER_FEE_MXN)}`;
 
 export const FAQ_CATEGORIES: FaqCategory[] = [
   {
@@ -162,11 +134,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         answer: `Hasta ${SERVICE_MAX_M} metros en línea recta desde la sucursal que elegiste. Más lejos no hay domicilio: solo recoger en esa tienda.`,
       },
       {
-        id: 'domicilio-costo',
-        question: '¿Cuánto cuesta el envío?',
-        answer: `Recoger es ${pesos(0)}. Si el envío lo cobra la sucursal: ${pesos(NEAR_STORE_FEE_MXN)} de 0 a ${BAND_NEAR_MAX_M} m, ${pesos(MID_STORE_FEE_MXN)} de ${BAND_NEAR_MAX_M + 1} a ${BAND_MID_MAX_M} m y ${pesos(OUTER_FEE_MXN)} de ${BAND_MID_MAX_M + 1} a ${SERVICE_MAX_M} m, solo con tarjeta. En Centro, de 0 a ${SELF_MAX_M} m y entre ${shiftStart} y ${shiftEnd}, si el rider de la casa está en servicio, el envío es ${pesos(SELF_FEE_MXN)}. Si ese rider no está, o ya pasaron las ${shiftEnd} y Centro sigue abierto, el envío vuelve a ${storeFees}. Norte y Sur no usan al rider de la casa.`,
-      },
-      {
         id: 'domicilio-tiempo',
         question: '¿Cuánto tarda?',
         answer: `El tiempo estimado es de hasta 45 minutos. De 4.5 a 5 km, hasta 1 hora. Puede cambiar por el volumen de pedidos, el tráfico y el clima. Si el rider de la casa va en otro pedido, el tuyo puede tardar de 35 a 45 minutos. Para recoger, eliges un horario en saltos de ${PICKUP_SLOT_MINUTES} minutos y el primero queda a partir de ${PICKUP_LEAD_MINUTES} minutos.`,
@@ -175,12 +142,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         id: 'domicilio-puerta',
         question: '¿Puedo pedir que lo dejen en la puerta?',
         answer: `Sí, es opcional al pedir a domicilio. El repartidor deja el pedido y no espera a que salgas. Si no lo encuentras, eso no cuenta como pedido no entregado. Si no elegiste dejarlo en la puerta y te lleva el rider de la casa, espera unos ${waitMinutes} minutos.`,
-      },
-      {
-        id: 'domicilio-mochila',
-        question: '¿Qué pasa si la mochila ya va llena?',
-        answer:
-          'Solo en el envío del rider de la casa. Si ves ese aviso, quita algún artículo para poder continuar.',
       },
     ],
   },
@@ -195,11 +156,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
           'En línea, con Apple Pay, Google Pay o tarjeta. El botón dice Apple Pay / Google Pay y también abre el formulario de tarjeta.',
       },
       {
-        id: 'pago-efectivo',
-        question: '¿Puedo pagar en efectivo?',
-        answer: `Al recoger, sí: efectivo o tarjeta. A domicilio con el rider de la casa, el efectivo está disponible si la comida no pasa de ${pesos(CASH_FOOD_CAP_MXN)}. Si la comida pasa de ${pesos(CASH_FOOD_CAP_MXN)}, ese pedido es solo con tarjeta. El domicilio que cobra la sucursal (${pesos(NEAR_STORE_FEE_MXN)}, ${pesos(MID_STORE_FEE_MXN)} o ${pesos(OUTER_FEE_MXN)}) es solo con tarjeta. En el domicilio del rider solo puedes tener un pedido en efectivo abierto. Si hoy ya usaste el efectivo varias veces, el siguiente pedido a domicilio es con tarjeta. En la puerta pagas la comida más el envío. Si no estás para recibirlo, el pedido no se entrega.`,
-      },
-      {
         id: 'pago-precio',
         question: '¿El precio del menú es el que pago?',
         answer: 'Sí. El menú ya muestra el precio en pesos. El total es la comida más el envío. No hay cuota de servicio.',
@@ -208,7 +164,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         id: 'pago-factura',
         question: '¿Puedo facturar?',
         answer:
-          'Sí. En el pedido ya cobrado y en el correo del ticket está el botón Facturación. Abre un formulario para pedirla. La factura no se genera sola al pagar.',
+          'Sí. En el pedido ya cobrado y en el correo del ticket está el botón Facturación. Abre un formulario para pedirla.',
       },
     ],
   },
@@ -220,17 +176,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         id: 'promociones-pedidos',
         question: '¿Hay promociones por mis pedidos?',
         answer: `Sí, en Mi perfil, ligadas a tu teléfono. El pedido 1 tiene ${firstOff} en la comida de ese pedido. El pedido 5 tiene ${fifthOff} en la comida. En el pedido 10, al pagar, recibes un cupón de una ${JUMBO_PRODUCT_NAME} con 30 días para canjearlo. El descuento no aplica al envío. Estas tres promos no se repiten ni se reinician.`,
-      },
-      {
-        id: 'promociones-30',
-        question: '¿El 30% del primer pedido se puede usar otra vez?',
-        answer:
-          'No. Si ese teléfono, correo o dirección de domicilio ya lo usó, no vuelve a aplicarse.',
-      },
-      {
-        id: 'promociones-jumbo',
-        question: `¿Cómo uso el cupón de ${JUMBO_PRODUCT_NAME}?`,
-        answer: `Cubre una orden de ${JUMBO_PRODUCT_NAME}. Lo que agregues aparte se paga a precio de menú. Recoger solo el Jumbo no tiene cargo. A domicilio, el envío se cotiza aparte. Eliges de ${ingredientMin} a ${ingredientMax} ingredientes. El cupón no se paga en efectivo y no admite cancelación ni devolución.`,
       },
     ],
   },
@@ -277,18 +222,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         question: '¿Y si faltó algo o llegó mal?',
         answer:
           'En Mi perfil puedes solicitar una revisión. Los motivos son: faltó un producto, llegó equivocado, llegó en mal estado, faltó un extra, u otro. Te pedimos una nota, una foto de la comida y una foto del ticket. Enviar la solicitud no significa que se apruebe. Si se acepta y pagaste con tarjeta, el total vuelve a tu tarjeta. Si se acepta y pagaste en efectivo, la comida y el envío quedan a favor en tu próxima compra.',
-      },
-      {
-        id: 'si-algo-sale-mal-puerta',
-        question: '¿Y si pedí dejarlo en la puerta y no estaba?',
-        answer:
-          'En Mi perfil está el reporte «No dejaron el pedido en la puerta», solo si elegiste esa opción. Si se aprueba, se reembolsa lo que pagaste. Pedirlo no garantiza la aprobación.',
-      },
-      {
-        id: 'si-algo-sale-mal-espera',
-        question: '¿Y si el repartidor esperó y no salí?',
-        answer:
-          'Si pagaste con tarjeta, esa compra sigue siendo venta final y no genera reembolso. Si era efectivo y no se entregó, en tu próxima compra se cobra el saldo pendiente de ese pedido.',
       },
       {
         id: 'si-algo-sale-mal-tienda',
