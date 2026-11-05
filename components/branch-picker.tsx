@@ -41,13 +41,13 @@ export function BranchPicker({ onSelect }: { onSelect: (branch: Branch) => void 
     <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-16 pt-10">
       <BrandLogo className="h-20 sm:h-24" priority />
       <h1 className="mt-6 text-center text-2xl font-bold text-white sm:text-3xl">Elige tu sucursal</h1>
-      <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
-        {locationState === 'asking'
-          ? 'Pedimos tu ubicación para recomendarte la sucursal más cercana.'
-          : locationState === 'nearest'
-            ? 'Esta es la sucursal más cercana. Tócala para continuar.'
+      {locationState === 'nearest' ? null : (
+        <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
+          {locationState === 'asking'
+            ? 'Pedimos tu ubicación para recomendarte la sucursal más cercana.'
             : 'Elige la sucursal donde quieres pedir.'}
-      </p>
+        </p>
+      )}
 
       <div className="mt-8 grid w-full gap-3">
         {branches.map((branch) => {
