@@ -26,6 +26,18 @@ function FaqAnchor({ link }: { link: FaqLink }) {
   );
 }
 
+function FaqLinks({ links, itemId }: { links: FaqLink[]; itemId: string }) {
+  return (
+    <ul className="mt-2 space-y-1 text-base">
+      {links.map((link) => (
+        <li key={`${itemId}-${link.href}-${link.label}`}>
+          <FaqAnchor link={link} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function FaqList({ categories }: { categories: FaqCategory[] }) {
   const [open, setOpen] = useState('');
 
@@ -57,16 +69,26 @@ export function FaqList({ categories }: { categories: FaqCategory[] }) {
                 {item.question}
               </AccordionTrigger>
               <AccordionContent>
-                <p className="text-base leading-relaxed text-white/80">{item.answer}</p>
-                {item.links && item.links.length > 0 ? (
-                  <ul className="mt-2 space-y-1 text-base">
-                    {item.links.map((link) => (
-                      <li key={`${item.id}-${link.href}-${link.label}`}>
-                        <FaqAnchor link={link} />
-                      </li>
+                {item.blocks && item.blocks.length > 0 ? (
+                  <div className="space-y-4">
+                    {item.blocks.map((block) => (
+                      <div key={`${item.id}-${block.title}`}>
+                        <p className="text-base font-semibold text-white">{block.title}</p>
+                        {block.lines.map((line) => (
+                          <p key={line} className="text-base leading-relaxed text-white/80">
+                            {line}
+                          </p>
+                        ))}
+                        {block.links && block.links.length > 0 ? (
+                          <FaqLinks links={block.links} itemId={`${item.id}-${block.title}`} />
+                        ) : null}
+                      </div>
                     ))}
-                  </ul>
-                ) : null}
+                  </div>
+                ) : (
+                  <p className="text-base leading-relaxed text-white/80">{item.answer}</p>
+                )}
+                {item.links && item.links.length > 0 ? <FaqLinks links={item.links} itemId={item.id} /> : null}
               </AccordionContent>
             </AccordionItem>
           ))}

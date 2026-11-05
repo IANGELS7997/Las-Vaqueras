@@ -9,11 +9,19 @@ import { WAIT_CLOSE_SECONDS } from '@/lib/rider-help';
 
 export type FaqLink = { href: string; label: string };
 
+export type FaqBlock = {
+  title: string;
+  lines: string[];
+  links?: FaqLink[];
+};
+
 export type FaqItem = {
   id: string;
   question: string;
+  /** Texto plano para el schema FAQ. En pantalla, si hay bloques, se pintan esos. */
   answer: string;
   links?: FaqLink[];
+  blocks?: FaqBlock[];
 };
 
 export type FaqCategory = {
@@ -38,18 +46,12 @@ function hoursSpoken(branch: Branch) {
   return branch.hoursLabel.replace(' - ', ' a ');
 }
 
-function closesAt(branch: Branch) {
-  return branch.hoursLabel.split(' - ')[1] || branch.hoursLabel;
-}
-
 function joinSteps(steps: readonly string[]) {
   if (steps.length < 2) return steps.join('');
   return `${steps.slice(0, -1).join(', ')} y ${steps[steps.length - 1]}`;
 }
 
 const centro = BRANCHES.find((branch) => branch.id === 'centro') || BRANCHES[0];
-const norte = BRANCHES.find((branch) => branch.id === 'norte') || BRANCHES[1];
-const sur = BRANCHES.find((branch) => branch.id === 'sur') || BRANCHES[2];
 const supportEmail = RESTAURANT_INFO.email;
 const supportPhone = centro.phone;
 const mailto = `mailto:${supportEmail}`;
@@ -90,8 +92,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         id: 'como-pedir-cerrado',
         question: '¿Puedo pedir con la tienda cerrada?',
-        answer:
-          'Puedes ver el menú. Agregar y pagar se habilitan cuando esa sucursal abre. Un producto agotado aparece como agotado y no se puede pedir.',
+        answer: 'Puedes ver el menú. Agregar y pagar se habilitan cuando esa sucursal abre.',
       },
     ],
   },
@@ -106,21 +107,11 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
           (branch) =>
             `${branchName(branch)}: ${place(branch)}. Todos los días, ${hoursSpoken(branch)}. Teléfono ${branch.phone}.`
         ).join(' '),
-        links: BRANCHES.map((branch) => ({
-          href: telHref(branch.phone),
-          label: `${branchName(branch)} ${branch.phone}`,
+        blocks: BRANCHES.map((branch) => ({
+          title: branchName(branch),
+          lines: [`${place(branch)}.`, `Todos los días, ${hoursSpoken(branch)}.`],
+          links: [{ href: telHref(branch.phone), label: `Teléfono ${branch.phone}` }],
         })),
-      },
-      {
-        id: 'sucursales-horario',
-        question: '¿El horario de abajo es el de las tres?',
-        answer: `No. Cada sucursal tiene su horario. Después de elegirla, lo ves en la cabecera. ${branchName(centro)} cierra a las ${closesAt(centro)}, ${branchName(norte)} a las ${closesAt(norte)} y ${branchName(sur)} a las ${closesAt(sur)}. Abren todos los días.`,
-      },
-      {
-        id: 'sucursales-festivos',
-        question: '¿Hay horario de días festivos?',
-        answer:
-          'No publicamos un calendario distinto. Si esa sucursal está cerrada, la página lo muestra y el menú se puede ver sin pedir.',
       },
     ],
   },
@@ -154,11 +145,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         question: '¿Cómo pago?',
         answer:
           'En línea, con Apple Pay, Google Pay o tarjeta. El botón dice Apple Pay / Google Pay y también abre el formulario de tarjeta.',
-      },
-      {
-        id: 'pago-precio',
-        question: '¿El precio del menú es el que pago?',
-        answer: 'Sí. El menú ya muestra el precio en pesos. El total es la comida más el envío. No hay cuota de servicio.',
       },
       {
         id: 'pago-factura',
@@ -195,11 +181,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
           'Con el nombre, apellido y celular de tu primer pedido, desde el icono de perfil. El enlace del correo también puede abrirlo. Ahí están tus pedidos, tus promociones, facturación y, si aplica, la solicitud de revisión.',
       },
       {
-        id: 'mi-pedido-calificar',
-        question: '¿Puedo calificar el pedido?',
-        answer: 'Sí. Cuando queda entregado puedes calificarlo del 1 al 5.',
-      },
-      {
         id: 'mi-pedido-instalar',
         question: '¿Puedo agregar la página al inicio del celular?',
         answer: 'Sí. Desde aquí puedes dejar el acceso en la pantalla de inicio.',
@@ -231,11 +212,6 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
           { href: mailto, label: supportEmail },
           { href: supportTel, label: supportPhone },
         ],
-      },
-      {
-        id: 'si-algo-sale-mal-alergenos',
-        question: '¿Publican alérgenos?',
-        answer: 'El menú no lista alérgenos. Si tienes una alergia, llama a la sucursal antes de pedir.',
       },
       {
         id: 'si-algo-sale-mal-ninos',
