@@ -1,3 +1,4 @@
+import { calcCheckoutSplit } from '@/lib/checkout-split';
 import { SELF_FEE_MXN } from '@/lib/iangel-constants';
 import { STRIPE_CONNECT_OWNER_LIVE } from '@/lib/stripe-connect-destination';
 
@@ -212,6 +213,43 @@ export function kitchenCashPatch(
   return patch;
 }
 
+function money(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * El cobro nuevo ya manda el envío en el transfer del dueño.
+ * `separate` es un cobro viejo, sin ese envío y sin descuento de efectivo.
+ * `unknown` hay que resolverlo con el PaymentIntent.
+ */
+export function classifyOwnerDelivery(input: {
+  restaurantPayout?: number | null;
+  platformFee?: number | null;
+  deliveryFee?: number | null;
+  customerFee?: number | null;
+}): 'included' | 'separate' | 'unknown' {
+  const delivery = money(Number(input.deliveryFee));
+  const payout = Number(input.restaurantPayout);
+  const platform = Number(input.platformFee);
+  if (!Number.isFinite(delivery) || delivery <= 0) return 'included';
+  if (!Number.isFinite(payout) || !Number.isFinite(platform)) return 'unknown';
+  const customerFee = money(Number(input.customerFee) || 0);
+  const food = money(payout + platform - customerFee - delivery);
+  if (food <= 0) return 'unknown';
+  const expected = calcCheckoutSplit({
+    priceBaseTotal: food,
+    foodWebTotal: food,
+    fulfillment: 'delivery',
+    provider: 'self',
+    deliveryFee: delivery,
+  });
+  const oldPayout = money(expected.restaurantPayout - delivery);
+  const stored = money(payout);
+  if (stored > oldPayout + 0.02) return 'included';
+  if (Math.abs(stored - oldPayout) <= 0.02) return 'separate';
+  return 'unknown';
+}
+
 export function deliveryFeeSettlement(input: {
   id: string;
   payMethod: string | null;
@@ -219,12 +257,26 @@ export function deliveryFeeSettlement(input: {
   deliveryProvider: string | null;
   fulfillment: string | null;
   status: 'delivered' | 'cancelled';
+  /** El PaymentIntent ya transfirió el envío a Adrian. No hay un segundo pago. */
+  deliveryIncludedInCheckout?: boolean;
 }): { notice: FeeNotice | null; transfer: TransferOrder } {
   const none = { notice: null, transfer: { kind: 'none' as const } };
   if (input.status !== 'delivered') return none;
   if (!isIangelCashProvider(input.deliveryProvider, input.fulfillment)) return none;
 
   const method = input.payMethod === 'cash' ? 'cash' : 'card';
+  if (method === 'card' && input.deliveryIncludedInCheckout) {
+    return {
+      notice: {
+        payMethod: 'card',
+        feeStatus: 'transferred',
+        feeDestination: 'rider_bank',
+        feeMxn: SELF_FEE_MXN,
+        feeReviewed: true,
+      },
+      transfer: { kind: 'none' },
+    };
+  }
   if (method === 'cash') {
     return {
       notice: {

@@ -4,6 +4,7 @@ import {
   assertCashPickup,
   cashCheckoutAllowed,
   cashStoredAmounts,
+  classifyOwnerDelivery,
   deliveryFeeSettlement,
   kitchenCashPatch,
   collectDoorPatch,
@@ -34,6 +35,36 @@ assert(amounts.cashFoodDue === 180, 'se guarda 180');
 assert(amounts.doorDue === 230, 'en la puerta cobra 230');
 assert(amounts.restaurantPayout === 180, 'en la tienda queda la comida');
 assert(amounts.platformFee === 0, 'el 15% del efectivo no pasa por la plataforma');
+assert(
+  classifyOwnerDelivery({
+    restaurantPayout: split.restaurantPayout,
+    platformFee: split.platformFee,
+    deliveryFee: split.deliveryFee,
+    customerFee: split.customerFee,
+  }) === 'included',
+  'el cobro nuevo ya llevó el envío al dueño'
+);
+assert(
+  classifyOwnerDelivery({
+    restaurantPayout: Number((split.restaurantPayout - split.deliveryFee).toFixed(2)),
+    platformFee: Number((split.platformFee + split.deliveryFee).toFixed(2)),
+    deliveryFee: split.deliveryFee,
+    customerFee: split.customerFee,
+  }) === 'separate',
+  'el cobro viejo todavía separa el envío'
+);
+const alreadyPaid = deliveryFeeSettlement({
+  id: 'order-new',
+  payMethod: 'card',
+  riderKey: '6141921662',
+  deliveryProvider: 'self',
+  fulfillment: 'delivery',
+  status: 'delivered',
+  deliveryIncludedInCheckout: true,
+});
+assert(alreadyPaid.transfer.kind === 'none', 'un cobro nuevo no transfiere el envío otra vez');
+assert(alreadyPaid.notice?.feeStatus === 'transferred', 'el envío del cobro nuevo ya salió hacia Adrian');
+assert(alreadyPaid.notice?.feeDestination === 'rider_bank', 'destino del envío: Adrian');
 
 const atCap = cashCheckoutAllowed({ provider: 'wait_self', fulfillment: 'delivery', subtotalWeb: 500 });
 assert(atCap.ok === true, '$500 todavía es efectivo');

@@ -547,6 +547,7 @@ export async function POST(req: Request) {
         delivery_provider: deliveryProvider,
         uber_quote_id: uberQuoteId || '',
         branch_id: branch.id,
+        owner_delivery_included: '1',
       },
     });
     if (cashHoldId) {

@@ -3,6 +3,7 @@ import type Stripe from 'stripe';
 import {
   ADRIAN_DELIVERY_FEE_ACCOUNT,
   cashViewFromRow,
+  classifyOwnerDelivery,
   deliveryFeeSettlement,
   RIDER_FEE_CENTAVOS,
   type FeeNotice,
@@ -34,6 +35,45 @@ async function findFeeTransfer(stripe: Stripe, orderId: string) {
   );
 }
 
+function num(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** El cobro nuevo trae la marca. Si Stripe no contesta, no se inventa un segundo pago. */
+async function deliveryIncludedInCheckout(row: Record<string, unknown>) {
+  const verdict = classifyOwnerDelivery({
+    restaurantPayout: num(row.restaurant_payout),
+    platformFee: num(row.platform_fee),
+    deliveryFee: num(row.delivery_fee),
+    customerFee: num(row.customer_fee),
+  });
+  if (verdict === 'included') return true;
+  const paymentIntentId = String(row.stripe_payment_intent_id || '').trim();
+  if (!paymentIntentId) return false;
+  try {
+    const payment = await getStripe().paymentIntents.retrieve(paymentIntentId);
+    return payment.metadata?.owner_delivery_included === '1';
+  } catch (error) {
+    if (!isBalanceShort(error)) Sentry.captureException(error);
+    return true;
+  }
+}
+
+export async function settlementForRow(row: Record<string, unknown>) {
+  const view = cashViewFromRow(row);
+  const included = view.payMethod === 'cash' ? false : await deliveryIncludedInCheckout(row);
+  return deliveryFeeSettlement({
+    id: String(row.id || ''),
+    payMethod: view.payMethod,
+    riderKey: view.riderKey,
+    deliveryProvider: view.deliveryProvider || null,
+    fulfillment: view.fulfillment || null,
+    status: 'delivered',
+    deliveryIncludedInCheckout: included,
+  });
+}
+
 /** Un Transfer de $50, o nada si el saldo todavía no está disponible. La clave no cambia. */
 export async function settleAdrianDeliveryFee(orderId: string): Promise<'created' | 'exists' | 'pending_balance'> {
   const stripe = getStripe();
@@ -59,15 +99,7 @@ export async function settleAdrianDeliveryFee(orderId: string): Promise<'created
 }
 
 export async function closeDeliveredWithFee(row: Record<string, unknown>) {
-  const view = cashViewFromRow(row);
-  const settlement = deliveryFeeSettlement({
-    id: String(row.id || ''),
-    payMethod: view.payMethod,
-    riderKey: view.riderKey,
-    deliveryProvider: view.deliveryProvider || null,
-    fulfillment: view.fulfillment || null,
-    status: 'delivered',
-  });
+  const settlement = await settlementForRow(row);
   let notice: FeeNotice | null = settlement.notice;
   if (settlement.transfer.kind === 'transfer') {
     const result = await settleAdrianDeliveryFee(String(row.id || ''));

@@ -1,5 +1,5 @@
 ---
-description: Stripe Connect roles — platform AS EUNOIA, owner Express, money split 85/15
+description: Stripe Connect roles — platform AS EUNOIA, owner Express, 15% of charged food
 alwaysApply: true
 ---
 
@@ -12,12 +12,12 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 | Rol | Cuenta | Quién |
 |-----|--------|--------|
 | **Plataforma (matriz)** | `acct_1UBgeMPukuGTlRTl` | Desarrollador — **AS EUNOIA**. Único admin. Claves, webhooks, cobro al cliente. |
-| **Dueño restaurante (Express)** | `acct_1UDqrILSkdFzTSOj` | Carlos Adrian Lopez Garcia. Solo su 90% de carta (P). Solo Express + cocina. |
+| **Dueño restaurante (Express)** | `acct_1UDqrILSkdFzTSOj` | Carlos Adrian Lopez Garcia. El resto de la comida cobrada y el envío. Solo Express + cocina. |
 | **Express desarrollador** | `acct_1UDRDcLzV1Sjysxx` | **Eliminada** (2026-09-19). Bloqueada en código. |
 
 - Dashboard plataforma: **AS EUNOIA** (confirmado). Email: `iangels7997@gmail.com`.
 - Persona / RFC desarrollador: Angel Ivan Salinas Ortiz · `SAOA0009154F8`. Dirección: Mauricio Corredor #5116, Col. Panamericana, 31210.
-- Payout plataforma (lo que el cliente pagó menos el 90% de la carta; cliente paga redondeo al peso de P×1.10): CLABE BBVA `012180015164387876`, titular **Angel Ivan Salinas Ortiz**.
+- Payout plataforma (el 15% de la comida cobrada, menos su parte de Stripe): CLABE BBVA `012180015164387876`, titular **Angel Ivan Salinas Ortiz**.
 - Dueño Express: email `servicio@lasvaqueras.com.mx`, tel `+52 614 413 6539`, URL `https://www.lasvaqueras.com.mx/`, local Rio de Janeiro 903, Panamericana, 31210. CLABE MercadoLibre `722969017600593921`, titular **Carlos Adrian Lopez Garcia**.
 - Descriptor al cliente: `LAS-VAQUERAS-WEB`.
 - **Pureiangel se elimina de todos lados** (Stripe branding/descriptores/perfiles). No reintroducir.
@@ -29,9 +29,9 @@ Recuérdalo al usuario **al inicio de cada sesión** si habla de cobros live, pa
 ## Split live
 
 - Cliente: comida **P′ = redondeo al peso de P × 1.10** + envío (fee servicio hoy = 0%). `price_base` = P (carta).
-- Dueño: `0.90 × P − Stripe/2` → solo `acct_1UDqrILSkdFzTSOj`.
-- Plataforma: lo que el cliente pagó menos el pago del dueño (el 15% de P, el extra del markup, Stripe/2 y el 100% del envío) → saldo de `acct_1UBgeMPukuGTlRTl`.
-- Recoger: envío $0; misma regla 90/15 sobre P.
+- Dueño: comida cobrada menos el 15%, menos su parte de Stripe, más el envío completo → solo `acct_1UDqrILSkdFzTSOj`.
+- Plataforma: el 15% de la comida cobrada menos su parte de Stripe → saldo de `acct_1UBgeMPukuGTlRTl`. El envío no se queda aquí.
+- Recoger: envío $0; misma regla sobre la comida cobrada. Stripe del total se reparte según esa comida.
 
 ## Capacidad Connect (verificado 2026-09-21)
 
