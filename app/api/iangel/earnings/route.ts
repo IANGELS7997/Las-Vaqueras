@@ -1,9 +1,8 @@
 import { SELF_FEE_MXN } from '@/lib/iangel-constants';
 import { ANGEL_RIDER_KEY, iangelJson, iangelPreflight, requireIangel, riderKeyFromRequest } from '@/lib/iangel-auth';
-import { deliveryFeeSettlement } from '@/lib/iangel-cash';
 import { closeIangelOpsOrder, type IangelOpsRow } from '@/lib/iangel-ops';
 import { orderVisibleToRider } from '@/lib/iangel-presence';
-import { settleAdrianDeliveryFee } from '@/lib/iangel-rider-fee';
+import { settlementForRow, settleAdrianDeliveryFee } from '@/lib/iangel-rider-fee';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -120,7 +119,7 @@ export async function GET(req: Request) {
   const found = await supabase
     .from('orders')
     .select(
-      'id, short_code, self_fee, delivery_fee, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items, iangel_rider_key, pay_method, delivery_provider, fulfillment_type, help_kind, help_label'
+      'id, short_code, self_fee, delivery_fee, customer_fee, restaurant_payout, platform_fee, stripe_payment_intent_id, created_at, status, dispatch_status, customer_name, delivery_address, delivery_references, leave_at_door, gated_community, total_charged, items, iangel_rider_key, pay_method, delivery_provider, fulfillment_type, help_kind, help_label'
     )
     .in('delivery_provider', ['self', 'wait_self'])
     .or('status.eq.delivered,dispatch_status.eq.delivered,dispatch_status.eq.help_return')
@@ -145,14 +144,7 @@ export async function GET(req: Request) {
   });
 
   for (const row of rows) {
-    const settlement = deliveryFeeSettlement({
-      id: row.id,
-      payMethod: row.pay_method || null,
-      riderKey: row.iangel_rider_key || null,
-      deliveryProvider: row.delivery_provider || null,
-      fulfillment: row.fulfillment_type || null,
-      status: 'delivered',
-    });
+    const settlement = await settlementForRow(row);
     if (settlement.transfer.kind !== 'transfer' || !settlement.notice) continue;
     const result = await settleAdrianDeliveryFee(row.id);
     if (result === 'created') {

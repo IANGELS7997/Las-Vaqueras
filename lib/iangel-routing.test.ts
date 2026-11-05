@@ -3,7 +3,7 @@ import { branchById } from './branches';
 import { isIangelShift } from './iangel-shift';
 import { resolveDeliveryRouting, needsUberQuote } from './iangel-routing';
 import { calcCheckoutSplit } from './checkout-split';
-import { calcDeveloperOnChargedFood, calcRestaurantPayout, calcWebPrice } from './pricing';
+import { calcDeveloperOnChargedFood, calcWebPrice } from './pricing';
 import { chargedFoodWeb } from './gift-cart';
 
 function assert(cond: unknown, message: string) {
@@ -147,8 +147,15 @@ assert(selfSplit.deliveryFee === 50, 'self cobra $50 al cliente');
 assert(selfSplit.deliveryDiscount === 0, 'IANGEL sin 3%');
 assert(
   selfSplit.restaurantPayout ===
-    Number((calcWebPrice(CARTA) - calcDeveloperOnChargedFood(calcWebPrice(CARTA)) - selfSplit.stripeShare).toFixed(2)),
-  'IANGEL: dueño se queda la comida menos el 15% y su Stripe'
+    Number(
+      (
+        calcWebPrice(CARTA) -
+        calcDeveloperOnChargedFood(calcWebPrice(CARTA)) -
+        selfSplit.stripeShare +
+        selfSplit.deliveryFee
+      ).toFixed(2)
+    ),
+  'IANGEL: dueño se queda la comida menos el 15% y su Stripe, más el envío'
 );
 
 const uberSplit = calcCheckoutSplit({
@@ -161,8 +168,15 @@ assert(uberSplit.deliveryFee === 77.6, `uber: 80 × 0.97 = 77.6, got ${uberSplit
 assert(uberSplit.deliveryDiscount === 2.4, '3% del quote, no de la carta');
 assert(
   uberSplit.restaurantPayout ===
-    Number((calcRestaurantPayout(CARTA) - uberSplit.stripeShare).toFixed(2)),
-  'Uber conserva 90% de la carta menos Stripe/2'
+    Number(
+      (
+        calcWebPrice(CARTA) -
+        calcDeveloperOnChargedFood(calcWebPrice(CARTA)) -
+        uberSplit.stripeShare +
+        uberSplit.deliveryFee
+      ).toFixed(2)
+    ),
+  'Uber: dueño se queda la comida menos el 15% y su Stripe, más el envío'
 );
 
 const cartaSplit = calcCheckoutSplit({
@@ -185,9 +199,9 @@ assert(burgerDelivery.totalCharged === 159, 'tradicional a domicilio cobra 159')
 assert(burgerDelivery.deliveryFee === 50, 'el envío de 50 no cambia');
 assert(burgerDelivery.stripeFee === 10.12, `Stripe del 159 es 10.12, got ${burgerDelivery.stripeFee}`);
 assert(burgerDelivery.stripeShare === 8.6, `Stripe del dueño 8.60, got ${burgerDelivery.stripeShare}`);
-assert(burgerDelivery.restaurantPayout === 84.05, `dueño domicilio 84.05, got ${burgerDelivery.restaurantPayout}`);
+assert(burgerDelivery.restaurantPayout === 134.05, `dueño domicilio 134.05, got ${burgerDelivery.restaurantPayout}`);
 assert(
-  Number((burgerDelivery.platformFee - burgerDelivery.stripeFee - burgerDelivery.deliveryFee).toFixed(2)) === 14.83,
+  Number((burgerDelivery.platformFee - burgerDelivery.stripeFee).toFixed(2)) === 14.83,
   'desarrollador domicilio queda en 14.83 después de su Stripe'
 );
 const burgerPickup = calcCheckoutSplit({

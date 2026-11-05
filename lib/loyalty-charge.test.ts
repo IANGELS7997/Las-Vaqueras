@@ -57,8 +57,8 @@ assert(
 const ownerDrop = Number((plain.restaurantPayout - promo.restaurantPayout).toFixed(2));
 const stripeDrop = Number((plain.stripeShare - promo.stripeShare).toFixed(2));
 
-const foodMargin = (split: { platformFee: number; stripeShare: number; deliveryFee: number }) =>
-  Number((split.platformFee - split.stripeShare - split.deliveryFee).toFixed(2));
+const foodMargin = (split: { platformFee: number; stripeShare: number }) =>
+  Number((split.platformFee - split.stripeShare).toFixed(2));
 assert(foodMargin(plain) === calcDeveloperOnChargedFood(plain.subtotalWeb), 'el 15% sale de la comida cobrada');
 assert(foodMargin(promo) === calcDeveloperOnChargedFood(promo.subtotalWeb), 'el descuento baja la base del 15%');
 const foodDrop = Number((plain.subtotalWeb - promo.subtotalWeb).toFixed(2));

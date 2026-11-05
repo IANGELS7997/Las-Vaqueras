@@ -4,9 +4,7 @@ import {
   allocateFoodStripe,
   calcCustomerFee,
   calcDeveloperOnChargedFood,
-  calcRestaurantPayout,
   calcStripeFee,
-  calcStripeShare,
   calcWebPrice,
 } from '@/lib/pricing';
 import type { FulfillmentMode } from '@/types';
@@ -77,9 +75,7 @@ export function calcCheckoutSplit({
       ? Math.max(0, Math.round(foodWebTotal))
       : calcWebPrice(chargedBase);
   const customerFee = calcCustomerFee(subtotalWeb);
-  const shareBase = ownerAbsorbsDiscount ? priceBaseTotal : chargedBase;
   const kind = fulfillment === 'pickup' ? 'pickup' : provider || 'self';
-  const foodShare = kind === 'pickup' || kind === 'self' || kind === 'wait_self' || kind === 'managed';
   const rawUber = uberFee ?? 0;
   const routedFee =
     typeof legacyDeliveryFee === 'number' && Number.isFinite(legacyDeliveryFee) && legacyDeliveryFee > 0
@@ -102,24 +98,13 @@ export function calcCheckoutSplit({
 
   const totalCharged = Number((subtotalWeb + customerFee + delivery.deliveryFee).toFixed(2));
   const stripeFee = calcStripeFee(totalCharged);
-  let stripeShare: number;
-  let restaurantPayout: number;
-  if (foodShare) {
-    const chargedFood = Number((subtotalWeb + customerFee).toFixed(2));
-    const developerGross = Math.min(calcDeveloperOnChargedFood(chargedFood), chargedFood);
-    const ownerFood = Number(Math.max(0, chargedFood - developerGross).toFixed(2));
-    const allocated = allocateFoodStripe(stripeFee, developerGross, ownerFood);
-    stripeShare = allocated.ownerStripe;
-    const ownerNet = Number(Math.max(0, ownerFood - allocated.ownerStripe).toFixed(2));
-    restaurantPayout =
-      kind === 'managed' ? Number((ownerNet + delivery.deliveryFee).toFixed(2)) : ownerNet;
-  } else {
-    const restaurantGross = calcRestaurantPayout(shareBase);
-    stripeShare = calcStripeShare(totalCharged);
-    restaurantPayout = Number(
-      Math.max(0, restaurantGross - stripeShare - (ownerAbsorbsDiscount ? discount : 0)).toFixed(2)
-    );
-  }
+  const chargedFood = Number((subtotalWeb + customerFee).toFixed(2));
+  const developerGross = Math.min(calcDeveloperOnChargedFood(chargedFood), chargedFood);
+  const ownerFood = Number(Math.max(0, chargedFood - developerGross).toFixed(2));
+  const allocated = allocateFoodStripe(stripeFee, developerGross, ownerFood);
+  const stripeShare = allocated.ownerStripe;
+  const ownerNet = Number(Math.max(0, ownerFood - allocated.ownerStripe).toFixed(2));
+  const restaurantPayout = Number((ownerNet + delivery.deliveryFee).toFixed(2));
   const platformFee = Number((totalCharged - restaurantPayout).toFixed(2));
   const totalChargedCentavos = Math.round(totalCharged * 100);
   const restaurantPayoutCentavos = Math.round(restaurantPayout * 100);
