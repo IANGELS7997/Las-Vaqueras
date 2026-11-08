@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Trash2, ArrowLeft, CreditCard, Loader2, User, Mail, Clock, Ticket } from 'lucide-react';
 import { CheckoutPayment } from '@/components/checkout-payment';
 import { DeliveryMap } from '@/components/delivery-map';
+import { FinalSaleConsent } from '@/components/final-sale-consent';
 import { MenuProductImage } from '@/components/menu-product-image';
 import { useCart } from '@/lib/cart-context';
 import { Button } from '@/components/ui/button';
@@ -57,7 +58,6 @@ import { CASH_CONFIRM_BODY, FINAL_SALE_CONSENT } from '@/lib/final-sale';
 import { branchById, isBranchOpen } from '@/lib/branches';
 import type { Order } from '@/types';
 import { cn } from '@/lib/utils';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -1186,35 +1186,23 @@ export default function CheckoutPage() {
               />
             ) : (
               <div>
-                <label className="mb-4 flex items-start gap-3 text-sm text-muted-foreground">
-                  <Checkbox
-                    checked={acceptFinalSale}
-                    onCheckedChange={(value) => {
-                      setAcceptFinalSale(value === true);
-                      setErrors((prev) => {
-                        const next = { ...prev };
-                        delete next.acceptFinalSale;
-                        return next;
-                      });
-                    }}
-                    className="mt-0.5 border-border"
-                  />
-                  <span>
-                    {isGiftCheckout
+                <FinalSaleConsent
+                  checked={acceptFinalSale}
+                  onCheckedChange={(value) => {
+                    setAcceptFinalSale(value);
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.acceptFinalSale;
+                      return next;
+                    });
+                  }}
+                  message={
+                    isGiftCheckout
                       ? 'Confirmo las condiciones de este cupón. No admite cancelación ni devolución.'
-                      : FINAL_SALE_CONSENT}{' '}
-                    <a href="/terminos" className="text-brand-400 underline-offset-2 hover:underline">
-                      Términos
-                    </a>
-                    {' · '}
-                    <a href="/faq" className="text-brand-400 underline-offset-2 hover:underline">
-                      Preguntas frecuentes
-                    </a>.
-                  </span>
-                </label>
-                {errors.acceptFinalSale && (
-                  <p className="mb-3 text-xs text-red-400">{errors.acceptFinalSale}</p>
-                )}
+                      : FINAL_SALE_CONSENT
+                  }
+                  error={errors.acceptFinalSale}
+                />
                 <Button
                   onClick={requestPayment}
                   disabled={creatingIntent || !canStartPayment}
