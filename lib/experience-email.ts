@@ -9,7 +9,7 @@ import {
 } from '@/lib/customer-mail';
 import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 
-export const EXPERIENCE_SUBJECT = '¿Cómo estuvo tu pedido? · Las Vaqueras';
+export const EXPERIENCE_SUBJECT = 'Califica tu experiencia · Las Vaqueras';
 
 /** Desde que sale el ticket, no desde la entrega. */
 export const EXPERIENCE_WAIT_MS = 85 * 60 * 1000;
@@ -41,8 +41,7 @@ export function buildExperienceEmail(input: {
   const track = customerOrderUrl(input.orderId, input.token);
   const first = escMail(input.customerName.trim().split(' ')[0] || '');
   const html = mailDocument({
-    eyebrow: 'Tu opinión',
-    title: '¿Cómo estuvo tu pedido?',
+    title: 'Califica tu experiencia',
     body: [
       mailParagraph(`Hola ${first},`),
       mailParagraph('Ya pasó un rato desde que recibiste tu pedido. Nos ayuda mucho saber cómo te fue, del 1 al 5.'),
@@ -53,7 +52,7 @@ export function buildExperienceEmail(input: {
   });
   const text = [
     `Hola ${input.customerName.trim().split(' ')[0] || ''}.`,
-    '¿Cómo estuvo tu pedido? Elige del 1 al 5. En la página puedes dejar un comentario.',
+    'Califica tu experiencia. Elige del 1 al 5. En la página puedes dejar un comentario.',
     ...[1, 2, 3, 4, 5].map(
       (star) => `${star} estrellas: ${track}${track.includes('?') ? '&' : '?'}estrellas=${star}`
     ),

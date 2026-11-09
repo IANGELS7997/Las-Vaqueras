@@ -37,7 +37,7 @@ export function mailNote(inner: string) {
 }
 
 /** Tarjeta clara de 440px. El cuerpo ya viene en HTML. Título y ceja se escapan aquí. */
-export function mailDocument(input: { eyebrow: string; title: string; body: string; footer?: string }) {
+export function mailDocument(input: { eyebrow?: string; title: string; body: string; footer?: string }) {
   const footer = input.footer
     ? `<tr>
 <td align="center" bgcolor="#ffffff" style="padding:24px 32px 32px;background-color:#ffffff;font-family:${FONT};font-size:13px;line-height:1.5;color:#737373;">
@@ -45,6 +45,10 @@ ${input.footer}
 </td>
 </tr>`
     : `<tr><td bgcolor="#ffffff" height="32" style="height:32px;font-size:0;line-height:0;background-color:#ffffff;">&nbsp;</td></tr>`;
+  const eyebrowText = input.eyebrow?.trim() || '';
+  const eyebrow = eyebrowText
+    ? `<p style="margin:0 0 8px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#f97316;font-weight:700;">${esc(eyebrowText)}</p>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -69,7 +73,7 @@ ${input.footer}
 </tr>
 <tr>
 <td align="center" bgcolor="#ffffff" style="padding:24px 32px 0;background-color:#ffffff;font-family:${FONT};">
-<p style="margin:0 0 8px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#f97316;font-weight:700;">${esc(input.eyebrow)}</p>
+${eyebrow}
 <h1 style="margin:0;font-size:22px;line-height:1.3;color:#111111;font-weight:700;">${esc(input.title)}</h1>
 </td>
 </tr>

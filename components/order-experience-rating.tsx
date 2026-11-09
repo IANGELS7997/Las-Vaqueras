@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 
 const THANKS =
-  'Gracias por tu opinión. Tu calificación quedó registrada y nos ayuda a seguir mejorando el servicio.';
+  'Gracias por calificar. Tu calificación quedó registrada y nos ayuda a seguir mejorando el servicio.';
 
 type RatingState = { stars: number; comment: string | null } | null;
 
@@ -109,7 +109,7 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
   if (rating) {
     return (
       <section className={card} aria-live="polite">
-        <h3 className="text-sm font-bold text-white">¿Cómo estuvo tu pedido?</h3>
+        <h3 className="text-sm font-bold text-white">Califica tu experiencia</h3>
         <Stars value={rating.stars} />
         <p className="mt-3 text-sm text-white">{THANKS}</p>
       </section>
@@ -118,7 +118,7 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
 
   return (
     <form onSubmit={onSubmit} className={card}>
-      <h3 className="text-sm font-bold text-white">¿Cómo estuvo tu pedido?</h3>
+      <h3 className="text-sm font-bold text-white">Califica tu experiencia</h3>
       <p className="mt-1 text-xs text-muted-foreground">Elige de 1 a 5 estrellas y, si quieres, deja un comentario.</p>
       <Stars value={stars} onPick={setStars} />
       <textarea
