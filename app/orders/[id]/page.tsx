@@ -183,6 +183,7 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
 
   return (
     <div className="mx-auto max-w-md px-6 pb-12 pt-6 text-white">
+      <OrderExperienceRating orderId={order.id} delivered={status === 'delivered' || order.dispatchStatus === 'delivered'} />
       <button
         onClick={() => router.push('/menu')}
         className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-orange-400"
@@ -296,7 +297,6 @@ export default function OrderTracking({ params }: { params: { id: string } }) {
         ) : null}
       </div>
 
-      <OrderExperienceRating orderId={order.id} delivered={status === 'delivered' || order.dispatchStatus === 'delivered'} />
       <OrderRiderRating orderId={order.id} delivered={status === 'delivered' || order.dispatchStatus === 'delivered'} />
 
       <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left">
