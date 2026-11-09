@@ -44,6 +44,7 @@ assert(iangel?.ticket.kindLabel === 'IANGEL', 'tipo IANGEL');
 assert(iangel?.ticket.items[0]?.extras[0] === 'Queso', 'extra en el ticket');
 assert(iangel?.ticket.items[0]?.removals[0] === 'Cebolla', 'sin ingrediente en el ticket');
 assert(iangel?.ticket.foodMxn === 200 && iangel.ticket.deliveryMxn === 50, 'comida y envío');
+assert(iangel?.ticket.restaurantPayout == null, 'sin split guardado no se inventa el reparto');
 assert(iangel?.kitchenStatus === 'Preparando', 'estado de cocina');
 assert(
   buildIangelOpsOrder(row({ kitchen_accepted_at: '2026-11-04T18:00:00.000Z' }))?.kitchenStatus === 'Cocina aceptó',
@@ -99,5 +100,15 @@ assert(unpaid === null, 'sin pago no avisa al panel');
 
 const cash = buildIangelOpsOrder(row({ pay_method: 'cash', cash_food_due: 200 }));
 assert(cash?.feeMxn === 50 && cash.cashFoodDue === 200, 'efectivo IANGEL conserva el envío del rider');
+
+const split = buildIangelOpsOrder(row({
+  restaurant_payout: 195.93,
+  platform_fee: 41.07,
+  stripe_fee: 13.38,
+  cash_fee_collected: 0,
+}));
+assert(split?.ticket.restaurantPayout === 195.93, 'el payout cobrado viaja en el ticket');
+assert(split?.ticket.platformFee === 41.07 && split.ticket.stripeFee === 13.38, 'plataforma y Stripe viajan en el ticket');
+assert(split?.ticket.cashPlatformFee === 0, 'sin comisión de efectivo el campo queda en cero');
 
 console.log('iangel-ops tests: ok');

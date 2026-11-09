@@ -413,6 +413,8 @@ export async function POST(req: Request) {
           Number(paymentIntent.metadata.cash_platform_fee || 0) > 0
             ? Number(paymentIntent.metadata.platform_fee)
             : split.platformFee,
+        stripe_fee: Number(paymentIntent.metadata.stripe_fee || split.stripeFee),
+        cash_fee_collected: Number(paymentIntent.metadata.cash_platform_fee || 0),
         customer_fee: split.customerFee,
         delivery_fee: split.deliveryFee,
         fulfillment_type: fulfillment,
