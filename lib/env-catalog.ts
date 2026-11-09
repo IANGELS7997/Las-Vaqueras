@@ -268,8 +268,8 @@ export const ENV_CATALOG: EnvCheck[] = [
   },
   {
     key: 'IANGEL_OPS_WEBHOOK_SECRET',
-    purpose: 'Secreto del negocio Las Vaqueras en Admin. Sin él la ruta sigue en orden de llegada.',
-    usedBy: ['lib/iangel-ops.ts', 'app/api/iangel/route/route.ts'],
+    purpose: 'Secreto del negocio Las Vaqueras en Admin. Sin él la ruta sigue en orden de llegada. También autoriza el correo de calificación.',
+    usedBy: ['lib/iangel-ops.ts', 'app/api/iangel/route/route.ts', 'app/api/cron/experience-email/route.ts'],
     requiredInProduction: false,
     severity: 'warn',
   },

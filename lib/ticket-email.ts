@@ -7,6 +7,7 @@ import { DELIVERY_ETA_MAIL } from '@/lib/iangel-copy';
 import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 import { formatMXN } from '@/lib/pricing';
 import type { DbOrderRow } from '@/lib/orders-map';
+import { createAdminSupabase } from '@/lib/supabase-admin';
 
 export type TicketOrder = DbOrderRow & {
   profile_login_token?: string | null;
@@ -121,5 +122,12 @@ export async function sendCustomerTicket(row: TicketOrder) {
       text: message.text,
     }),
   });
-  return { ok: response.ok };
+  if (!response.ok) return { ok: false as const };
+  const stamped = await createAdminSupabase()
+    .from('orders')
+    .update({ ticket_sent_at: new Date().toISOString() })
+    .eq('id', row.id)
+    .is('ticket_sent_at', null);
+  if (stamped.error) throw new Error('No se guardó la hora del ticket');
+  return { ok: true as const };
 }

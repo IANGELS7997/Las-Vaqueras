@@ -11,6 +11,16 @@ import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 
 export const EXPERIENCE_SUBJECT = '¿Cómo estuvo tu pedido? · Las Vaqueras';
 
+/** Desde que sale el ticket, no desde la entrega. */
+export const EXPERIENCE_WAIT_MS = 85 * 60 * 1000;
+
+export function experienceEmailDue(ticketSentAt: string | null | undefined, nowMs: number) {
+  if (!ticketSentAt) return false;
+  const sentAt = new Date(ticketSentAt).getTime();
+  if (!Number.isFinite(sentAt)) return false;
+  return sentAt <= nowMs - EXPERIENCE_WAIT_MS;
+}
+
 function starLinks(orderUrl: string) {
   const stars = [1, 2, 3, 4, 5]
     .map((star) => {
