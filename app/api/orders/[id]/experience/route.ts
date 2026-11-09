@@ -21,6 +21,10 @@ function delivered(order: { status?: string | null; dispatch_status?: string | n
   return order.status === 'delivered' || order.dispatch_status === 'delivered';
 }
 
+function ratingPayload(row: { stars: number; comment: string | null; created_at: string }) {
+  return { stars: row.stars, comment: row.comment, createdAt: row.created_at };
+}
+
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
     const token = new URL(req.url).searchParams.get('s') || '';
@@ -35,9 +39,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
     return NextResponse.json({
       canRate: allowed,
-      rating: existing.data
-        ? { stars: existing.data.stars, comment: existing.data.comment, createdAt: existing.data.created_at }
-        : null,
+      rating: existing.data ? ratingPayload(existing.data) : null,
     });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Error' }, { status: 500 });
@@ -58,26 +60,41 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!delivered(order) || !token || token !== String(order.profile_login_token || '')) {
       return NextResponse.json({ error: 'Este enlace no puede calificar el pedido' }, { status: 400 });
     }
+    const prior = await supabase
+      .from('order_experience_ratings')
+      .select('stars, comment, created_at')
+      .eq('order_id', params.id)
+      .maybeSingle();
+    if (prior.error) return NextResponse.json({ error: prior.error.message }, { status: 500 });
+    if (prior.data) return NextResponse.json({ rating: ratingPayload(prior.data), already: true });
+
     const saved = await supabase
       .from('order_experience_ratings')
-      .upsert({ order_id: params.id, stars, comment: comment || null }, { onConflict: 'order_id' })
+      .insert({ order_id: params.id, stars, comment: comment || null })
       .select('stars, comment, created_at')
       .single();
+    if (saved.error?.code === '23505') {
+      const again = await supabase
+        .from('order_experience_ratings')
+        .select('stars, comment, created_at')
+        .eq('order_id', params.id)
+        .maybeSingle();
+      if (again.data) return NextResponse.json({ rating: ratingPayload(again.data), already: true });
+    }
     if (saved.error || !saved.data) {
       return NextResponse.json({ error: saved.error?.message || 'No se guardó' }, { status: 500 });
     }
     const code = order.short_code || params.id.replace(/-/g, '').slice(0, 4).toUpperCase();
-    void sendExperienceResultNotice({
+    const notice = await sendExperienceResultNotice({
       code,
       stars,
       comment,
       customerName: String(order.customer_name || ''),
       orderId: params.id,
       branchName: branchById(orderBranchId(order.branch_id)).shortName,
-    }).catch(() => undefined);
-    return NextResponse.json({
-      rating: { stars: saved.data.stars, comment: saved.data.comment, createdAt: saved.data.created_at },
     });
+    if (!notice.ok) console.error('No se envió el aviso de calificación', params.id);
+    return NextResponse.json({ rating: ratingPayload(saved.data) });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Error' }, { status: 500 });
   }

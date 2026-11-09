@@ -3,7 +3,41 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 
+const THANKS =
+  'Gracias por tu opinión. Tu calificación quedó registrada y nos ayuda a seguir mejorando el servicio.';
+
 type RatingState = { stars: number; comment: string | null } | null;
+
+function Stars({ value, onPick }: { value: number; onPick?: (star: number) => void }) {
+  return (
+    <div className="mt-3 flex gap-1" role={onPick ? undefined : 'img'} aria-label={onPick ? undefined : `${value} de 5 estrellas`}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const icon = (
+          <Star className={`h-7 w-7 ${star <= value ? 'fill-orange-500 text-orange-500' : 'text-neutral-600'}`} />
+        );
+        if (!onPick) {
+          return (
+            <span key={star} className="rounded-md p-1" aria-hidden>
+              {icon}
+            </span>
+          );
+        }
+        return (
+          <button
+            key={star}
+            type="button"
+            aria-label={`${star} estrellas`}
+            aria-pressed={star === value}
+            onClick={() => onPick(star)}
+            className="rounded-md p-1"
+          >
+            {icon}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function OrderExperienceRating({ orderId, delivered }: { orderId: string; delivered: boolean }) {
   const [ready, setReady] = useState(false);
@@ -13,7 +47,6 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [ok, setOk] = useState('');
 
   useEffect(() => {
     if (!delivered) {
@@ -34,8 +67,6 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
         setCanRate(Boolean(payload.canRate));
         if (payload.rating) {
           setRating({ stars: Number(payload.rating.stars) || 0, comment: payload.rating.comment || null });
-          setStars(Number(payload.rating.stars) || preset || 0);
-          setComment(String(payload.rating.comment || ''));
         }
       })
       .catch(() => undefined)
@@ -52,7 +83,6 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
     const token = new URLSearchParams(window.location.search).get('s') || '';
     setBusy(true);
     setError('');
-    setOk('');
     try {
       const res = await fetch(`/api/orders/${orderId}/experience`, {
         method: 'POST',
@@ -61,8 +91,10 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload.error || 'No se guardó la calificación');
-      setRating({ stars: Number(payload.rating?.stars) || stars, comment: payload.rating?.comment || comment || null });
-      setOk('Gracias. Ya recibimos tu calificación.');
+      setRating({
+        stars: Number(payload.rating?.stars) || stars,
+        comment: payload.rating?.comment || comment || null,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se guardó');
     } finally {
@@ -71,27 +103,24 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
   }
 
   if (!ready || !canRate) return null;
-  if (rating && ok) {
-    return <p className="mb-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-white">{ok}</p>;
+
+  const card = 'mb-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left';
+
+  if (rating) {
+    return (
+      <section className={card} aria-live="polite">
+        <h3 className="text-sm font-bold text-white">¿Cómo estuvo tu pedido?</h3>
+        <Stars value={rating.stars} />
+        <p className="mt-3 text-sm text-white">{THANKS}</p>
+      </section>
+    );
   }
 
   return (
-    <form onSubmit={onSubmit} className="mb-4 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left">
+    <form onSubmit={onSubmit} className={card}>
       <h3 className="text-sm font-bold text-white">¿Cómo estuvo tu pedido?</h3>
       <p className="mt-1 text-xs text-muted-foreground">Elige de 1 a 5 estrellas y, si quieres, deja un comentario.</p>
-      <div className="mt-3 flex gap-1">
-        {[1, 2, 3, 4, 5].map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-label={`${value} estrellas`}
-            onClick={() => setStars(value)}
-            className="rounded-md p-1"
-          >
-            <Star className={`h-7 w-7 ${value <= stars ? 'fill-orange-500 text-orange-500' : 'text-neutral-600'}`} />
-          </button>
-        ))}
-      </div>
+      <Stars value={stars} onPick={setStars} />
       <textarea
         value={comment}
         onChange={(event) => setComment(event.target.value.slice(0, 400))}
@@ -100,7 +129,6 @@ export function OrderExperienceRating({ orderId, delivered }: { orderId: string;
         rows={3}
       />
       {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
-      {ok ? <p className="mt-2 text-xs text-green-400">{ok}</p> : null}
       <button
         type="submit"
         disabled={busy || stars < 1}
