@@ -26,6 +26,10 @@ export type IangelOpsRow = {
   dispatch_status?: string | null;
   pay_method?: string | null;
   cash_food_due?: number | string | null;
+  restaurant_payout?: number | string | null;
+  platform_fee?: number | string | null;
+  stripe_fee?: number | string | null;
+  cash_fee_collected?: number | string | null;
   pickup_at?: string | null;
   short_code?: string | null;
   branch_id?: string | null;
@@ -60,6 +64,10 @@ export type OpsTicket = {
   deliveryMxn: number;
   totalMxn: number;
   payMethod: 'card' | 'cash' | null;
+  restaurantPayout?: number;
+  platformFee?: number;
+  stripeFee?: number;
+  cashPlatformFee?: number;
 };
 
 export type IangelOpsOrderNotice = {
@@ -96,6 +104,12 @@ export function isIangelDelivery(row: IangelOpsRow) {
 function money(value: unknown) {
   const num = Number(value);
   return Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
+}
+
+function moneyOrNull(value: unknown) {
+  if (value == null || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? Math.round(num * 100) / 100 : null;
 }
 
 function coord(value: unknown) {
@@ -158,6 +172,18 @@ export function buildIangelOpsOrder(row: IangelOpsRow): IangelOpsOrderNotice | n
   const address =
     kind.kind === 'recoger' ? branch.address : String(row.delivery_address || '').trim() || branch.address;
   const cashFood = money(row.cash_food_due);
+  const restaurantPayout = moneyOrNull(row.restaurant_payout);
+  const platformFee = moneyOrNull(row.platform_fee);
+  const stripeFee = moneyOrNull(row.stripe_fee);
+  const cashPlatformFee = moneyOrNull(row.cash_fee_collected);
+  const chargedSplit = restaurantPayout != null && platformFee != null && stripeFee != null
+    ? {
+        restaurantPayout,
+        platformFee,
+        stripeFee,
+        cashPlatformFee: cashPlatformFee ?? 0,
+      }
+    : null;
 
   return {
     externalId: id,
@@ -190,6 +216,7 @@ export function buildIangelOpsOrder(row: IangelOpsRow): IangelOpsOrderNotice | n
       deliveryMxn: delivery,
       totalMxn: total,
       payMethod,
+      ...(chargedSplit ?? {}),
     },
   };
 }

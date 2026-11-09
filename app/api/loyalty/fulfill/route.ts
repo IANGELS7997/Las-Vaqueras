@@ -73,6 +73,8 @@ export async function POST(req: Request) {
       total_charged: 0,
       restaurant_payout: 0,
       platform_fee: 0,
+      stripe_fee: 0,
+      cash_fee_collected: 0,
       customer_fee: 0,
       delivery_fee: 0,
       status: 'preparing',
