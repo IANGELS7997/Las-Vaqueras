@@ -12,7 +12,7 @@ import { mailDocument, mailParagraph } from '@/lib/mail-shell';
 export const EXPERIENCE_SUBJECT = 'Califica tu experiencia · Las Vaqueras';
 
 /** Desde que sale el ticket, no desde la entrega. */
-export const EXPERIENCE_WAIT_MS = 85 * 60 * 1000;
+export const EXPERIENCE_WAIT_MS = 90 * 60 * 1000;
 
 export function experienceEmailDue(ticketSentAt: string | null | undefined, nowMs: number) {
   if (!ticketSentAt) return false;
