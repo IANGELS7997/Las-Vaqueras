@@ -7,11 +7,11 @@ Hay dos archivos con el mismo nombre:
 - `docs/REVOCACION.md` (este). Entra al repo. No lleva contraseñas ni claves.
 - `REVOCACION`, en la raíz del proyecto, en la máquina de Angel. Está en `.gitignore`. Ahí están los valores de Production que Vercel todavía deja bajar, más las copias locales de las claves que sí estaban en esta máquina. **No se sube a GitHub.** Vercel ya no devuelve `STRIPE_SECRET_KEY` ni las contraseñas de CENTRO, NORTE y SUR. Esas hay que completarlas en ese archivo desde Stripe y desde quien las tenga anotadas, sin pegarlas en el chat.
 
-El repo [IANGELS7997/Las-Vaqueras](https://github.com/IANGELS7997/Las-Vaqueras) no se borra. La base Supabase y el proyecto Vercel tampoco se borraron en este cierre: el sitio público se dejó en blanco y los cobros nuevos del sitio quedaron vacíos. Cocina, la API del rider, n8n y la Express de Adrián siguen vivos.
+El repo [IANGELS7997/Las-Vaqueras](https://github.com/IANGELS7997/Las-Vaqueras) no se borra. La base Supabase y el proyecto Vercel tampoco se borraron en este cierre: el sitio público y la cocina quedaron en blanco, y los cobros nuevos del sitio quedaron vacíos. La API del rider, n8n y la Express de Adrián siguen vivos.
 
 ## 1. Qué se apagó el 9 de noviembre de 2026
 
-Quien abre `https://lasvaqueras.com.mx` o `https://www.lasvaqueras.com.mx` (y cualquier host que no sea la cocina ni localhost) recibe una hoja en blanco: título vacío, fondo blanco, sin logo, sin «estamos cerrados» y sin menú. La respuesta es HTTP 200, `cache-control: no-store`, `x-robots-tag: noindex`. El HTML está en `BLANK_STORE_HTML` de [lib/revocation-gate.ts](../lib/revocation-gate.ts). El middleware lo aplica en [middleware.ts](../middleware.ts).
+Quien abre `https://lasvaqueras.com.mx`, `https://www.lasvaqueras.com.mx` o `https://cocina.lasvaqueras.com.mx` recibe una hoja en blanco: título vacío, fondo blanco, sin logo, sin «estamos cerrados», sin menú y sin login de cocina. La respuesta es HTTP 200, `cache-control: no-store`, `x-robots-tag: noindex`. El HTML está en `BLANK_STORE_HTML` de [lib/revocation-gate.ts](../lib/revocation-gate.ts). El middleware lo aplica en [middleware.ts](../middleware.ts). En el host de cocina, las APIs (`/api/kitchen` y el resto) también responden vacías. En localhost el sitio y la cocina se ven normales, para poder trabajar.
 
 Las APIs del sitio que no están en la lista de abajo responden vacías (HTTP 200, cuerpo vacío). Eso incluye `/api/checkout`, así no entra un cobro nuevo por detrás de la página.
 
@@ -22,9 +22,9 @@ Siguen respondiendo, a propósito:
 - `/api/cron` (correo de calificación cada 5 minutos y el watchdog de cocina).
 - `/api/store-status` (la consulta de horario que usa el admin).
 
-Sigue igual la cocina en `https://cocina.lasvaqueras.com.mx`. En localhost el sitio se ve normal, para poder trabajar. En el dominio público, `/admin` sigue en 404.
+En el dominio público, `/admin` sigue en 404. Ese 404 ya no se alcanza en `cocina.lasvaqueras.com.mx`, porque ese host entero está en blanco.
 
-Para quitar el blanco y volver a mostrar la tienda: borrar la llamada a `revocationDecision` en `middleware.ts` (el bloque que devuelve `blankPage`, `blankApi` o `keep`) y volver a desplegar `main`. No reescribir la tienda a mano.
+Para quitar el blanco y volver a mostrar la tienda y la cocina: borrar la llamada a `revocationDecision` en `middleware.ts` (el bloque que devuelve `blankPage`, `blankApi` o `keep`) y volver a desplegar `main`. No reescribir la tienda ni el panel a mano. El host de cocina vuelve a entrar por la regla anterior del middleware: `/` reescribe a `/admin/kitchen` o `/admin/login`, y cualquier otra ruta que no sea de cocina redirige a `/admin/kitchen`.
 
 ## 2. Commit de la foto
 
@@ -45,7 +45,7 @@ Sitio público, antes del blanco:
 - `/orders/[id]` ticket y seguimiento
 - `/faq`, `/privacidad`, `/terminos`, `/instalar`
 
-Cocina (sigue):
+Cocina (apagada la misma noche, después del sitio). Así estaba antes del blanco, y así tiene que volver:
 
 - Host `cocina.lasvaqueras.com.mx` (`NEXT_PUBLIC_KITCHEN_HOST`, y ese mismo valor es el default en código).
 - Usuarios `CENTRO`, `NORTE`, `SUR`. Cada uno solo ve su sucursal.
@@ -344,6 +344,7 @@ Hecho el 9 nov 2026:
 - Guía escrita.
 - Archivo local `REVOCACION` con las variables de Production que Vercel todavía deja bajar, más las copias locales de las que estaban marcadas Sensitive. Faltan en ese archivo: `STRIPE_SECRET_KEY` de producción, las tres contraseñas de entrada de cocina y `IANGEL_OPS_WEBHOOK_SECRET`.
 - Sitio público en blanco y APIs de cobro del sitio vacías.
+- Cocina en blanco, en `https://cocina.lasvaqueras.com.mx`, páginas y APIs. El panel no muestra login ni pedidos.
 
 No hecho, y no se hace hasta que su Express esté en cero y él haya contestado:
 
@@ -366,11 +367,11 @@ Antes de cualquiera de esos borrados, además del archivo `REVOCACION`:
 
 ## 12. Volver a encender
 
-1. Partir de `main` con este archivo y quitar el blanco: en `middleware.ts`, dejar de llamar a `revocationDecision`. Desplegar `main`. El sitio vuelve a verse.
+1. Partir de `main` con este archivo y quitar el blanco: en `middleware.ts`, dejar de llamar a `revocationDecision`. Desplegar `main`. El sitio vuelve a verse y `cocina.lasvaqueras.com.mx` vuelve al login de CENTRO, NORTE y SUR.
 2. Si Vercel o Supabase se hubieran borrado: crear el proyecto Vercel `las-vaqueras` desde este repo, pegar cada línea del archivo `REVOCACION` en Production, y conectar `lasvaqueras.com.mx`, `www` y `cocina.lasvaqueras.com.mx`. Crear el proyecto Supabase (o restaurar el dump) y aplicar las migraciones de la sección 7 solo si la base está vacía.
 3. `STRIPE_CONNECT_ACCOUNT_ID_LIVE` vuelve a ser `acct_1UDqrILSkdFzTSOj`. Si esa Express se cerró, solo se abre otra si Adrián acepta por escrito. No usar `acct_1UDRDcLzV1Sjysxx`.
 4. El webhook `payment_intent.succeeded` vuelve a `https://n8n.pureiangel.com/webhook/lv-pago-exitoso`. Si el endpoint es nuevo, actualizar el secreto en n8n.
 5. Republicar el workflow `SKVvYOhKSnPj1ggY` con el nodo Create Uber Direct activo, solo para domicilio Uber sin courier.
 6. En la PWA, `partners` vuelve a incluir el adapter de Las Vaqueras con `baseUrl` `https://lasvaqueras.com.mx`. En `iangel-ops`, las seis URLs y el slug `las-vaqueras`. Publicar la PWA y la función.
-7. Comprobar, sin un cobro real hasta que Adrián lo pida por escrito: el sitio abre en `/`, la cocina solo en su host, `GET /api/ops/health` no sale fatal, y la app del rider abre la cola sin error.
+7. Comprobar, sin un cobro real hasta que Adrián lo pida por escrito: el sitio abre en `/`, la cocina solo en su host (login, no la hoja en blanco), `GET /api/ops/health` no sale fatal, y la app del rider abre la cola sin error.
 8. No commitear el archivo `REVOCACION`. No pegar sus valores en el chat ni en un PR.

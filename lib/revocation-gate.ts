@@ -1,7 +1,8 @@
 /**
- * Cierre público de Las Vaqueras (9 nov 2026).
- * El sitio del cliente queda en blanco. Cocina, IANGEL, ops, cron y el webhook
- * de Uber siguen. Para volver a encender el sitio, ver docs/REVOCACION.md.
+ * Cierre de Las Vaqueras (9 nov 2026).
+ * El sitio del cliente y la cocina quedan en blanco. En el dominio público
+ * siguen IANGEL, ops, cron, store-status y el webhook de Uber.
+ * Para volver a encender, ver docs/REVOCACION.md.
  */
 
 export const REVOCATION_KEEP_PREFIXES = [
@@ -26,7 +27,10 @@ export function revocationDecision(input: {
   kitchenHost: string;
   local: boolean;
 }): RevocationDecision {
-  if (input.local || input.host === input.kitchenHost) return 'passthrough';
+  if (input.local) return 'passthrough';
+  if (input.host === input.kitchenHost) {
+    return input.pathname.startsWith('/api/') ? 'blank-api' : 'blank-page';
+  }
   if (revocationKeepPath(input.pathname)) return 'keep';
   if (input.pathname.startsWith('/api/')) return 'blank-api';
   return 'blank-page';
