@@ -354,11 +354,26 @@ Hecho el 9 nov 2026:
 - Sitio público en blanco y APIs de cobro del sitio vacías.
 - Cocina en blanco, en `https://cocina.lasvaqueras.com.mx`, páginas y APIs. El panel no muestra login ni pedidos.
 - Sentry apagado en el código (`enabled: false`) y alertas `6040982` y `6041165` desactivadas, para que dejen de llegar correos.
+- La misma noche, para dejar de gastar uso, se pausó lo que solo sirve a Las Vaqueras. No se borró. El admin IANGEL sigue prendido.
+
+Pausado o despublicado el 9 nov 2026 por la noche:
+
+- Vercel `las-vaqueras`, id `prj_5zw8ZzjiuBbnRGUROxJCn9WN0APb`. Se apagan funciones, el cron de cada 5 minutos, el sitio y la cocina. Los dominios dejan de asignarse solos mientras esté en pausa. Para volver: `unpause_project` con ese id y el team `team_PNbziR6S4wcjubV06JuPuMnF`.
+- Vercel `app-pureiangel`, id `prj_5K76A8dSmTyTU1fM02DkuQnkn3mr`. La app del rider (`app.pureiangel.com`) queda pausada. Para volver: el mismo unpause con ese id.
+- Supabase de Las Vaqueras `dvlovmvyykcfpuknniem`. La base no se borra; queda en pausa y no cobra cómputo. Para volver: restaurar ese project id.
+- n8n despublicado (no borrado): `SKVvYOhKSnPj1ggY` (pago exitoso, con Uber Direct) y `EVd5zOphcCyc34QJ` (avisos dev). El host `n8n.pureiangel.com` sigue, porque es infra de la plataforma. Para volver: republicar esos dos workflows.
+- Webhook de Stripe `we_1UIDkbPukuGTlRTlrtkVKnCD` desactivado (`disabled: true`), no borrado. Para volver: `disabled: false` y el mismo URL `https://n8n.pureiangel.com/webhook/lv-pago-exitoso`.
+
+Sigue activo, a propósito:
+
+- Vercel `admin-iangel`, id `prj_FOjUlvxrvnvbWhfJD35DfWzA3FYa`.
+- Supabase **IANGEL** `fcuknxeakjbpqevlwswu` y la función `iangel-ops`.
+- La cuenta plataforma de Stripe `acct_1UBgeMPukuGTlRTl` (AS EUNOIA) y la Express de Adrián `acct_1UDqrILSkdFzTSOj`. Los depósitos del 8 de noviembre pueden seguir a MercadoLibre. No se cierra esa Express hasta que el saldo esté en cero.
+- Dominio Resend `lasvaqueras.com.mx` (`c6d3c473-7f71-42af-80ec-82bbe7d63d17`). El admin manda correo desde `noreply@lasvaqueras.com.mx`. Sin el cron y sin n8n, Las Vaqueras ya no envía tickets. El dominio se queda para el admin y para poder encender después.
+- El repo de GitHub. El proyecto `prototipo-like-shoes` no es de Las Vaqueras y no se tocó.
+- Uber Direct no se borra como cuenta. Deja de pedirse porque n8n está despublicado y Vercel de Las Vaqueras está en pausa.
 
 No hecho, y no se hace hasta que su Express esté en cero y él haya contestado:
-
-- Despublicar el workflow `SKVvYOhKSnPj1ggY`.
-- Borrar el webhook `we_1UIDkbPukuGTlRTlrtkVKnCD`.
 - Quitar el partner Las Vaqueras de `APP-PUREIANGEL` y las seis llamadas de `iangel-ops`.
 - Soltar los dominios, borrar el proyecto Vercel `las-vaqueras` y borrar la base `dvlovmvyykcfpuknniem`.
 - Cerrar o borrar la Express `acct_1UDqrILSkdFzTSOj`.
@@ -376,11 +391,12 @@ Antes de cualquiera de esos borrados, además del archivo `REVOCACION`:
 
 ## 12. Volver a encender
 
-1. Partir de `main` con este archivo y quitar el blanco: en `middleware.ts`, dejar de llamar a `revocationDecision`. Desplegar `main`. El sitio vuelve a verse y `cocina.lasvaqueras.com.mx` vuelve al login de CENTRO, NORTE y SUR.
-2. Si Vercel o Supabase se hubieran borrado: crear el proyecto Vercel `las-vaqueras` desde este repo, pegar cada línea del archivo `REVOCACION` en Production, y conectar `lasvaqueras.com.mx`, `www` y `cocina.lasvaqueras.com.mx`. Crear el proyecto Supabase (o restaurar el dump) y aplicar las migraciones de la sección 7 solo si la base está vacía.
-3. `STRIPE_CONNECT_ACCOUNT_ID_LIVE` vuelve a ser `acct_1UDqrILSkdFzTSOj`. Si esa Express se cerró, solo se abre otra si Adrián acepta por escrito. No usar `acct_1UDRDcLzV1Sjysxx`.
-4. El webhook `payment_intent.succeeded` vuelve a `https://n8n.pureiangel.com/webhook/lv-pago-exitoso`. Si el endpoint es nuevo, actualizar el secreto en n8n.
-5. Republicar el workflow `SKVvYOhKSnPj1ggY` con el nodo Create Uber Direct activo, solo para domicilio Uber sin courier.
-6. En la PWA, `partners` vuelve a incluir el adapter de Las Vaqueras con `baseUrl` `https://lasvaqueras.com.mx`. En `iangel-ops`, las seis URLs y el slug `las-vaqueras`. Publicar la PWA y la función.
-7. Comprobar, sin un cobro real hasta que Adrián lo pida por escrito: el sitio abre en `/`, la cocina solo en su host (login, no la hoja en blanco), `GET /api/ops/health` no sale fatal, y la app del rider abre la cola sin error.
-8. No commitear el archivo `REVOCACION`. No pegar sus valores en el chat ni en un PR.
+1. Quitar la pausa de Vercel `las-vaqueras` (`prj_5zw8ZzjiuBbnRGUROxJCn9WN0APb`) y, si la app del rider debe volver, de `app-pureiangel` (`prj_5K76A8dSmTyTU1fM02DkuQnkn3mr`). Restaurar Supabase `dvlovmvyykcfpuknniem`. Volver a activar el webhook `we_1UIDkbPukuGTlRTlrtkVKnCD`. Republicar `SKVvYOhKSnPj1ggY` y `EVd5zOphcCyc34QJ`.
+2. Partir de `main` con este archivo y quitar el blanco: en `middleware.ts`, dejar de llamar a `revocationDecision`. Desplegar `main`. El sitio vuelve a verse y `cocina.lasvaqueras.com.mx` vuelve al login de CENTRO, NORTE y SUR.
+3. Si Vercel o Supabase se hubieran borrado: crear el proyecto Vercel `las-vaqueras` desde este repo, pegar cada línea del archivo `REVOCACION` en Production, y conectar `lasvaqueras.com.mx`, `www` y `cocina.lasvaqueras.com.mx`. Crear el proyecto Supabase (o restaurar el dump) y aplicar las migraciones de la sección 7 solo si la base está vacía.
+4. `STRIPE_CONNECT_ACCOUNT_ID_LIVE` vuelve a ser `acct_1UDqrILSkdFzTSOj`. Si esa Express se cerró, solo se abre otra si Adrián acepta por escrito. No usar `acct_1UDRDcLzV1Sjysxx`.
+5. El webhook `payment_intent.succeeded` vuelve a `https://n8n.pureiangel.com/webhook/lv-pago-exitoso`. Si el endpoint es nuevo, actualizar el secreto en n8n.
+6. Republicar el workflow `SKVvYOhKSnPj1ggY` con el nodo Create Uber Direct activo, solo para domicilio Uber sin courier. También `EVd5zOphcCyc34QJ` si se quieren otra vez los avisos de pago que no cierra.
+7. En la PWA, `partners` vuelve a incluir el adapter de Las Vaqueras con `baseUrl` `https://lasvaqueras.com.mx`. En `iangel-ops`, las seis URLs y el slug `las-vaqueras`. Publicar la PWA y la función. El admin IANGEL no se apagó.
+8. Comprobar, sin un cobro real hasta que Adrián lo pida por escrito: el sitio abre en `/`, la cocina solo en su host (login, no la hoja en blanco), `GET /api/ops/health` no sale fatal, y la app del rider abre la cola sin error.
+9. No commitear el archivo `REVOCACION`. No pegar sus valores en el chat ni en un PR.
