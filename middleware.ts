@@ -4,11 +4,13 @@ import {
   hostnameOf,
   isKitchenHostname,
   isLocalHostname,
+  getKitchenHost,
   KITCHEN_COOKIE,
   readKitchenSession,
   sessionGenerationMatches,
   storedSessionGeneration,
 } from '@/lib/kitchen-auth';
+import { BLANK_STORE_HTML, revocationDecision } from '@/lib/revocation-gate';
 
 function isPublicAsset(pathname: string) {
   return (
@@ -40,13 +42,40 @@ function denyKitchen(request: NextRequest, pathname: string) {
   return NextResponse.redirect(new URL('/admin/login', request.url));
 }
 
+function blankPage() {
+  return new NextResponse(BLANK_STORE_HTML, {
+    status: 200,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex',
+    },
+  });
+}
+
+function blankApi() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: { 'cache-control': 'no-store' },
+  });
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (isPublicAsset(pathname)) return NextResponse.next();
-
   const host = hostnameOf(request.headers.get('host'));
   const onKitchenHost = isKitchenHostname(host);
   const onLocal = isLocalHostname(host);
+  const revocation = revocationDecision({
+    host,
+    pathname,
+    kitchenHost: getKitchenHost(),
+    local: onLocal,
+  });
+  if (revocation === 'blank-page') return blankPage();
+  if (revocation === 'blank-api') return blankApi();
+  if (revocation === 'keep') return NextResponse.next();
+
+  if (isPublicAsset(pathname)) return NextResponse.next();
   const session = await readKitchenSession(request.cookies.get(KITCHEN_COOKIE)?.value);
   let hasSession = session != null;
   if (onKitchenHost && session) {
