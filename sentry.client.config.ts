@@ -1,26 +1,7 @@
 import * as Sentry from '@sentry/nextjs';
-import { reportClientError } from '@/lib/dev-signal-client';
-import { isRecoveredHydrationNotice } from '@/lib/hydration-notice';
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
-
+/** Apagado el 9 nov 2026. Para volver a encender, ver docs/REVOCACION.md. */
 Sentry.init({
-  dsn,
-  enabled: Boolean(dsn),
-  environment: process.env.VERCEL_ENV || process.env.NODE_ENV,
-  tracesSampleRate: process.env.NODE_ENV === 'development' ? 1.0 : 0.1,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-  integrations: [Sentry.replayIntegration()],
-  beforeSend(event, hint) {
-    const error = hint?.originalException;
-    const message =
-      error instanceof Error
-        ? error.message
-        : event.exception?.values?.[0]?.value || event.message || 'Error';
-    if (isRecoveredHydrationNotice(message)) return null;
-    const stack = error instanceof Error ? error.stack : '';
-    reportClientError(message, stack);
-    return event;
-  },
+  dsn: undefined,
+  enabled: false,
 });
