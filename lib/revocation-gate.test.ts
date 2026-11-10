@@ -100,7 +100,27 @@ assert.equal(
     kitchenHost: kitchen,
     local: false,
   }),
-  'passthrough'
+  'blank-page'
+);
+
+assert.equal(
+  revocationDecision({
+    host: kitchen,
+    pathname: '/admin/login',
+    kitchenHost: kitchen,
+    local: false,
+  }),
+  'blank-page'
+);
+
+assert.equal(
+  revocationDecision({
+    host: kitchen,
+    pathname: '/api/kitchen/login',
+    kitchenHost: kitchen,
+    local: false,
+  }),
+  'blank-api'
 );
 
 assert.equal(
