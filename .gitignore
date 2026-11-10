@@ -28,6 +28,10 @@ yarn-error.log*
 .env
 .env*.local
 
+# Claves del cierre. El nombre es REVOCACION. No subir. Ver docs/REVOCACION.md
+/REVOCACION
+/REVOCACION.pull
+
 # vercel
 .vercel
 
