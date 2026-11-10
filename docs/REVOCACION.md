@@ -252,7 +252,15 @@ Uber Direct, variables (valores en el archivo `REVOCACION`):
 
 Resend: dominio verificado `lasvaqueras.com.mx`, id `c6d3c473-7f71-42af-80ec-82bbe7d63d17`. `RESEND_API_KEY` y `RESEND_FROM_EMAIL` en el archivo de claves.
 
-Sentry: proyecto `las-vaqueras`. `SENTRY_DSN` y `NEXT_PUBLIC_SENTRY_DSN` en el archivo de claves. La alerta de email en el Dashboard (Issues → Alerts) **seguía pendiente** el 9 nov 2026. No darla por hecha al volver.
+Sentry: proyecto `las-vaqueras`, organización `angel-salinas-creador`, región `https://us.sentry.io`. `SENTRY_DSN` y `NEXT_PUBLIC_SENTRY_DSN` siguen en Vercel y en el archivo de claves, pero el SDK quedó **apagado** la noche del 9 nov 2026: `enabled: false` y sin DSN en `sentry.client.config.ts`, `sentry.server.config.ts` y `sentry.edge.config.ts`. No manda errores ni replay.
+
+Alertas que estaban prendidas y se apagaron esa noche (volver a ponerlas en `active` al encender):
+
+- `6040982` — Send a notification for high priority issues. Email a los miembros. Era la que avisaba en producción. Último disparo 10 nov 2026 03:42 UTC.
+- `6041165` — Notify Suggested Assignees. Email. Último disparo 10 nov 2026 03:43 UTC.
+- `5922212` — Send a notification when pull requests are ready. No se pudo apagar por permiso (HTTP 403). No había disparado. Al volver, revisar si sigue activa.
+
+Para encender Sentry otra vez: en los tres `sentry.*.config.ts`, volver a `dsn` desde el env y `enabled: Boolean(dsn)`, con el `beforeSend` que había en el commit `d9627e64` (el de antes del cierre). Luego activar las alertas `6040982` y `6041165`. La alerta de email del checklist de entrega (Issues → Alerts, una creada a mano) seguía pendiente antes de este cierre; estas dos de arriba son las que sí estaban mandando correo.
 
 Cron de [vercel.json](../vercel.json): `GET /api/cron/experience-email` con horario `*/5 * * * *`. El correo de calificación sale unos 90 minutos después del ticket (PR #125).
 
@@ -345,6 +353,7 @@ Hecho el 9 nov 2026:
 - Archivo local `REVOCACION` con las variables de Production que Vercel todavía deja bajar, más las copias locales de las que estaban marcadas Sensitive. Faltan en ese archivo: `STRIPE_SECRET_KEY` de producción, las tres contraseñas de entrada de cocina y `IANGEL_OPS_WEBHOOK_SECRET`.
 - Sitio público en blanco y APIs de cobro del sitio vacías.
 - Cocina en blanco, en `https://cocina.lasvaqueras.com.mx`, páginas y APIs. El panel no muestra login ni pedidos.
+- Sentry apagado en el código (`enabled: false`) y alertas `6040982` y `6041165` desactivadas, para que dejen de llegar correos.
 
 No hecho, y no se hace hasta que su Express esté en cero y él haya contestado:
 
